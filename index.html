@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Murji Ravji And Company — Oil Trading & Inventory</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Your Custom CSS -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar no-print">
+  <div class="brand"><div class="brand-icon" aria-hidden="true">&#x1F6E2;</div><div><div class="brand-name">Murji Ravji & Co.</div><div class="brand-sub">OIL TRADING & LOGISTICS</div></div></div>
+  <div class="topbar-right"><div class="live-badge"><div class="live-dot"></div>LIVE</div><div class="date-badge" id="clockEl"></div></div>
+</div>
+
+<div class="nav no-print" role="tablist">
+  <div class="nav-tab active" onclick="switchPage('dashboard')">&#x1F4CA; Dashboard</div>
+  <div class="nav-tab" onclick="switchPage('inventory')">&#x1F6E2; Inventory</div>
+  <div class="nav-tab" onclick="switchPage('trades')">&#x1F4B1; Trades</div>
+  <div class="nav-tab" onclick="switchPage('orders')">&#x1F4CB; Orders</div>
+  <div class="nav-tab" onclick="switchPage('challans')">&#x1F4E6; Challans</div>
+  <div class="nav-tab" onclick="switchPage('suppliers')">&#x1F3ED; Suppliers</div>
+  <div class="nav-tab" onclick="switchPage('reports')">&#x1F4C8; Reports</div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard"><div class="container">
+  <div class="ticker" id="tickerEl"></div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+  <div class="grid2">
+    <div><div class="section-title">Inventory Levels</div><div class="panel" id="invLevels"></div></div>
+    <div><div class="section-title">Recent Trades</div><div class="table-wrap"><table><thead><tr><th>Product</th><th>Type</th><th>Vol (L)</th><th>Weight (KG)</th><th>Price/L</th><th>Value</th></tr></thead><tbody id="recentTradesTbl"></tbody></table></div></div>
+  </div>
+  <div class="section-title">Active Orders</div>
+  <div class="table-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Product</th><th>Qty (L)</th><th>Value</th><th>Status</th><th>Due</th></tr></thead><tbody id="activeOrdersTbl"></tbody></table></div>
+</div></div>
+
+<!-- INVENTORY -->
+<div class="page" id="page-inventory"><div class="container">
+  <div class="section-title">Product Master</div>
+  <div class="panel">
+    <div class="form-grid" style="max-width:600px">
+      <div class="form-group"><label>Product Name</label><input id="pm-name" placeholder="e.g. Furnace Oil"></div>
+      <div class="form-group"><label>Default Density (kg/L)</label><input id="pm-density" type="number" step="0.001" placeholder="0.850"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="addProductMaster()">&#x2795; Add Product</button></div>
+    <div class="products-list" id="productsList" style="margin-top:14px"></div>
+  </div>
+  <div class="section-title">Add / Update Stock</div>
+  <div class="panel">
+    <div class="form-grid">
+      <div class="form-group"><label>Product</label><select id="inv-product"></select></div>
+      <div class="form-group"><label>Grade / Spec</label><input id="inv-grade" placeholder="e.g. EN590"></div>
+      <div class="form-group"><label>Density (kg/L)</label><input id="inv-density" type="number" step="0.001" placeholder="0.850"></div>
+      <div class="form-group"><label>Quantity</label>
+        <div class="dual"><div><input id="inv-vol" type="number" placeholder="0" oninput="dualCalc('inv','vol')"><div class="di-unit">Litres</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="inv-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('inv','kg')"><div class="di-unit">Kilograms</div></div></div>
+      </div>
+      <div class="form-group"><label>Unit Price</label>
+        <div class="dual"><div><input id="inv-cost" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('inv','perL')"><div class="di-unit">&#x20B9; / Litre</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="inv-cost-kg" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('inv','perKG')"><div class="di-unit">&#x20B9; / KG</div></div></div>
+      </div>
+      <div class="form-group"><label>Tank / Location</label><input id="inv-tank" placeholder="Tank A"></div>
+      <div class="form-group"><label>Min. Threshold (L)</label><input id="inv-thresh" type="number" placeholder="1000"></div>
+      <div class="form-group"><label>Weight Slip Photo</label>
+        <div class="photo-upload"><input type="file" accept="image/*" id="inv-slip" onchange="handlePhotoUpload(this,'inv-slip-preview')"><div id="inv-slip-preview"><div class="photo-placeholder">&#x1F4F7;</div></div><span class="photo-btn">Choose File</span></div>
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="addInventory()">&#x2795; Add to Stock</button><button class="btn btn-ghost" onclick="clearInvForm()">Clear</button></div>
+  </div>
+  <div class="search-row"><input class="search-input" placeholder="&#x1F50D; Search inventory..." id="invSearch" oninput="renderInventoryTable()"></div>
+  <div class="export-bar"><span style="flex:1"></span><button class="btn btn-ghost btn-sm" onclick="exportInventoryExcel()">&#x1F4E5; Export Excel</button></div>
+  <div class="print-tip no-print">Tip: Excel file downloads directly. Opens in Excel, WPS, or Google Sheets.</div>
+  <div class="section-title">Current Stock</div>
+  <div class="table-wrap scroll-x"><table><thead><tr><th>Product</th><th>Grade</th><th>Density</th><th>Tank</th><th>Vol (L)</th><th>Weight (KG)</th><th>Cost/L</th><th>Value</th><th>Level</th><th>Actions</th></tr></thead><tbody id="invTable"></tbody></table></div>
+</div></div>
+
+<!-- TRADES -->
+<div class="page" id="page-trades"><div class="container">
+  <div class="section-title">Record Trade</div>
+  <div class="panel">
+    <div class="form-grid">
+      <div class="form-group"><label>Trade Type</label><select id="tr-type"><option>Buy</option><option>Sell</option></select></div>
+      <div class="form-group"><label>Product</label><select id="tr-product"></select></div>
+      <div class="form-group"><label>Counterparty</label><input id="tr-party" placeholder="Supplier / Customer"></div>
+      <div class="form-group"><label>Density (kg/L)</label><input id="tr-density" type="number" step="0.001" placeholder="0.850" oninput="onDensityChangeForPrice('tr')"></div>
+      <div class="form-group"><label>Quantity</label>
+        <div class="dual"><div><input id="tr-vol" type="number" placeholder="0" oninput="dualCalc('tr','vol')"><div class="di-unit">Litres</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="tr-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('tr','kg')"><div class="di-unit">Kilograms</div></div></div>
+      </div>
+      <div class="form-group"><label>Unit Price</label>
+        <div class="dual"><div><input id="tr-price" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('tr','perL')"><div class="di-unit">&#x20B9; / Litre</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="tr-price-kg" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('tr','perKG')"><div class="di-unit">&#x20B9; / KG</div></div></div>
+      </div>
+      <div class="form-group"><label>Trade Date</label><input id="tr-date" type="date"></div>
+      <div class="form-group"><label>Payment Terms</label>
+        <div class="terms-row"><div class="form-group" style="flex:1"><select id="tr-terms" onchange="toggleCustomTerm('tr')"><option>Immediate</option><option>Net 15</option><option>Net 30</option><option value="__custom__">Custom...</option></select></div><div class="custom-input" id="tr-custom-term"><input id="tr-custom-term-val" placeholder="Enter custom term"></div></div>
+      </div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="addTrade()">&#x1F4B1; Record Trade</button></div>
+  </div>
+  <div class="search-row"><input class="search-input" placeholder="&#x1F50D; Search trades..." id="tradeSearch" oninput="renderTradesTable()"></div>
+  <div class="section-title">Trade History</div>
+  <div class="table-wrap scroll-x"><table><thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Party</th><th>Vol (L)</th><th>Price/L</th><th>Total</th><th>Actions</th></tr></thead><tbody id="tradesTable"></tbody></table></div>
+</div></div>
+
+<!-- ORDERS -->
+<div class="page" id="page-orders"><div class="container">
+  <div class="section-title">Create Order</div>
+  <div class="panel">
+    <div class="form-grid">
+      <div class="form-group"><label>Customer Name</label><input id="ord-customer" placeholder="Customer / Company"></div>
+      <div class="form-group"><label>Product</label><select id="ord-product"></select></div>
+      <div class="form-group"><label>Density (kg/L)</label><input id="ord-density" type="number" step="0.001" placeholder="0.850" oninput="onDensityChangeForPrice('ord')"></div>
+      <div class="form-group"><label>Quantity</label>
+        <div class="dual"><div><input id="ord-qty" type="number" placeholder="0" oninput="dualCalc('ord','vol')"><div class="di-unit">Litres</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="ord-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('ord','kg')"><div class="di-unit">Kilograms</div></div></div>
+      </div>
+      <div class="form-group"><label>Agreed Price</label>
+        <div class="dual"><div><input id="ord-price" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('ord','perL')"><div class="di-unit">&#x20B9; / Litre</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="ord-price-kg" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('ord','perKG')"><div class="di-unit">&#x20B9; / KG</div></div></div>
+      </div>
+      <div class="form-group"><label>Order Date</label><input id="ord-date" type="date"></div>
+      <div class="form-group"><label>Delivery Date</label><input id="ord-due" type="date"></div>
+      <div class="form-group"><label>Priority</label><select id="ord-priority"><option>Normal</option><option>High</option><option>Urgent</option></select></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="addOrder()">&#x1F4CB; Create Order</button></div>
+  </div>
+  <div class="section-title">All Orders</div>
+  <div class="table-wrap scroll-x"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Product</th><th>Qty (L)</th><th>Value</th><th>Status</th><th>Due</th><th>Actions</th></tr></thead><tbody id="ordersTable"></tbody></table></div>
+</div></div>
+
+<!-- CHALLANS -->
+<div class="page" id="page-challans"><div class="container">
+  <div class="section-title">Create Delivery Challan</div>
+  <div class="panel">
+    <div class="form-grid">
+      <div class="form-group"><label>Type</label><select id="ch-type" onchange="toggleChallanFields()"><option value="out">Outward (Dispatch)</option><option value="in">Inward (Receive)</option></select></div>
+      <div class="form-group"><label>Challan No.</label><input id="ch-no" placeholder="Auto if blank"></div>
+      <div class="form-group"><label>Date</label><input id="ch-date" type="date"></div>
+      <div class="form-group"><label>Product</label><select id="ch-product"></select></div>
+      <div class="form-group"><label>Density (kg/L)</label><input id="ch-density" type="number" step="0.001" placeholder="0.850" oninput="dualCalc('ch','kg')"></div>
+      <div class="form-group"><label>Quantity</label>
+        <div class="dual"><div><input id="ch-vol" type="number" placeholder="0" oninput="dualCalc('ch','vol')"><div class="di-unit">Litres</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="ch-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('ch','kg')"><div class="di-unit">Kilograms</div></div></div>
+      </div>
+      <div class="form-group" id="ch-from-group"><label>Dispatched From</label><input id="ch-from" placeholder="Depot"></div>
+      <div class="form-group" id="ch-to-group"><label>Delivered To</label><input id="ch-to" placeholder="Customer"></div>
+      <div class="form-group"><label>Vehicle No.</label><input id="ch-vehicle" placeholder="MH 12 AB 1234"></div>
+      <div class="form-group"><label>Driver</label><input id="ch-driver" placeholder="Name"></div>
+      <div class="form-group"><label>Driver Phone</label><input id="ch-driver-ph" placeholder="+91 XXXXX XXXXX"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="addChallan()">&#x1F4E6; Create Challan</button></div>
+  </div>
+  <div class="print-tip no-print" style="margin-top:-10px;margin-bottom:16px;">Tip: Click PDF to open print dialog — choose "Save as PDF" as the destination.</div>
+  <div class="section-title">Challan Register</div>
+  <div class="table-wrap scroll-x"><table><thead><tr><th>No.</th><th>Type</th><th>Date</th><th>Product</th><th>Vol (L)</th><th>From</th><th>To</th><th>Vehicle</th><th>Actions</th></tr></thead><tbody id="challansTable"></tbody></table></div>
+</div></div>
+
+<!-- SUPPLIERS -->
+<div class="page" id="page-suppliers"><div class="container">
+  <div class="section-title">Add Supplier</div>
+  <div class="panel">
+    <div class="form-grid">
+      <div class="form-group"><label>Company</label><input id="sup-name" placeholder="Name"></div>
+      <div class="form-group"><label>Contact</label><input id="sup-contact" placeholder="Person"></div>
+      <div class="form-group"><label>Phone</label><input id="sup-phone" placeholder="+91"></div>
+      <div class="form-group"><label>City</label><input id="sup-city" placeholder="Mumbai"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="addSupplier()">&#x1F3ED; Add Supplier</button></div>
+  </div>
+  <div class="section-title">Supplier Directory</div>
+  <div class="table-wrap scroll-x"><table><thead><tr><th>Company</th><th>Contact</th><th>Phone</th><th>City</th><th>Actions</th></tr></thead><tbody id="suppliersTable"></tbody></table></div>
+</div></div>
+
+<!-- REPORTS -->
+<div class="page" id="page-reports"><div class="container">
+  <div class="kpi-grid" id="reportKpis"></div>
+  <div class="grid2">
+    <div class="panel"><div class="section-title">P&L Summary</div><div id="plSummary"></div></div>
+    <div class="panel"><div class="section-title">Top Customers</div><div id="topCustomers"></div></div>
+  </div>
+</div></div>
+
+<!-- Hidden print zone -->
+<div id="printZone"></div>
+
+<!-- Modals & Overlays -->
+<div class="modal-overlay no-print" id="confirmModal"><div class="modal-box"><p id="confirmMsg"></p><div class="modal-btns"><button class="btn btn-danger" id="confirmYes">Delete</button><button class="btn btn-ghost" id="confirmNo">Cancel</button></div></div></div>
+<div class="lightbox no-print" id="lightbox" onclick="this.classList.remove('show')"><img id="lightboxImg" src="" alt="Slip"></div>
+<div class="toast no-print" id="toast" role="alert" aria-live="polite"></div>
+
+<!-- Your Custom JavaScript -->
+<script src="script.js"></script>
+</body>
+</html>
