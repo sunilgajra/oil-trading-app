@@ -126,6 +126,14 @@ function syncUnitLabels(px) {
   if (priceLabel) priceLabel.innerHTML = unit === 'kg' ? '&#8377; / KG' : '&#8377; / Litre';
 }
 
+function toggleCustomTerm(px) {
+  var sel = document.getElementById(px + '-terms');
+  var cust = document.getElementById(px + '-custom-term');
+  if (!sel || !cust) return;
+  if (sel.value === '__custom__') cust.classList.add('show');
+  else cust.classList.remove('show');
+}
+
 function downloadChallanPDF(id) {
   var c = state.challans.find(function(x){ return x.id === id; });
   if (!c) return toast('Challan not found', true);
@@ -819,6 +827,7 @@ function switchPage(name) {
 
 window.switchPage = switchPage;
 window.syncUnitLabels = syncUnitLabels;
+window.toggleCustomTerm = toggleCustomTerm;
 window.addProductMaster = addProductMaster;
 window.deleteProduct = deleteProduct;
 window.handlePhotoUpload = handlePhotoUpload;
@@ -828,7 +837,6 @@ window.clearInvForm = clearInvForm;
 window.renderInventoryTable = renderInventoryTable;
 window.addTrade = addTrade;
 window.renderTradesTable = renderTradesTable;
-window.toggleCustomTerm = toggleCustomTerm;
 window.addOrder = addOrder;
 window.updateOrderStatus = updateOrderStatus;
 window.toggleChallanFields = toggleChallanFields;
@@ -872,6 +880,7 @@ async function init() {
     renderSuppliersTable();
     renderCustomersTable();
     toggleChallanFields();
+    toggleCustomTerm('tr');
 
     fetchBrentPrice();
     setInterval(fetchBrentPrice, 300000);
