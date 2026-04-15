@@ -30,6 +30,7 @@
   <div class="nav-tab" onclick="switchPage('orders')">&#x1F4CB; Orders</div>
   <div class="nav-tab" onclick="switchPage('challans')">&#x1F4E6; Challans</div>
   <div class="nav-tab" onclick="switchPage('suppliers')">&#x1F3ED; Suppliers</div>
+  <div class="nav-tab" onclick="switchPage('customers')">&#x1F465; Customers</div>
   <div class="nav-tab" onclick="switchPage('reports')">&#x1F4C8; Reports</div>
 </div>
 
@@ -112,12 +113,16 @@
           <select id="inv-product"></select>
         </div>
         <div class="form-group">
+          <label>HSN Code</label>
+          <input id="inv-hsn" placeholder="e.g. 27101930">
+        </div>
+        <div class="form-group">
           <label>Grade / Spec</label>
           <input id="inv-grade" placeholder="e.g. EN590">
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="inv-density" type="number" step="0.001" placeholder="0.850">
+          <input id="inv-density" type="number" step="0.001" placeholder="Required">
         </div>
         <div class="form-group">
           <label>Quantity</label>
@@ -152,7 +157,7 @@
           <input id="inv-tank" placeholder="Tank A">
         </div>
         <div class="form-group">
-          <label>Min. Threshold (L)</label>
+          <label>Min. Threshold (KG)</label>
           <input id="inv-thresh" type="number" placeholder="1000">
         </div>
         <div class="form-group">
@@ -187,6 +192,7 @@
         <thead>
           <tr>
             <th>Product</th>
+            <th>HSN</th>
             <th>Grade</th>
             <th>Density</th>
             <th>Tank</th>
@@ -223,11 +229,11 @@
         </div>
         <div class="form-group">
           <label>Counterparty</label>
-          <input id="tr-party" placeholder="Supplier / Customer">
+          <select id="tr-party"></select>
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="tr-density" type="number" step="0.001" placeholder="0.850" oninput="onDensityChangeForPrice('tr')">
+          <input id="tr-density" type="number" step="0.001" placeholder="Required" oninput="onDensityChangeForPrice('tr')">
         </div>
         <div class="form-group">
           <label>Quantity</label>
@@ -316,7 +322,7 @@
       <div class="form-grid">
         <div class="form-group">
           <label>Customer Name</label>
-          <input id="ord-customer" placeholder="Customer / Company">
+          <select id="ord-customer"></select>
         </div>
         <div class="form-group">
           <label>Product</label>
@@ -324,7 +330,7 @@
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="ord-density" type="number" step="0.001" placeholder="0.850" oninput="onDensityChangeForPrice('ord')">
+          <input id="ord-density" type="number" step="0.001" placeholder="Required" oninput="onDensityChangeForPrice('ord')">
         </div>
         <div class="form-group">
           <label>Quantity</label>
@@ -424,7 +430,7 @@
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="ch-density" type="number" step="0.001" placeholder="0.850" oninput="dualCalc('ch','kg')">
+          <input id="ch-density" type="number" step="0.001" placeholder="Required" oninput="dualCalc('ch','kg')">
         </div>
         <div class="form-group">
           <label>Quantity</label>
@@ -498,22 +504,12 @@
     <div class="section-title">Add Supplier</div>
     <div class="panel">
       <div class="form-grid">
-        <div class="form-group">
-          <label>Company</label>
-          <input id="sup-name" placeholder="Name">
-        </div>
-        <div class="form-group">
-          <label>Contact</label>
-          <input id="sup-contact" placeholder="Person">
-        </div>
-        <div class="form-group">
-          <label>Phone</label>
-          <input id="sup-phone" placeholder="+91">
-        </div>
-        <div class="form-group">
-          <label>City</label>
-          <input id="sup-city" placeholder="Mumbai">
-        </div>
+        <div class="form-group"><label>Company</label><input id="sup-name" placeholder="Name"></div>
+        <div class="form-group"><label>GST No.</label><input id="sup-gst" placeholder="27ABCDE1234F1Z5"></div>
+        <div class="form-group"><label>Contact</label><input id="sup-contact" placeholder="Person"></div>
+        <div class="form-group"><label>Phone</label><input id="sup-phone" placeholder="+91"></div>
+        <div class="form-group"><label>City</label><input id="sup-city" placeholder="Mumbai"></div>
+        <div class="form-group full"><label>Address</label><input id="sup-address" placeholder="Full address"></div>
       </div>
       <div class="btn-row">
         <button class="btn btn-primary" onclick="addSupplier()">&#x1F3ED; Add Supplier</button>
@@ -526,13 +522,53 @@
         <thead>
           <tr>
             <th>Company</th>
+            <th>GST</th>
             <th>Contact</th>
             <th>Phone</th>
             <th>City</th>
+            <th>Address</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="suppliersTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMERS -->
+<div class="page" id="page-customers">
+  <div class="container">
+    <div class="section-title">Add Customer</div>
+    <div class="panel">
+      <div class="form-grid">
+        <div class="form-group"><label>Company</label><input id="cust-name" placeholder="Name"></div>
+        <div class="form-group"><label>GST No.</label><input id="cust-gst" placeholder="27ABCDE1234F1Z5"></div>
+        <div class="form-group"><label>Contact</label><input id="cust-contact" placeholder="Person"></div>
+        <div class="form-group"><label>Phone</label><input id="cust-phone" placeholder="+91"></div>
+        <div class="form-group"><label>City</label><input id="cust-city" placeholder="Mumbai"></div>
+        <div class="form-group full"><label>Address</label><input id="cust-address" placeholder="Full address"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="addCustomer()">&#x2795; Add Customer</button>
+      </div>
+    </div>
+
+    <div class="section-title">Customer Directory</div>
+    <div class="table-wrap scroll-x">
+      <table>
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>GST</th>
+            <th>Contact</th>
+            <th>Phone</th>
+            <th>City</th>
+            <th>Address</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="customersTable"></tbody>
       </table>
     </div>
   </div>
@@ -555,10 +591,8 @@
   </div>
 </div>
 
-<!-- Hidden print zone -->
 <div id="printZone"></div>
 
-<!-- Modals & Overlays -->
 <div class="modal-overlay no-print" id="confirmModal">
   <div class="modal-box">
     <p id="confirmMsg"></p>
@@ -576,8 +610,8 @@
 <div class="toast no-print" id="toast" role="alert" aria-live="polite"></div>
 
 <script>
-  window.SUPABASE_URL = "https://vrkilanytzftkpfllqjh.supabase.co";
-  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZya2lsYW55dHpmdGtwZmxscWpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMzQ5MTUsImV4cCI6MjA5MTgxMDkxNX0.D4BjNIYneCUkbiFnNR8MhsA9-yDYBYNR9Ha2AZemvXk";
+  window.SUPABASE_URL = "https://YOUR_PROJECT_REF.supabase.co";
+  window.SUPABASE_ANON_KEY = "YOUR_ANON_PUBLIC_KEY";
 </script>
 <script type="module" src="script.js"></script>
 
