@@ -174,7 +174,9 @@
 
     <div class="export-bar">
       <span style="flex:1"></span>
-      <button class="btn btn-ghost btn-sm" onclick="exportInventoryExcel()">&#x1F4E5; Export Excel</button>
+      <button class="btn btn-ghost btn-sm" onclick="printInventoryPDF()">Print PDF</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportInventoryCSV()">Export CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportInventoryExcel()">Export Excel</button>
     </div>
 
     <div class="print-tip no-print">Tip: Excel file downloads directly. Opens in Excel, WPS, or Google Sheets.</div>
@@ -274,6 +276,12 @@
       <input class="search-input" placeholder="&#x1F50D; Search trades..." id="tradeSearch" oninput="renderTradesTable()">
     </div>
 
+    <div class="export-bar">
+      <span style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" onclick="printTradesPDF()">Print PDF</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportTradesCSV()">Export CSV</button>
+    </div>
+
     <div class="section-title">Trade History</div>
     <div class="table-wrap scroll-x">
       <table>
@@ -349,6 +357,12 @@
       <div class="btn-row">
         <button class="btn btn-primary" onclick="addOrder()">&#x1F4CB; Create Order</button>
       </div>
+    </div>
+
+    <div class="export-bar">
+      <span style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" onclick="printOrdersPDF()">Print PDF</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportOrdersCSV()">Export CSV</button>
     </div>
 
     <div class="section-title">All Orders</div>
@@ -546,6 +560,12 @@
 
 <div class="page" id="page-reports">
   <div class="container">
+    <div class="export-bar">
+      <span style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" onclick="printReportsPDF()">Print PDF</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportReportsCSV()">Export CSV</button>
+    </div>
+
     <div class="kpi-grid" id="reportKpis"></div>
     <div class="grid2">
       <div class="panel">

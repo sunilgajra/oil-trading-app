@@ -138,6 +138,41 @@ function openDeliveryOrderApp() {
   window.open('https://sunilgajra.github.io/delivery-order-app/', '_blank');
 }
 
+function downloadCSV(filename, rows) {
+  var csv = rows.map(function(row) {
+    return row.map(function(cell) {
+      var val = cell == null ? '' : String(cell);
+      val = val.replace(/"/g, '""');
+      if (val.search(/("|,|\n)/g) >= 0) val = '"' + val + '"';
+      return val;
+    }).join(',');
+  }).join('\n');
+
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function printHTML(title, html) {
+  var zone = document.getElementById('printZone');
+  zone.innerHTML =
+    '<div class="print-header">' +
+      '<h1>MURJI RAVJI & CO.</h1>' +
+      '<p>OIL TRADING & LOGISTICS</p>' +
+    '</div>' +
+    '<div class="print-title">' + escH(title) + '</div>' +
+    html +
+    '<div class="print-note">Generated on ' + new Date().toLocaleString('en-IN') + '</div>';
+
+  setTimeout(function(){ window.print(); }, 300);
+}
+
 function downloadChallanPDF(id) {
   var c = state.challans.find(function(x){ return x.id === id; });
   if (!c) return toast('Challan not found', true);
@@ -229,6 +264,251 @@ function exportInventoryExcel() {
   } catch (err) {
     toast('Export failed: ' + err.message, true);
   }
+}
+
+function exportInventoryCSV() {
+  var rows = [
+    ['Product','HSN','Grade','Density','Tank','Qty','Unit','Base Volume (L)','Rate','Value']
+  ];
+
+  state.inventory.forEach(function(i) {
+    var qty = i.entered_qty || i.entered_kg || i.vol || 0;
+    var unit = i.qty_unit || (i.entered_kg ? 'kg' : 'litre');
+    rows.push([
+      i.product,
+      i.hsn || '',
+      i.grade || '',
+      i.density || '',
+      i.tank || '',
+      qty,
+      unit,
+      i.vol || 0,
+      i.cost || 0,
+      Number(qty || 0) * Number(i.cost || 0)
+    ]);
+  });
+
+  downloadCSV('inventory_' + today() + '.csv', rows);
+}
+
+function printInventoryPDF() {
+  var html = '<table class="print-table"><tr><th>Product</th><th>HSN</th><th>Grade</th><th>Density</th><th>Tank</th><th>Qty</th><th>Base Volume</th><th>Rate</th><th>Value</th></tr>';
+
+  state.inventory.forEach(function(i) {
+    var qty = i.entered_qty || i.entered_kg || i.vol || 0;
+    var unit = i.qty_unit || (i.entered_kg ? 'kg' : 'litre');
+    html += '<tr>' +
+      '<td>' + escH(i.product) + '</td>' +
+      '<td>' + escH(i.hsn || '-') + '</td>' +
+      '<td>' + escH(i.grade || '-') + '</td>' +
+      '<td>' + escH(i.density || '-') + '</td>' +
+      '<td>' + escH(i.tank || '-') + '</td>' +
+      '<td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td>' + fmtN(i.vol || 0) + ' L</td>' +
+      '<td>' + fmt(i.cost || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td>' + fmt(Number(qty || 0) * Number(i.cost || 0)) + '</td>' +
+    '</tr>';
+  });
+
+  html += '</table>';
+  printHTML('Current Stock Report', html);
+}
+
+function exportTradesCSV() {
+  var rows = [
+    ['Date','Type','Product','Party','Qty','Unit','Rate','Total','Terms','Density']
+  ];
+
+  state.trades.forEach(function(t) {
+    var qty = t.entered_qty || t.entered_kg || t.vol || 0;
+    var unit = t.qty_unit || (t.entered_kg ? 'kg' : 'litre');
+    rows.push([
+      t.date || '',
+      t.type || '',
+      t.product || '',
+      t.party || '',
+      qty,
+      unit,
+      t.price || 0,
+      Number(qty || 0) * Number(t.price || 0),
+      t.terms || '',
+      t.density || ''
+    ]);
+  });
+
+  downloadCSV('trades_' + today() + '.csv', rows);
+}
+
+function printTradesPDF() {
+  var html = '<table class="print-table"><tr><th>Date</th><th>Type</th><th>Product</th><th>Party</th><th>Qty</th><th>Rate</th><th>Total</th></tr>';
+
+  state.trades.forEach(function(t) {
+    var qty = t.entered_qty || t.entered_kg || t.vol || 0;
+    var unit = t.qty_unit || (t.entered_kg ? 'kg' : 'litre');
+    html += '<tr>' +
+      '<td>' + escH(t.date || '') + '</td>' +
+      '<td>' + escH(t.type || '') + '</td>' +
+      '<td>' + escH(t.product || '') + '</td>' +
+      '<td>' + escH(t.party || '') + '</td>' +
+      '<td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td>' + fmt(t.price || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td>' + fmt(Number(qty || 0) * Number(t.price || 0)) + '</td>' +
+    '</tr>';
+  });
+
+  html += '</table>';
+  printHTML('Trade History Report', html);
+}
+
+function exportOrdersCSV() {
+  var rows = [
+    ['Order ID','Customer','Product','Qty','Unit','Rate','Value','Status','Order Date','Due Date','Priority']
+  ];
+
+  state.orders.forEach(function(o) {
+    var qty = o.entered_qty || o.entered_kg || o.qty || 0;
+    var unit = o.qty_unit || (o.entered_kg ? 'kg' : 'litre');
+    rows.push([
+      o.id || '',
+      o.customer || '',
+      o.product || '',
+      qty,
+      unit,
+      o.price || 0,
+      Number(qty || 0) * Number(o.price || 0),
+      o.status || '',
+      o.date || '',
+      o.due || '',
+      o.priority || ''
+    ]);
+  });
+
+  downloadCSV('orders_' + today() + '.csv', rows);
+}
+
+function printOrdersPDF() {
+  var html = '<table class="print-table"><tr><th>Order ID</th><th>Customer</th><th>Product</th><th>Qty</th><th>Rate</th><th>Value</th><th>Status</th><th>Due</th></tr>';
+
+  state.orders.forEach(function(o) {
+    var qty = o.entered_qty || o.entered_kg || o.qty || 0;
+    var unit = o.qty_unit || (o.entered_kg ? 'kg' : 'litre');
+    html += '<tr>' +
+      '<td>' + escH(o.id || '') + '</td>' +
+      '<td>' + escH(o.customer || '') + '</td>' +
+      '<td>' + escH(o.product || '') + '</td>' +
+      '<td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td>' + fmt(o.price || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td>' + fmt(Number(qty || 0) * Number(o.price || 0)) + '</td>' +
+      '<td>' + escH(o.status || '') + '</td>' +
+      '<td>' + escH(o.due || '') + '</td>' +
+    '</tr>';
+  });
+
+  html += '</table>';
+  printHTML('All Orders Report', html);
+}
+
+function getReportSummary() {
+  var sales = 0, buys = 0;
+
+  state.trades.forEach(function(t) {
+    var qty = t.entered_qty || t.entered_kg || t.vol || 0;
+    var total = Number(qty || 0) * Number(t.price || 0);
+    if (t.type === 'Sell') sales += total;
+    else buys += total;
+  });
+
+  var profit = sales - buys;
+
+  var customerMap = {};
+  state.trades.forEach(function(t) {
+    if (t.type !== 'Sell') return;
+    var qty = t.entered_qty || t.entered_kg || t.vol || 0;
+    var total = Number(qty || 0) * Number(t.price || 0);
+    customerMap[t.party] = (customerMap[t.party] || 0) + total;
+  });
+
+  var topCustomers = Object.keys(customerMap)
+    .map(function(name){ return { name:name, value:customerMap[name] }; })
+    .sort(function(a,b){ return b.value - a.value; });
+
+  return { sales:sales, buys:buys, profit:profit, topCustomers:topCustomers };
+}
+
+function exportReportsCSV() {
+  var summary = getReportSummary();
+
+  var rows = [
+    ['REPORT SUMMARY'],
+    ['Sales', summary.sales],
+    ['Purchases', summary.buys],
+    ['Profit', summary.profit],
+    [''],
+    ['TOP CUSTOMERS'],
+    ['Customer','Revenue']
+  ];
+
+  summary.topCustomers.forEach(function(c) {
+    rows.push([c.name, c.value]);
+  });
+
+  rows.push(['']);
+  rows.push(['TRADE DETAILS']);
+  rows.push(['Date','Type','Product','Party','Qty','Unit','Rate','Total']);
+
+  state.trades.forEach(function(t) {
+    var qty = t.entered_qty || t.entered_kg || t.vol || 0;
+    var unit = t.qty_unit || (t.entered_kg ? 'kg' : 'litre');
+    rows.push([
+      t.date || '',
+      t.type || '',
+      t.product || '',
+      t.party || '',
+      qty,
+      unit,
+      t.price || 0,
+      Number(qty || 0) * Number(t.price || 0)
+    ]);
+  });
+
+  downloadCSV('reports_' + today() + '.csv', rows);
+}
+
+function printReportsPDF() {
+  var summary = getReportSummary();
+
+  var html = '';
+  html += '<table class="print-table">';
+  html += '<tr><th>Total Sales</th><td>' + fmt(summary.sales) + '</td></tr>';
+  html += '<tr><th>Total Purchases</th><td>' + fmt(summary.buys) + '</td></tr>';
+  html += '<tr><th>Net Profit</th><td>' + fmt(summary.profit) + '</td></tr>';
+  html += '</table>';
+
+  html += '<table class="print-table">';
+  html += '<tr><th>Top Customers</th><th>Revenue</th></tr>';
+  summary.topCustomers.forEach(function(c) {
+    html += '<tr><td>' + escH(c.name) + '</td><td>' + fmt(c.value) + '</td></tr>';
+  });
+  html += '</table>';
+
+  html += '<table class="print-table">';
+  html += '<tr><th>Date</th><th>Type</th><th>Product</th><th>Party</th><th>Qty</th><th>Rate</th><th>Total</th></tr>';
+  state.trades.forEach(function(t) {
+    var qty = t.entered_qty || t.entered_kg || t.vol || 0;
+    var unit = t.qty_unit || (t.entered_kg ? 'kg' : 'litre');
+    html += '<tr>' +
+      '<td>' + escH(t.date || '') + '</td>' +
+      '<td>' + escH(t.type || '') + '</td>' +
+      '<td>' + escH(t.product || '') + '</td>' +
+      '<td>' + escH(t.party || '') + '</td>' +
+      '<td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td>' + fmt(t.price || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td>' + fmt(Number(qty || 0) * Number(t.price || 0)) + '</td>' +
+    '</tr>';
+  });
+  html += '</table>';
+
+  printHTML('Detailed Reports', html);
 }
 
 function shareWhatsApp(id) {
@@ -854,6 +1134,14 @@ window.deleteItem = deleteItem;
 window.deleteOrder = deleteOrder;
 window.deleteChallan = deleteChallan;
 window.exportInventoryExcel = exportInventoryExcel;
+window.printInventoryPDF = printInventoryPDF;
+window.exportInventoryCSV = exportInventoryCSV;
+window.printTradesPDF = printTradesPDF;
+window.exportTradesCSV = exportTradesCSV;
+window.printOrdersPDF = printOrdersPDF;
+window.exportOrdersCSV = exportOrdersCSV;
+window.printReportsPDF = printReportsPDF;
+window.exportReportsCSV = exportReportsCSV;
 
 async function init() {
   try {
@@ -884,6 +1172,7 @@ async function init() {
     renderChallansTable();
     renderSuppliersTable();
     renderCustomersTable();
+    renderReports();
     toggleChallanFields();
     toggleCustomTerm('tr');
 
