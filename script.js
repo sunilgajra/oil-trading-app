@@ -115,10 +115,7 @@ async function fetchBrentPrice() {
 }
 
 function downloadChallanPDF(id) {
-  var c = null;
-  for (var i = 0; i < state.challans.length; i++) {
-    if (state.challans[i].id === id) { c = state.challans[i]; break; }
-  }
+  var c = state.challans.find(function(x){ return x.id === id; });
   if (!c) return toast('Challan not found', true);
 
   var html = '' +
@@ -336,7 +333,8 @@ function renderDashboardKpis() {
 
   var sl = 0;
   for (var j = 0; j < state.trades.length; j++) {
-    if (state.trades[j].type === 'Sell') sl += Number(state.trades[j].vol || 0) * Number(state.trades[j].price || 0);
+    var tradeQty = state.trades[j].entered_qty || state.trades[j].entered_kg || state.trades[j].vol || 0;
+    if (state.trades[j].type === 'Sell') sl += Number(tradeQty) * Number(state.trades[j].price || 0);
   }
 
   document.getElementById('kpiGrid').innerHTML =
@@ -357,15 +355,38 @@ function renderInvLevels() {
 
 function renderRecentTrades() {
   document.getElementById('recentTradesTbl').innerHTML = state.trades.slice(-5).reverse().map(function(t) {
-    var kg = Number(t.entered_kg || 0) || (t.density ? toKG(t.vol, t.density) : 0);
-    return '<tr><td>'+t.product+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+(kg ? fmtKG(kg) : '-')+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(Number(t.vol||0)*Number(t.price||0))+'</td></tr>';
+    var qty = t.entered_qty || t.entered_kg || t.vol || 0;
+    var unit = t.qty_unit || (t.entered_kg && !t.vol ? 'kg' : 'litre');
+    var kg = t.entered_kg || (t.density ? toKG(t.vol, t.density) : 0);
+
+    return '<tr>' +
+      '<td>' + t.product + '</td>' +
+      '<td><span class="badge ' + (t.type === 'Buy' ? 'badge-blue' : 'badge-green') + '">' + t.type + '</span></td>' +
+      '<td class="mono">' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td class="mono">' + (kg ? fmtKG(kg) : '-') + '</td>' +
+      '<td class="mono">' + fmt(t.price) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td class="mono">' + fmt(Number(qty) * Number(t.price || 0)) + '</td>' +
+    '</tr>';
   }).join('');
 }
 
 function renderActiveOrders() {
-  document.getElementById('activeOrdersTbl').innerHTML = state.orders.filter(function(o){ return o.status !== 'Delivered'; }).map(function(o) {
-    return '<tr><td class="mono">'+o.id+'</td><td>'+o.customer+'</td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(Number(o.qty||0)*Number(o.price||0))+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+(o.due || '')+'</td></tr>';
-  }).join('');
+  document.getElementById('activeOrdersTbl').innerHTML = state.orders
+    .filter(function(o){ return o.status !== 'Delivered'; })
+    .map(function(o) {
+      var qty = o.entered_qty || o.entered_kg || o.qty || 0;
+      var unit = o.qty_unit || (o.entered_kg ? 'kg' : 'litre');
+
+      return '<tr>' +
+        '<td class="mono">'+o.id+'</td>' +
+        '<td>'+o.customer+'</td>' +
+        '<td>'+o.product+'</td>' +
+        '<td class="mono">'+fmtN(qty)+' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+        '<td class="mono">'+fmt(Number(qty) * Number(o.price || 0))+'</td>' +
+        '<td>'+statusBadge(o.status)+'</td>' +
+        '<td class="mono">'+(o.due || '')+'</td>' +
+      '</tr>';
+    }).join('');
 }
 
 function populateSelects() {
@@ -465,7 +486,19 @@ function clearInvForm() {
 
 function renderTradesTable() {
   document.getElementById('tradesTable').innerHTML = state.trades.slice().reverse().map(function(t) {
-    return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(Number(t.vol||0)*Number(t.price||0))+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">✕</button></td></tr>';
+    var qty = t.entered_qty || t.entered_kg || t.vol || 0;
+    var unit = t.qty_unit || (t.entered_kg && !t.vol ? 'kg' : 'litre');
+
+    return '<tr>' +
+      '<td class="mono">' + t.date + '</td>' +
+      '<td><span class="badge ' + (t.type === 'Buy' ? 'badge-blue' : 'badge-green') + '">' + t.type + '</span></td>' +
+      '<td>' + t.product + '</td>' +
+      '<td>' + t.party + '</td>' +
+      '<td class="mono">' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td class="mono">' + fmt(t.price) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td class="mono">' + fmt(Number(qty) * Number(t.price || 0)) + '</td>' +
+      '<td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\',' + t.id + ')">✕</button></td>' +
+    '</tr>';
   }).join('');
 }
 
@@ -473,29 +506,57 @@ async function addTrade() {
   var type = document.getElementById('tr-type').value;
   var product = document.getElementById('tr-product').value;
   var party = document.getElementById('tr-party').value;
-  var volInput = parseFloat(document.getElementById('tr-vol').value);
-  var kgInput = parseFloat(document.getElementById('tr-kg').value);
-  var price = parseFloat(document.getElementById('tr-price').value);
+
+  var litreQty = parseFloat(document.getElementById('tr-vol').value);
+  var kgQty = parseFloat(document.getElementById('tr-kg').value);
+
+  var litrePrice = parseFloat(document.getElementById('tr-price').value);
+  var kgPrice = parseFloat(document.getElementById('tr-price-kg').value);
+
   var densityInput = document.getElementById('tr-density').value.trim();
   var density = densityInput ? parseFloat(densityInput) : null;
 
-  if (!party || (!volInput && !kgInput) || !price) {
+  if (!party || (!litreQty && !kgQty)) {
     return toast('Please fill required fields', true);
   }
 
-  var vol = volInput || null;
-  if (!vol && kgInput && density) vol = kgInput / density;
-  if (!vol) vol = 0;
+  var qty = 0;
+  var qtyUnit = 'litre';
+  var price = 0;
+  var vol = 0;
+  var enteredKg = null;
+
+  if (kgQty) {
+    qty = kgQty;
+    qtyUnit = 'kg';
+    price = kgPrice || 0;
+    enteredKg = kgQty;
+    vol = density ? (kgQty / density) : 0;
+  } else {
+    qty = litreQty;
+    qtyUnit = 'litre';
+    price = litrePrice || 0;
+    vol = litreQty;
+    enteredKg = density ? (litreQty * density) : null;
+  }
+
+  if (!price) {
+    return toast('Please enter price for the selected unit', true);
+  }
 
   var termsVal = document.getElementById('tr-terms').value;
-  if (termsVal === '__custom__') termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
+  if (termsVal === '__custom__') {
+    termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
+  }
 
   var row = {
     type: type,
     product: product,
     party: party,
     vol: vol,
-    entered_kg: kgInput || null,
+    entered_kg: qtyUnit === 'kg' ? qty : enteredKg,
+    entered_qty: qty,
+    qty_unit: qtyUnit,
     price: price,
     date: document.getElementById('tr-date').value || today(),
     terms: termsVal,
@@ -514,41 +575,84 @@ async function addTrade() {
 
 function renderOrdersTable() {
   document.getElementById('ordersTable').innerHTML = state.orders.slice().reverse().map(function(o) {
-    return '<tr><td class="mono">'+o.id+'</td><td><b>'+o.customer+'</b></td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(Number(o.qty||0)*Number(o.price||0))+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+(o.due||'')+'</td><td style="display:flex;gap:4px"><select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)"><option '+(o.status==='Pending'?'selected':'')+'>Pending</option><option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option><option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option></select><button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">✕</button></td></tr>';
+    var qty = o.entered_qty || o.entered_kg || o.qty || 0;
+    var unit = o.qty_unit || (o.entered_kg ? 'kg' : 'litre');
+
+    return '<tr>' +
+      '<td class="mono">'+o.id+'</td>' +
+      '<td><b>'+o.customer+'</b></td>' +
+      '<td>'+o.product+'</td>' +
+      '<td class="mono">'+fmtN(qty)+' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td class="mono">'+fmt(o.price)+' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
+      '<td class="mono">'+fmt(Number(qty) * Number(o.price || 0))+'</td>' +
+      '<td>'+statusBadge(o.status)+'</td>' +
+      '<td class="mono">'+(o.due||'')+'</td>' +
+      '<td style="display:flex;gap:4px">' +
+        '<select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)">' +
+          '<option '+(o.status==='Pending'?'selected':'')+'>Pending</option>' +
+          '<option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option>' +
+          '<option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option>' +
+        '</select>' +
+        '<button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">✕</button>' +
+      '</td>' +
+    '</tr>';
   }).join('');
 }
 
 async function addOrder() {
   var customer = document.getElementById('ord-customer').value;
   var product = document.getElementById('ord-product').value;
-  var volInput = parseFloat(document.getElementById('ord-qty').value);
-  var kgInput = parseFloat(document.getElementById('ord-kg').value);
-  var price = parseFloat(document.getElementById('ord-price').value);
+  var litreQty = parseFloat(document.getElementById('ord-qty').value);
+  var kgQty = parseFloat(document.getElementById('ord-kg').value);
+  var litrePrice = parseFloat(document.getElementById('ord-price').value);
+  var kgPrice = parseFloat(document.getElementById('ord-price-kg').value);
   var densityInput = document.getElementById('ord-density').value.trim();
   var density = densityInput ? parseFloat(densityInput) : null;
 
-  if (!customer || (!volInput && !kgInput) || !price) {
-    return toast('Please fill all required fields', true);
+  if (!customer || (!litreQty && !kgQty)) {
+    return toast('Please enter customer and quantity', true);
   }
 
-  var qty = volInput || null;
-  if (!qty && kgInput && density) qty = kgInput / density;
-  if (!qty) qty = 0;
+  var qty = 0;
+  var qtyUnit = 'litre';
+  var price = 0;
 
-  const { data: lastOrders } = await supabase.from('orders').select('id').order('created_at', { ascending:false }).limit(1);
+  if (kgQty) {
+    qty = kgQty;
+    qtyUnit = 'kg';
+    price = kgPrice || 0;
+  } else {
+    qty = litreQty;
+    qtyUnit = 'litre';
+    price = litrePrice || 0;
+  }
+
+  if (!price) {
+    return toast('Please enter price for the selected unit', true);
+  }
+
+  const { data: lastOrders } = await supabase
+    .from('orders')
+    .select('id')
+    .order('created_at', { ascending:false })
+    .limit(1);
+
   var nextNum = 1;
   if (lastOrders && lastOrders.length) {
     var m = String(lastOrders[0].id).match(/ORD-(\d+)/);
     if (m) nextNum = parseInt(m[1], 10) + 1;
   }
+
   var id = 'ORD-' + String(nextNum).padStart(3, '0');
 
   var row = {
     id: id,
     customer: customer,
     product: product,
-    qty: qty,
-    entered_kg: kgInput || null,
+    qty: qtyUnit === 'litre' ? qty : 0,
+    entered_kg: qtyUnit === 'kg' ? qty : null,
+    entered_qty: qty,
+    qty_unit: qtyUnit,
     price: price,
     date: document.getElementById('ord-date').value || today(),
     due: document.getElementById('ord-due').value || null,
@@ -705,8 +809,9 @@ function renderReports() {
   var sales = 0, buys = 0;
   for (var i = 0; i < state.trades.length; i++) {
     var t = state.trades[i];
-    if (t.type === 'Sell') sales += Number(t.vol || 0) * Number(t.price || 0);
-    else buys += Number(t.vol || 0) * Number(t.price || 0);
+    var qty = t.entered_qty || t.entered_kg || t.vol || 0;
+    if (t.type === 'Sell') sales += Number(qty) * Number(t.price || 0);
+    else buys += Number(qty) * Number(t.price || 0);
   }
   var profit = sales - buys;
   document.getElementById('reportKpis').innerHTML =
@@ -722,7 +827,8 @@ function renderReports() {
   var cust = {};
   for (var j = 0; j < state.trades.length; j++) {
     var tr = state.trades[j];
-    if (tr.type === 'Sell') cust[tr.party] = (cust[tr.party]||0) + (Number(tr.vol || 0) * Number(tr.price || 0));
+    var qty2 = tr.entered_qty || tr.entered_kg || tr.vol || 0;
+    if (tr.type === 'Sell') cust[tr.party] = (cust[tr.party]||0) + (Number(qty2) * Number(tr.price || 0));
   }
   var top = Object.keys(cust).map(function(k){ return [k, cust[k]]; }).sort(function(a,b){ return b[1]-a[1]; }).slice(0, 5);
   document.getElementById('topCustomers').innerHTML = top.map(function(c) {

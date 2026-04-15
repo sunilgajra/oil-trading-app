@@ -52,9 +52,9 @@
               <tr>
                 <th>Product</th>
                 <th>Type</th>
-                <th>Vol (L)</th>
+                <th>Qty</th>
                 <th>Weight (KG)</th>
-                <th>Price/L</th>
+                <th>Rate</th>
                 <th>Value</th>
               </tr>
             </thead>
@@ -72,7 +72,7 @@
             <th>Order ID</th>
             <th>Customer</th>
             <th>Product</th>
-            <th>Qty (L)</th>
+            <th>Qty</th>
             <th>Value</th>
             <th>Status</th>
             <th>Due</th>
@@ -254,7 +254,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label>Unit Price</label>
+          <label>Unit Price (per entered unit)</label>
           <div class="dual">
             <div>
               <input id="tr-price" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('tr','perL')">
@@ -306,8 +306,8 @@
             <th>Type</th>
             <th>Product</th>
             <th>Party</th>
-            <th>Vol (L)</th>
-            <th>Price/L</th>
+            <th>Qty</th>
+            <th>Rate</th>
             <th>Total</th>
             <th>Actions</th>
           </tr>
@@ -351,7 +351,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label>Agreed Price</label>
+          <label>Agreed Price (per entered unit)</label>
           <div class="dual">
             <div>
               <input id="ord-price" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('ord','perL')">
@@ -394,7 +394,8 @@
             <th>Order ID</th>
             <th>Customer</th>
             <th>Product</th>
-            <th>Qty (L)</th>
+            <th>Qty</th>
+            <th>Rate</th>
             <th>Value</th>
             <th>Status</th>
             <th>Due</th>
