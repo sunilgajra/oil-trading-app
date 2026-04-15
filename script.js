@@ -134,6 +134,10 @@ function toggleCustomTerm(px) {
   else cust.classList.remove('show');
 }
 
+function openDeliveryOrderApp() {
+  window.open('https://sunilgajra.github.io/delivery-order-app/', '_blank');
+}
+
 function downloadChallanPDF(id) {
   var c = state.challans.find(function(x){ return x.id === id; });
   if (!c) return toast('Challan not found', true);
@@ -828,6 +832,7 @@ function switchPage(name) {
 window.switchPage = switchPage;
 window.syncUnitLabels = syncUnitLabels;
 window.toggleCustomTerm = toggleCustomTerm;
+window.openDeliveryOrderApp = openDeliveryOrderApp;
 window.addProductMaster = addProductMaster;
 window.deleteProduct = deleteProduct;
 window.handlePhotoUpload = handlePhotoUpload;
