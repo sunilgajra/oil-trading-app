@@ -7,7 +7,7 @@ var DEF_D = {'Crude Oil':0.850,'Diesel':0.832,'Petrol':0.740,'Kerosene':0.810,'L
 
 var state = {
   products: [],
-  densities: {},
+  productMeta: {},
   inventory: [],
   trades: [],
   orders: [],
@@ -20,7 +20,10 @@ var fmt = function(n){ return '₹' + Number(n || 0).toLocaleString('en-IN',{max
 var fmtN = function(n){ return Number(n || 0).toLocaleString('en-IN'); };
 var fmtKG = function(n){ return Number(n || 0).toLocaleString('en-IN',{maximumFractionDigits:1}); };
 var today = function(){ return new Date().toISOString().split('T')[0]; };
-var toKG = function(v,d){ return Number(v || 0) * Number(d || 0); };
+var toKG = function(v,d){
+  if (v == null || d == null || d === '') return 0;
+  return Number(v) * Number(d);
+};
 var escH = function(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
 
 async function seedDefaultsIfEmpty() {
@@ -28,7 +31,7 @@ async function seedDefaultsIfEmpty() {
   if (!data || data.length === 0) {
     await supabase.from('products').insert(
       DEF_P.map(function(name){
-        return { name:name, density:DEF_D[name] || 0.850 };
+        return { name:name, density:DEF_D[name] || null, hsn:'' };
       })
     );
   }
@@ -64,9 +67,12 @@ async function loadState() {
   if (customersRes.error) throw customersRes.error;
 
   state.products = (productsRes.data || []).map(function(p){ return p.name; });
-  state.densities = {};
+  state.productMeta = {};
   (productsRes.data || []).forEach(function(p){
-    state.densities[p.name] = Number(p.density || 0);
+    state.productMeta[p.name] = {
+      hsn: p.hsn || '',
+      density: p.density ? Number(p.density) : null
+    };
   });
 
   state.inventory = inventoryRes.data || [];
@@ -131,8 +137,9 @@ function downloadChallanPDF(id) {
   '<table class="print-table">' +
       '<tr><th>Product</th><td>' + escH(c.product) + '</td></tr>' +
       '<tr><th>Volume</th><td>' + fmtN(c.vol) + ' Litres</td></tr>' +
-      '<tr><th>Weight</th><td>' + fmtKG(c.weight) + ' KG</td></tr>' +
-      '<tr><th>Density</th><td>' + c.density + ' kg/L</td></tr>' +
+      '<tr><th>Weight</th><td>' + (c.weight ? fmtKG(c.weight) + ' KG' : '-') + '</td></tr>' +
+      '<tr><th>Density</th><td>' + (c.density || '-') + '</td></tr>' +
+      '<tr><th>Transporter</th><td>' + escH(c.transporter || '-') + '</td></tr>' +
   '</table>' +
   '<table class="print-table">' +
       '<tr><th>' + (c.type==='in'?'Received From':'Dispatched From') + '</th><td>' + escH(c.from) + '</td></tr>' +
@@ -161,10 +168,10 @@ function exportInventoryExcel() {
         i.product,
         i.hsn || '-',
         i.grade || '-',
-        i.density,
+        i.density || '',
         i.tank || '-',
         i.vol,
-        toKG(i.vol, i.density),
+        i.density ? toKG(i.vol, i.density) : '',
         i.cost,
         i.vol * i.cost,
         i.threshold
@@ -180,10 +187,10 @@ function exportInventoryExcel() {
       html += '<td>' + escH(rows[r][0]) + '</td>';
       html += '<td>' + escH(rows[r][1]) + '</td>';
       html += '<td>' + escH(rows[r][2]) + '</td>';
-      html += '<td class="num">' + rows[r][3] + '</td>';
+      html += '<td class="num">' + (rows[r][3] || '') + '</td>';
       html += '<td>' + escH(rows[r][4]) + '</td>';
       html += '<td class="num">' + fmtN(rows[r][5]) + '</td>';
-      html += '<td class="num">' + fmtKG(rows[r][6]) + '</td>';
+      html += '<td class="num">' + (rows[r][6] !== '' ? fmtKG(rows[r][6]) : '') + '</td>';
       html += '<td class="num">' + Number(rows[r][7]).toFixed(2) + '</td>';
       html += '<td class="num">' + fmt(rows[r][8]) + '</td>';
       html += '<td class="num">' + fmtN(rows[r][9]) + '</td>';
@@ -213,7 +220,8 @@ function shareWhatsApp(id) {
   }
   if (!c) return toast('Challan not found', true);
   var text = '*MURJI RAVJI & CO.*\nChallan: ' + c.id + '\nDate: ' + c.date +
-    '\nProduct: ' + c.product + '\nVol: ' + fmtN(c.vol) + ' L\nWeight: ' + fmtKG(c.weight) + ' KG' +
+    '\nProduct: ' + c.product + '\nVol: ' + fmtN(c.vol) + ' L\nWeight: ' + (c.weight ? fmtKG(c.weight) + ' KG' : '-') +
+    '\nTransporter: ' + (c.transporter || '-') +
     '\nFrom: ' + (c.from||'-') + '\nTo: ' + (c.to||'-') + '\nVehicle: ' + c.vehicle;
   window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(text), '_blank');
 }
@@ -256,46 +264,50 @@ var PRICE_MAP = {
 var _lk = {};
 
 function dualCalc(px, ch) {
-  var m = VOL_MAP[px]; if (_lk[px]) return; _lk[px] = true;
-  var d = parseFloat(document.getElementById(m.denId).value) || 0;
+  var m = VOL_MAP[px];
+  if (_lk[px]) return;
+  _lk[px] = true;
+
+  var d = parseFloat(document.getElementById(m.denId).value);
   var vEl = document.getElementById(m.volId), kEl = document.getElementById(m.kgId);
 
   if (!d) {
-    if (ch === 'vol') kEl.value = '';
-    else vEl.value = '';
     setTimeout(function(){ _lk[px] = false; }, 60);
     return;
   }
 
   if (ch === 'vol') {
-    var v = parseFloat(vEl.value) || 0;
-    kEl.value = v > 0 ? toKG(v,d).toFixed(1) : '';
+    var v = parseFloat(vEl.value)||0;
+    kEl.value = v>0 ? toKG(v,d).toFixed(1) : '';
   } else {
-    var kg = parseFloat(kEl.value) || 0;
-    vEl.value = kg > 0 ? (kg/d).toFixed(1) : '';
+    var kg = parseFloat(kEl.value)||0;
+    vEl.value = kg>0 ? (kg/d).toFixed(1) : '';
   }
+
   setTimeout(function(){ _lk[px] = false; }, 60);
 }
 
 function priceCalc(px, ch) {
-  var m = PRICE_MAP[px]; if (_lk['p_'+px]) return; _lk['p_'+px] = true;
-  var d = parseFloat(document.getElementById(VOL_MAP[px].denId).value) || 0;
+  var m = PRICE_MAP[px];
+  if (_lk['p_'+px]) return;
+  _lk['p_'+px] = true;
+
+  var d = parseFloat(document.getElementById(VOL_MAP[px].denId).value);
   var lEl = document.getElementById(m.perLId), kEl = document.getElementById(m.perKGId);
 
   if (!d) {
-    if (ch === 'perL') kEl.value = '';
-    else lEl.value = '';
     setTimeout(function(){ _lk['p_'+px] = false; }, 60);
     return;
   }
 
   if (ch === 'perL') {
     var pl = parseFloat(lEl.value)||0;
-    kEl.value = pl > 0 ? (pl*d).toFixed(2) : '';
+    kEl.value = pl>0 ? (pl*d).toFixed(2) : '';
   } else {
     var pkg = parseFloat(kEl.value)||0;
-    lEl.value = pkg > 0 ? (pkg/d).toFixed(2) : '';
+    lEl.value = pkg>0 ? (pkg/d).toFixed(2) : '';
   }
+
   setTimeout(function(){ _lk['p_'+px] = false; }, 60);
 }
 
@@ -324,7 +336,7 @@ function renderDashboardKpis() {
   var ts = 0, totalKG = 0;
   for (var i = 0; i < state.inventory.length; i++) {
     ts += Number(state.inventory[i].vol) * Number(state.inventory[i].cost);
-    totalKG += toKG(Number(state.inventory[i].vol), Number(state.inventory[i].density));
+    totalKG += toKG(Number(state.inventory[i].vol), state.inventory[i].density);
   }
   var totalMT = totalKG / 1000;
 
@@ -341,17 +353,17 @@ function renderDashboardKpis() {
 
 function renderInvLevels() {
   document.getElementById('invLevels').innerHTML = state.inventory.map(function(i) {
-    var kg = toKG(Number(i.vol), Number(i.density));
+    var kg = toKG(Number(i.vol), i.density);
     var threshold = Number(i.threshold || 0);
     var p = threshold > 0 ? Math.min(100, Math.round(kg / (threshold * 10) * 100)) : 0;
     var c = p > 50 ? 'green' : p > 25 ? '' : 'red';
-    return '<div class="progress-wrap"><div class="progress-label"><span>'+i.product+'</span><span class="mono">'+fmtKG(kg)+' KG</span></div><div class="progress"><div class="progress-fill '+c+'" style="width:'+p+'%"></div></div></div>';
+    return '<div class="progress-wrap"><div class="progress-label"><span>'+i.product+'</span><span class="mono">'+(kg ? fmtKG(kg) + ' KG' : fmtN(i.vol) + ' L')+'</span></div><div class="progress"><div class="progress-fill '+c+'" style="width:'+p+'%"></div></div></div>';
   }).join('');
 }
 
 function renderRecentTrades() {
   document.getElementById('recentTradesTbl').innerHTML = state.trades.slice(-5).reverse().map(function(t) {
-    return '<tr><td>'+t.product+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+fmtKG(toKG(t.vol,t.density))+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(Number(t.vol)*Number(t.price))+'</td></tr>';
+    return '<tr><td>'+t.product+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+(t.density ? fmtKG(toKG(t.vol,t.density)) : '-')+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(Number(t.vol)*Number(t.price))+'</td></tr>';
   }).join('');
 }
 
@@ -390,7 +402,8 @@ function populateTradePartySelect() {
 
 function renderProductsList() {
   document.getElementById('productsList').innerHTML = state.products.map(function(p) {
-    return '<div class="product-tag"><span>'+p+'</span><span class="remove-prod" onclick="deleteProduct(\''+p.replace(/'/g,"\\'")+'\')">✕</span></div>';
+    var meta = state.productMeta[p] || {};
+    return '<div class="product-tag"><span>' + p + ' | HSN: ' + (meta.hsn || '-') + ' | Density: ' + (meta.density || '-') + '</span><span class="remove-prod" onclick="deleteProduct(\''+p.replace(/'/g,"\\'")+'\')">✕</span></div>';
   }).join('');
 }
 
@@ -399,10 +412,10 @@ function renderInventoryTable() {
   document.getElementById('invTable').innerHTML = state.inventory.filter(function(i){
     return String(i.product || '').toLowerCase().indexOf(q) >= 0;
   }).map(function(i) {
-    var kg = toKG(i.vol, i.density);
+    var kg = i.density ? toKG(i.vol, i.density) : 0;
     var threshold = Number(i.threshold || 0);
     var lvPct = threshold > 0 ? Math.min(100, kg / threshold * 10) : 0;
-    return '<tr><td><b>'+i.product+'</b></td><td>'+(i.hsn || '-')+'</td><td>'+i.grade+'</td><td class="mono">'+i.density+'</td><td>'+i.tank+'</td><td class="mono">'+fmtN(i.vol)+'</td><td class="mono">'+fmtKG(kg)+'</td><td class="mono">'+fmt(i.cost)+'</td><td class="mono">'+fmt(Number(i.vol)*Number(i.cost))+'</td><td><div class="progress" style="width:60px"><div class="progress-fill '+(kg > threshold ? 'green':'red')+'" style="width:'+lvPct+'%"></div></div></td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\','+i.id+')">✕</button></td></tr>';
+    return '<tr><td><b>'+i.product+'</b></td><td>'+(i.hsn || '-')+'</td><td>'+i.grade+'</td><td class="mono">'+(i.density || '-')+'</td><td>'+i.tank+'</td><td class="mono">'+fmtN(i.vol)+'</td><td class="mono">'+(i.density ? fmtKG(kg) : '-')+'</td><td class="mono">'+fmt(i.cost)+'</td><td class="mono">'+fmt(Number(i.vol)*Number(i.cost))+'</td><td><div class="progress" style="width:60px"><div class="progress-fill '+(kg > threshold ? 'green':'red')+'" style="width:'+lvPct+'%"></div></div></td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\','+i.id+')">✕</button></td></tr>';
   }).join('');
 }
 
@@ -410,13 +423,16 @@ async function addInventory() {
   var product = document.getElementById('inv-product').value;
   var vol = parseFloat(document.getElementById('inv-vol').value);
   var cost = parseFloat(document.getElementById('inv-cost').value);
-  var density = parseFloat(document.getElementById('inv-density').value);
+  var densityInput = document.getElementById('inv-density').value.trim();
+  var density = densityInput ? parseFloat(densityInput) : null;
 
-  if (!vol || !cost || !density) return toast('Please fill quantity, price and density', true);
+  if (!vol || !cost) return toast('Please fill quantity and price', true);
+
+  var meta = state.productMeta[product] || {};
 
   var row = {
     product: product,
-    hsn: document.getElementById('inv-hsn').value || '-',
+    hsn: document.getElementById('inv-hsn').value.trim() || meta.hsn || '-',
     grade: document.getElementById('inv-grade').value || '-',
     tank: document.getElementById('inv-tank').value || '-',
     vol: vol,
@@ -456,9 +472,10 @@ async function addTrade() {
   var party = document.getElementById('tr-party').value;
   var vol = parseFloat(document.getElementById('tr-vol').value);
   var price = parseFloat(document.getElementById('tr-price').value);
-  var density = parseFloat(document.getElementById('tr-density').value);
+  var densityInput = document.getElementById('tr-density').value.trim();
+  var density = densityInput ? parseFloat(densityInput) : null;
 
-  if (!party || !vol || !price || !density) return toast('Please fill all required fields', true);
+  if (!party || !vol || !price) return toast('Please fill all required fields', true);
 
   var termsVal = document.getElementById('tr-terms').value;
   if (termsVal === '__custom__') termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
@@ -495,9 +512,10 @@ async function addOrder() {
   var product = document.getElementById('ord-product').value;
   var qty = parseFloat(document.getElementById('ord-qty').value);
   var price = parseFloat(document.getElementById('ord-price').value);
-  var density = parseFloat(document.getElementById('ord-density').value);
+  var densityInput = document.getElementById('ord-density').value.trim();
+  var density = densityInput ? parseFloat(densityInput) : null;
 
-  if (!customer || !qty || !price || !density) return toast('Please fill all required fields', true);
+  if (!customer || !qty || !price) return toast('Please fill all required fields', true);
 
   const { data: lastOrders } = await supabase.from('orders').select('id').order('created_at', { ascending:false }).limit(1);
   var nextNum = 1;
@@ -551,7 +569,7 @@ function toggleChallanFields() {
 
 function renderChallansTable() {
   document.getElementById('challansTable').innerHTML = state.challans.slice().reverse().map(function(c) {
-    return '<tr><td class="mono"><b>'+c.id+'</b></td><td>'+(c.type==='in'?'<span class="badge badge-teal">In</span>':'<span class="badge badge-green">Out</span>')+'</td><td class="mono">'+c.date+'</td><td>'+c.product+'</td><td class="mono">'+fmtN(c.vol)+'</td><td>'+(c.from||'-')+'</td><td>'+(c.to||'-')+'</td><td class="mono">'+c.vehicle+'</td><td style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="downloadChallanPDF(\''+c.id+'\')">PDF</button><button class="btn btn-green btn-sm" onclick="shareWhatsApp(\''+c.id+'\')">WA</button><button class="btn btn-danger btn-sm" onclick="deleteChallan(\''+c.id+'\')">✕</button></td></tr>';
+    return '<tr><td class="mono"><b>'+c.id+'</b></td><td>'+(c.type==='in'?'<span class="badge badge-teal">In</span>':'<span class="badge badge-green">Out</span>')+'</td><td class="mono">'+c.date+'</td><td>'+c.product+'</td><td class="mono">'+fmtN(c.vol)+'</td><td>'+(c.transporter||'-')+'</td><td>'+(c.from||'-')+'</td><td>'+(c.to||'-')+'</td><td class="mono">'+c.vehicle+'</td><td style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="downloadChallanPDF(\''+c.id+'\')">PDF</button><button class="btn btn-green btn-sm" onclick="shareWhatsApp(\''+c.id+'\')">WA</button><button class="btn btn-danger btn-sm" onclick="deleteChallan(\''+c.id+'\')">✕</button></td></tr>';
   }).join('');
 }
 
@@ -570,10 +588,11 @@ async function addChallan() {
   }
 
   var product = document.getElementById('ch-product').value;
-  var density = parseFloat(document.getElementById('ch-density').value);
+  var densityInput = document.getElementById('ch-density').value.trim();
+  var density = densityInput ? parseFloat(densityInput) : null;
   var vol = parseFloat(document.getElementById('ch-vol').value);
 
-  if (!vol || !density) return toast('Enter quantity and density', true);
+  if (!vol) return toast('Enter quantity', true);
 
   var row = {
     id: no,
@@ -582,9 +601,10 @@ async function addChallan() {
     product: product,
     vol: vol,
     density: density,
-    weight: toKG(vol, density),
+    weight: density ? toKG(vol, density) : null,
     from: document.getElementById('ch-from').value,
     to: document.getElementById('ch-to').value,
+    transporter: document.getElementById('ch-transporter').value,
     vehicle: document.getElementById('ch-vehicle').value,
     driver: document.getElementById('ch-driver').value,
     driver_ph: document.getElementById('ch-driver-ph').value
@@ -747,7 +767,7 @@ async function deleteProduct(n) {
     const { error } = await supabase.from('products').delete().eq('name', n);
     if (error) return toast(error.message, true);
     state.products = state.products.filter(function(p){ return p !== n; });
-    delete state.densities[n];
+    delete state.productMeta[n];
     populateSelects();
     renderProductsList();
     toast('Product removed');
@@ -759,20 +779,30 @@ async function addProductMaster() {
   if (!n) return toast('Enter product name', true);
   if (state.products.indexOf(n) >= 0) return toast('Product already exists', true);
 
-  var density = parseFloat(document.getElementById('pm-density').value);
-  if (!density) return toast('Enter default density', true);
+  var densityVal = document.getElementById('pm-density').value.trim();
 
-  var row = { name: n, density: density };
+  var row = {
+    name: n,
+    hsn: document.getElementById('pm-hsn').value.trim() || '',
+    density: densityVal ? parseFloat(densityVal) : null
+  };
 
   const { data, error } = await supabase.from('products').insert([row]).select().single();
   if (error) return toast(error.message, true);
 
   state.products.push(data.name);
-  state.densities[data.name] = Number(data.density || 0);
+  state.productMeta[data.name] = {
+    hsn: data.hsn || '',
+    density: data.density ? Number(data.density) : null
+  };
+
   populateSelects();
   renderProductsList();
+
   document.getElementById('pm-name').value = '';
+  document.getElementById('pm-hsn').value = '';
   document.getElementById('pm-density').value = '';
+
   toast('Added: ' + n);
 }
 

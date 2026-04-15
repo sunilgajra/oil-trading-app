@@ -89,14 +89,18 @@
   <div class="container">
     <div class="section-title">Product Master</div>
     <div class="panel">
-      <div class="form-grid" style="max-width:600px">
+      <div class="form-grid" style="max-width:900px">
         <div class="form-group">
           <label>Product Name</label>
           <input id="pm-name" placeholder="e.g. Furnace Oil">
         </div>
         <div class="form-group">
+          <label>HSN Code</label>
+          <input id="pm-hsn" placeholder="e.g. 27101930">
+        </div>
+        <div class="form-group">
           <label>Default Density (kg/L)</label>
-          <input id="pm-density" type="number" step="0.001" placeholder="0.850">
+          <input id="pm-density" type="number" step="0.001" placeholder="Optional">
         </div>
       </div>
       <div class="btn-row">
@@ -122,7 +126,7 @@
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="inv-density" type="number" step="0.001" placeholder="Required">
+          <input id="inv-density" type="number" step="0.001" placeholder="Optional">
         </div>
         <div class="form-group">
           <label>Quantity</label>
@@ -233,7 +237,7 @@
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="tr-density" type="number" step="0.001" placeholder="Required" oninput="onDensityChangeForPrice('tr')">
+          <input id="tr-density" type="number" step="0.001" placeholder="Optional" oninput="onDensityChangeForPrice('tr')">
         </div>
         <div class="form-group">
           <label>Quantity</label>
@@ -330,7 +334,7 @@
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="ord-density" type="number" step="0.001" placeholder="Required" oninput="onDensityChangeForPrice('ord')">
+          <input id="ord-density" type="number" step="0.001" placeholder="Optional" oninput="onDensityChangeForPrice('ord')">
         </div>
         <div class="form-group">
           <label>Quantity</label>
@@ -430,7 +434,7 @@
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="ch-density" type="number" step="0.001" placeholder="Required" oninput="dualCalc('ch','kg')">
+          <input id="ch-density" type="number" step="0.001" placeholder="Optional" oninput="dualCalc('ch','kg')">
         </div>
         <div class="form-group">
           <label>Quantity</label>
@@ -453,6 +457,10 @@
         <div class="form-group" id="ch-to-group">
           <label>Delivered To</label>
           <input id="ch-to" placeholder="Customer">
+        </div>
+        <div class="form-group">
+          <label>Transporter Name</label>
+          <input id="ch-transporter" placeholder="Transporter name">
         </div>
         <div class="form-group">
           <label>Vehicle No.</label>
@@ -486,6 +494,7 @@
             <th>Date</th>
             <th>Product</th>
             <th>Vol (L)</th>
+            <th>Transporter</th>
             <th>From</th>
             <th>To</th>
             <th>Vehicle</th>
