@@ -39,6 +39,7 @@
   <div class="container">
     <div class="ticker" id="tickerEl"></div>
     <div class="kpi-grid" id="kpiGrid"></div>
+
     <div class="grid2">
       <div>
         <div class="section-title">Inventory Levels</div>
@@ -129,32 +130,21 @@
           <input id="inv-density" type="number" step="0.001" placeholder="Optional">
         </div>
         <div class="form-group">
+          <label>Unit</label>
+          <select id="inv-unit" onchange="syncUnitLabels('inv')">
+            <option value="litre">Litre</option>
+            <option value="kg">KG</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Quantity</label>
-          <div class="dual">
-            <div>
-              <input id="inv-vol" type="number" placeholder="0" oninput="dualCalc('inv','vol')">
-              <div class="di-unit">Litres</div>
-            </div>
-            <div class="dual-arrow">&#x21C4;</div>
-            <div>
-              <input id="inv-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('inv','kg')">
-              <div class="di-unit">Kilograms</div>
-            </div>
-          </div>
+          <input id="inv-qty" type="number" step="0.01" placeholder="0">
+          <div class="di-unit" id="inv-qty-unit">Litres</div>
         </div>
         <div class="form-group">
           <label>Unit Price</label>
-          <div class="dual">
-            <div>
-              <input id="inv-cost" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('inv','perL')">
-              <div class="di-unit">&#x20B9; / Litre</div>
-            </div>
-            <div class="dual-arrow">&#x21C4;</div>
-            <div>
-              <input id="inv-cost-kg" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('inv','perKG')">
-              <div class="di-unit">&#x20B9; / KG</div>
-            </div>
-          </div>
+          <input id="inv-price" type="number" placeholder="0.00" step="0.01">
+          <div class="di-unit" id="inv-price-unit">&#x20B9; / Litre</div>
         </div>
         <div class="form-group">
           <label>Tank / Location</label>
@@ -200,9 +190,9 @@
             <th>Grade</th>
             <th>Density</th>
             <th>Tank</th>
-            <th>Vol (L)</th>
-            <th>Weight (KG)</th>
-            <th>Cost/L</th>
+            <th>Qty</th>
+            <th>Base Volume</th>
+            <th>Rate</th>
             <th>Value</th>
             <th>Level</th>
             <th>Actions</th>
@@ -237,35 +227,24 @@
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="tr-density" type="number" step="0.001" placeholder="Optional" oninput="onDensityChangeForPrice('tr')">
+          <input id="tr-density" type="number" step="0.001" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <select id="tr-unit" onchange="syncUnitLabels('tr')">
+            <option value="litre">Litre</option>
+            <option value="kg">KG</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Quantity</label>
-          <div class="dual">
-            <div>
-              <input id="tr-vol" type="number" placeholder="0" oninput="dualCalc('tr','vol')">
-              <div class="di-unit">Litres</div>
-            </div>
-            <div class="dual-arrow">&#x21C4;</div>
-            <div>
-              <input id="tr-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('tr','kg')">
-              <div class="di-unit">Kilograms</div>
-            </div>
-          </div>
+          <input id="tr-qty" type="number" step="0.01" placeholder="0">
+          <div class="di-unit" id="tr-qty-unit">Litres</div>
         </div>
         <div class="form-group">
           <label>Unit Price (per entered unit)</label>
-          <div class="dual">
-            <div>
-              <input id="tr-price" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('tr','perL')">
-              <div class="di-unit">&#x20B9; / Litre</div>
-            </div>
-            <div class="dual-arrow">&#x21C4;</div>
-            <div>
-              <input id="tr-price-kg" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('tr','perKG')">
-              <div class="di-unit">&#x20B9; / KG</div>
-            </div>
-          </div>
+          <input id="tr-price" type="number" placeholder="0.00" step="0.01">
+          <div class="di-unit" id="tr-price-unit">&#x20B9; / Litre</div>
         </div>
         <div class="form-group">
           <label>Trade Date</label>
@@ -334,35 +313,24 @@
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="ord-density" type="number" step="0.001" placeholder="Optional" oninput="onDensityChangeForPrice('ord')">
+          <input id="ord-density" type="number" step="0.001" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <select id="ord-unit" onchange="syncUnitLabels('ord')">
+            <option value="litre">Litre</option>
+            <option value="kg">KG</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Quantity</label>
-          <div class="dual">
-            <div>
-              <input id="ord-qty" type="number" placeholder="0" oninput="dualCalc('ord','vol')">
-              <div class="di-unit">Litres</div>
-            </div>
-            <div class="dual-arrow">&#x21C4;</div>
-            <div>
-              <input id="ord-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('ord','kg')">
-              <div class="di-unit">Kilograms</div>
-            </div>
-          </div>
+          <input id="ord-qty" type="number" step="0.01" placeholder="0">
+          <div class="di-unit" id="ord-qty-unit">Litres</div>
         </div>
         <div class="form-group">
           <label>Agreed Price (per entered unit)</label>
-          <div class="dual">
-            <div>
-              <input id="ord-price" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('ord','perL')">
-              <div class="di-unit">&#x20B9; / Litre</div>
-            </div>
-            <div class="dual-arrow">&#x21C4;</div>
-            <div>
-              <input id="ord-price-kg" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('ord','perKG')">
-              <div class="di-unit">&#x20B9; / KG</div>
-            </div>
-          </div>
+          <input id="ord-price" type="number" placeholder="0.00" step="0.01">
+          <div class="di-unit" id="ord-price-unit">&#x20B9; / Litre</div>
         </div>
         <div class="form-group">
           <label>Order Date</label>
@@ -435,21 +403,19 @@
         </div>
         <div class="form-group">
           <label>Density (kg/L)</label>
-          <input id="ch-density" type="number" step="0.001" placeholder="Optional" oninput="dualCalc('ch','kg')">
+          <input id="ch-density" type="number" step="0.001" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <select id="ch-unit" onchange="syncUnitLabels('ch')">
+            <option value="litre">Litre</option>
+            <option value="kg">KG</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Quantity</label>
-          <div class="dual">
-            <div>
-              <input id="ch-vol" type="number" placeholder="0" oninput="dualCalc('ch','vol')">
-              <div class="di-unit">Litres</div>
-            </div>
-            <div class="dual-arrow">&#x21C4;</div>
-            <div>
-              <input id="ch-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('ch','kg')">
-              <div class="di-unit">Kilograms</div>
-            </div>
-          </div>
+          <input id="ch-qty" type="number" step="0.01" placeholder="0">
+          <div class="di-unit" id="ch-qty-unit">Litres</div>
         </div>
         <div class="form-group" id="ch-from-group">
           <label>Dispatched From</label>
@@ -494,7 +460,7 @@
             <th>Type</th>
             <th>Date</th>
             <th>Product</th>
-            <th>Vol (L)</th>
+            <th>Qty</th>
             <th>Transporter</th>
             <th>From</th>
             <th>To</th>
