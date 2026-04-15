@@ -5,6 +5,8 @@ const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
 var DEF_P = ['Crude Oil','Diesel','Petrol','Kerosene','LPG'];
 
 var state = {
+  companies: [],
+  currentCompanyId: null,
   products: [],
   productMeta: {},
   inventory: [],
@@ -25,19 +27,62 @@ var toKG = function(v,d){
 };
 var escH = function(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
 
+function getStoredCompanyId() {
+  return localStorage.getItem('active_company_id');
+}
+
+function setStoredCompanyId(id) {
+  localStorage.setItem('active_company_id', String(id));
+}
+
+function getCurrentCompany() {
+  return state.companies.find(function(c){ return String(c.id) === String(state.currentCompanyId); }) || null;
+}
+
+function updateBranding() {
+  var company = getCurrentCompany();
+  var brandEl = document.getElementById('brandNameEl');
+  var subEl = document.getElementById('brandSubEl');
+  if (!brandEl || !subEl || !company) return;
+
+  brandEl.textContent = company.name === 'Joy International' ? 'Joy International' : 'Murji Ravji & Co.';
+  subEl.textContent = 'OIL TRADING & LOGISTICS';
+  document.title = company.name + ' — Oil Trading & Inventory';
+}
+
 async function seedDefaultsIfEmpty() {
-  const { data } = await supabase.from('products').select('id').limit(1);
-  if (!data || data.length === 0) {
-    await supabase.from('products').insert(
-      DEF_P.map(function(name){
-        return { name:name, density:null, hsn:'' };
-      })
-    );
+  const companiesRes = await supabase.from('companies').select('*');
+  if (companiesRes.error) throw companiesRes.error;
+
+  var companies = companiesRes.data || [];
+  for (var i = 0; i < companies.length; i++) {
+    const company = companies[i];
+    const { data, error } = await supabase.from('products').select('id').eq('company_id', company.id).limit(1);
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      const ins = await supabase.from('products').insert(
+        DEF_P.map(function(name){
+          return { name:name, density:null, hsn:'', company_id: company.id };
+        })
+      );
+      if (ins.error) throw ins.error;
+    }
   }
 }
 
 async function loadState() {
   await seedDefaultsIfEmpty();
+
+  const companiesRes = await supabase.from('companies').select('*').order('name');
+  if (companiesRes.error) throw companiesRes.error;
+
+  state.companies = companiesRes.data || [];
+  if (!state.companies.length) throw new Error('No companies found');
+
+  var savedCompanyId = getStoredCompanyId();
+  var hasSaved = state.companies.some(function(c){ return String(c.id) === String(savedCompanyId); });
+  state.currentCompanyId = hasSaved ? savedCompanyId : state.companies[0].id;
+  setStoredCompanyId(state.currentCompanyId);
 
   const [
     productsRes,
@@ -48,13 +93,13 @@ async function loadState() {
     suppliersRes,
     customersRes
   ] = await Promise.all([
-    supabase.from('products').select('*').order('name'),
-    supabase.from('inventory').select('*').order('id'),
-    supabase.from('trades').select('*').order('date'),
-    supabase.from('orders').select('*').order('date'),
-    supabase.from('challans').select('*').order('date'),
-    supabase.from('suppliers').select('*').order('name'),
-    supabase.from('customers').select('*').order('name')
+    supabase.from('products').select('*').eq('company_id', state.currentCompanyId).order('name'),
+    supabase.from('inventory').select('*').eq('company_id', state.currentCompanyId).order('id'),
+    supabase.from('trades').select('*').eq('company_id', state.currentCompanyId).order('date'),
+    supabase.from('orders').select('*').eq('company_id', state.currentCompanyId).order('date'),
+    supabase.from('challans').select('*').eq('company_id', state.currentCompanyId).order('date'),
+    supabase.from('suppliers').select('*').eq('company_id', state.currentCompanyId).order('name'),
+    supabase.from('customers').select('*').eq('company_id', state.currentCompanyId).order('name')
   ]);
 
   if (productsRes.error) throw productsRes.error;
@@ -118,7 +163,6 @@ function syncUnitLabels(px) {
   var unitEl = document.getElementById(px + '-unit');
   if (!unitEl) return;
   var unit = unitEl.value;
-
   var qtyLabel = document.getElementById(px + '-qty-unit');
   var priceLabel = document.getElementById(px + '-price-unit');
 
@@ -136,6 +180,48 @@ function toggleCustomTerm(px) {
 
 function openDeliveryOrderApp() {
   window.open('https://sunilgajra.github.io/delivery-order-app/', '_blank');
+}
+
+function renderCompanySwitcher() {
+  var el = document.getElementById('companySwitcher');
+  if (!el) return;
+
+  el.innerHTML = state.companies.map(function(c) {
+    return '<option value="' + c.id + '">' + escH(c.name) + '</option>';
+  }).join('');
+
+  el.value = state.currentCompanyId;
+}
+
+async function refreshAllViews() {
+  await loadState();
+  renderCompanySwitcher();
+  updateBranding();
+  populateSelects();
+  populateCustomerSelect();
+  populateTradePartySelect();
+  renderProductsList();
+  syncUnitLabels('inv');
+  syncUnitLabels('tr');
+  syncUnitLabels('ord');
+  syncUnitLabels('ch');
+  renderDashboardKpis();
+  renderInvLevels();
+  renderRecentTrades();
+  renderActiveOrders();
+  renderInventoryTable();
+  renderTradesTable();
+  renderOrdersTable();
+  renderChallansTable();
+  renderSuppliersTable();
+  renderCustomersTable();
+  renderReports();
+}
+
+async function changeCompany(companyId) {
+  state.currentCompanyId = companyId;
+  setStoredCompanyId(companyId);
+  await refreshAllViews();
 }
 
 function downloadCSV(filename, rows) {
@@ -163,7 +249,7 @@ function printHTML(title, html) {
   var zone = document.getElementById('printZone');
   zone.innerHTML =
     '<div class="print-header">' +
-      '<h1>MURJI RAVJI & CO.</h1>' +
+      '<h1>' + escH((getCurrentCompany() || {}).name || 'Company') + '</h1>' +
       '<p>OIL TRADING & LOGISTICS</p>' +
     '</div>' +
     '<div class="print-title">' + escH(title) + '</div>' +
@@ -181,11 +267,6 @@ function downloadChallanPDF(id) {
   var displayUnit = c.qty_unit || (c.entered_kg ? 'kg' : 'litre');
 
   var html = '' +
-  '<div class="print-header">' +
-      '<h1>MURJI RAVJI & CO.</h1>' +
-      '<p>OIL TRADING & LOGISTICS</p>' +
-  '</div>' +
-  '<div class="print-title">' + escH(c.type === 'in' ? 'INWARD DELIVERY CHALLAN' : 'OUTWARD DELIVERY CHALLAN') + '</div>' +
   '<table class="print-table">' +
       '<tr><th>Challan No.</th><td>' + escH(c.id) + '</td></tr>' +
       '<tr><th>Date</th><td>' + escH(c.date) + '</td></tr>' +
@@ -200,15 +281,9 @@ function downloadChallanPDF(id) {
       '<tr><th>Vehicle No.</th><td>' + escH(c.vehicle || '-') + '</td></tr>' +
       '<tr><th>Driver Name</th><td>' + escH(c.driver || '-') + '</td></tr>' +
       '<tr><th>Driver Phone</th><td>' + escH(c.driverPh || '-') + '</td></tr>' +
-  '</table>' +
-  '<div class="print-footer">' +
-      '<div class="sig-block"><div class="sig-line">Authorized Signatory</div></div>' +
-      '<div class="sig-block"><div class="sig-line">Receiver Signature</div></div>' +
-  '</div>';
+  '</table>';
 
-  document.getElementById('printZone').innerHTML = html;
-  toast('Opening print dialog — select "Save as PDF"');
-  setTimeout(function(){ window.print(); }, 300);
+  printHTML(c.type === 'in' ? 'INWARD DELIVERY CHALLAN' : 'OUTWARD DELIVERY CHALLAN', html);
 }
 
 function exportInventoryExcel() {
@@ -255,7 +330,7 @@ function exportInventoryExcel() {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'MurjiRavji_Inventory_' + today() + '.xls';
+    a.download = 'inventory_' + today() + '.xls';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -267,150 +342,70 @@ function exportInventoryExcel() {
 }
 
 function exportInventoryCSV() {
-  var rows = [
-    ['Product','HSN','Grade','Density','Tank','Qty','Unit','Base Volume (L)','Rate','Value']
-  ];
-
+  var rows = [['Product','HSN','Grade','Density','Tank','Qty','Unit','Base Volume (L)','Rate','Value']];
   state.inventory.forEach(function(i) {
     var qty = i.entered_qty || i.entered_kg || i.vol || 0;
     var unit = i.qty_unit || (i.entered_kg ? 'kg' : 'litre');
-    rows.push([
-      i.product,
-      i.hsn || '',
-      i.grade || '',
-      i.density || '',
-      i.tank || '',
-      qty,
-      unit,
-      i.vol || 0,
-      i.cost || 0,
-      Number(qty || 0) * Number(i.cost || 0)
-    ]);
+    rows.push([i.product, i.hsn || '', i.grade || '', i.density || '', i.tank || '', qty, unit, i.vol || 0, i.cost || 0, Number(qty || 0) * Number(i.cost || 0)]);
   });
-
   downloadCSV('inventory_' + today() + '.csv', rows);
 }
 
 function printInventoryPDF() {
   var html = '<table class="print-table"><tr><th>Product</th><th>HSN</th><th>Grade</th><th>Density</th><th>Tank</th><th>Qty</th><th>Base Volume</th><th>Rate</th><th>Value</th></tr>';
-
   state.inventory.forEach(function(i) {
     var qty = i.entered_qty || i.entered_kg || i.vol || 0;
     var unit = i.qty_unit || (i.entered_kg ? 'kg' : 'litre');
-    html += '<tr>' +
-      '<td>' + escH(i.product) + '</td>' +
-      '<td>' + escH(i.hsn || '-') + '</td>' +
-      '<td>' + escH(i.grade || '-') + '</td>' +
-      '<td>' + escH(i.density || '-') + '</td>' +
-      '<td>' + escH(i.tank || '-') + '</td>' +
-      '<td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
-      '<td>' + fmtN(i.vol || 0) + ' L</td>' +
-      '<td>' + fmt(i.cost || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
-      '<td>' + fmt(Number(qty || 0) * Number(i.cost || 0)) + '</td>' +
-    '</tr>';
+    html += '<tr><td>' + escH(i.product) + '</td><td>' + escH(i.hsn || '-') + '</td><td>' + escH(i.grade || '-') + '</td><td>' + escH(i.density || '-') + '</td><td>' + escH(i.tank || '-') + '</td><td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td>' + fmtN(i.vol || 0) + ' L</td><td>' + fmt(i.cost || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td>' + fmt(Number(qty || 0) * Number(i.cost || 0)) + '</td></tr>';
   });
-
   html += '</table>';
   printHTML('Current Stock Report', html);
 }
 
 function exportTradesCSV() {
-  var rows = [
-    ['Date','Type','Product','Party','Qty','Unit','Rate','Total','Terms','Density']
-  ];
-
+  var rows = [['Date','Type','Product','Party','Qty','Unit','Rate','Total','Terms','Density']];
   state.trades.forEach(function(t) {
     var qty = t.entered_qty || t.entered_kg || t.vol || 0;
     var unit = t.qty_unit || (t.entered_kg ? 'kg' : 'litre');
-    rows.push([
-      t.date || '',
-      t.type || '',
-      t.product || '',
-      t.party || '',
-      qty,
-      unit,
-      t.price || 0,
-      Number(qty || 0) * Number(t.price || 0),
-      t.terms || '',
-      t.density || ''
-    ]);
+    rows.push([t.date || '', t.type || '', t.product || '', t.party || '', qty, unit, t.price || 0, Number(qty || 0) * Number(t.price || 0), t.terms || '', t.density || '']);
   });
-
   downloadCSV('trades_' + today() + '.csv', rows);
 }
 
 function printTradesPDF() {
   var html = '<table class="print-table"><tr><th>Date</th><th>Type</th><th>Product</th><th>Party</th><th>Qty</th><th>Rate</th><th>Total</th></tr>';
-
   state.trades.forEach(function(t) {
     var qty = t.entered_qty || t.entered_kg || t.vol || 0;
     var unit = t.qty_unit || (t.entered_kg ? 'kg' : 'litre');
-    html += '<tr>' +
-      '<td>' + escH(t.date || '') + '</td>' +
-      '<td>' + escH(t.type || '') + '</td>' +
-      '<td>' + escH(t.product || '') + '</td>' +
-      '<td>' + escH(t.party || '') + '</td>' +
-      '<td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
-      '<td>' + fmt(t.price || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
-      '<td>' + fmt(Number(qty || 0) * Number(t.price || 0)) + '</td>' +
-    '</tr>';
+    html += '<tr><td>' + escH(t.date || '') + '</td><td>' + escH(t.type || '') + '</td><td>' + escH(t.product || '') + '</td><td>' + escH(t.party || '') + '</td><td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td>' + fmt(t.price || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td>' + fmt(Number(qty || 0) * Number(t.price || 0)) + '</td></tr>';
   });
-
   html += '</table>';
   printHTML('Trade History Report', html);
 }
 
 function exportOrdersCSV() {
-  var rows = [
-    ['Order ID','Customer','Product','Qty','Unit','Rate','Value','Status','Order Date','Due Date','Priority']
-  ];
-
+  var rows = [['Order ID','Customer','Product','Qty','Unit','Rate','Value','Status','Order Date','Due Date','Priority']];
   state.orders.forEach(function(o) {
     var qty = o.entered_qty || o.entered_kg || o.qty || 0;
     var unit = o.qty_unit || (o.entered_kg ? 'kg' : 'litre');
-    rows.push([
-      o.id || '',
-      o.customer || '',
-      o.product || '',
-      qty,
-      unit,
-      o.price || 0,
-      Number(qty || 0) * Number(o.price || 0),
-      o.status || '',
-      o.date || '',
-      o.due || '',
-      o.priority || ''
-    ]);
+    rows.push([o.id || '', o.customer || '', o.product || '', qty, unit, o.price || 0, Number(qty || 0) * Number(o.price || 0), o.status || '', o.date || '', o.due || '', o.priority || '']);
   });
-
   downloadCSV('orders_' + today() + '.csv', rows);
 }
 
 function printOrdersPDF() {
   var html = '<table class="print-table"><tr><th>Order ID</th><th>Customer</th><th>Product</th><th>Qty</th><th>Rate</th><th>Value</th><th>Status</th><th>Due</th></tr>';
-
   state.orders.forEach(function(o) {
     var qty = o.entered_qty || o.entered_kg || o.qty || 0;
     var unit = o.qty_unit || (o.entered_kg ? 'kg' : 'litre');
-    html += '<tr>' +
-      '<td>' + escH(o.id || '') + '</td>' +
-      '<td>' + escH(o.customer || '') + '</td>' +
-      '<td>' + escH(o.product || '') + '</td>' +
-      '<td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
-      '<td>' + fmt(o.price || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
-      '<td>' + fmt(Number(qty || 0) * Number(o.price || 0)) + '</td>' +
-      '<td>' + escH(o.status || '') + '</td>' +
-      '<td>' + escH(o.due || '') + '</td>' +
-    '</tr>';
+    html += '<tr><td>' + escH(o.id || '') + '</td><td>' + escH(o.customer || '') + '</td><td>' + escH(o.product || '') + '</td><td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td>' + fmt(o.price || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td>' + fmt(Number(qty || 0) * Number(o.price || 0)) + '</td><td>' + escH(o.status || '') + '</td><td>' + escH(o.due || '') + '</td></tr>';
   });
-
   html += '</table>';
   printHTML('All Orders Report', html);
 }
 
 function getReportSummary() {
   var sales = 0, buys = 0;
-
   state.trades.forEach(function(t) {
     var qty = t.entered_qty || t.entered_kg || t.vol || 0;
     var total = Number(qty || 0) * Number(t.price || 0);
@@ -419,7 +414,6 @@ function getReportSummary() {
   });
 
   var profit = sales - buys;
-
   var customerMap = {};
   state.trades.forEach(function(t) {
     if (t.type !== 'Sell') return;
@@ -437,7 +431,6 @@ function getReportSummary() {
 
 function exportReportsCSV() {
   var summary = getReportSummary();
-
   var rows = [
     ['REPORT SUMMARY'],
     ['Sales', summary.sales],
@@ -459,16 +452,7 @@ function exportReportsCSV() {
   state.trades.forEach(function(t) {
     var qty = t.entered_qty || t.entered_kg || t.vol || 0;
     var unit = t.qty_unit || (t.entered_kg ? 'kg' : 'litre');
-    rows.push([
-      t.date || '',
-      t.type || '',
-      t.product || '',
-      t.party || '',
-      qty,
-      unit,
-      t.price || 0,
-      Number(qty || 0) * Number(t.price || 0)
-    ]);
+    rows.push([t.date || '', t.type || '', t.product || '', t.party || '', qty, unit, t.price || 0, Number(qty || 0) * Number(t.price || 0)]);
   });
 
   downloadCSV('reports_' + today() + '.csv', rows);
@@ -476,7 +460,6 @@ function exportReportsCSV() {
 
 function printReportsPDF() {
   var summary = getReportSummary();
-
   var html = '';
   html += '<table class="print-table">';
   html += '<tr><th>Total Sales</th><td>' + fmt(summary.sales) + '</td></tr>';
@@ -496,38 +479,11 @@ function printReportsPDF() {
   state.trades.forEach(function(t) {
     var qty = t.entered_qty || t.entered_kg || t.vol || 0;
     var unit = t.qty_unit || (t.entered_kg ? 'kg' : 'litre');
-    html += '<tr>' +
-      '<td>' + escH(t.date || '') + '</td>' +
-      '<td>' + escH(t.type || '') + '</td>' +
-      '<td>' + escH(t.product || '') + '</td>' +
-      '<td>' + escH(t.party || '') + '</td>' +
-      '<td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
-      '<td>' + fmt(t.price || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td>' +
-      '<td>' + fmt(Number(qty || 0) * Number(t.price || 0)) + '</td>' +
-    '</tr>';
+    html += '<tr><td>' + escH(t.date || '') + '</td><td>' + escH(t.type || '') + '</td><td>' + escH(t.product || '') + '</td><td>' + escH(t.party || '') + '</td><td>' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td>' + fmt(t.price || 0) + ' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td>' + fmt(Number(qty || 0) * Number(t.price || 0)) + '</td></tr>';
   });
   html += '</table>';
 
   printHTML('Detailed Reports', html);
-}
-
-function shareWhatsApp(id) {
-  var c = state.challans.find(function(x){ return x.id === id; });
-  if (!c) return toast('Challan not found', true);
-
-  var qty = c.entered_qty || c.entered_kg || c.vol || 0;
-  var unit = c.qty_unit || (c.entered_kg ? 'kg' : 'litre');
-
-  var text = '*MURJI RAVJI & CO.*\nChallan: ' + c.id +
-    '\nDate: ' + c.date +
-    '\nProduct: ' + c.product +
-    '\nQty: ' + fmtN(qty) + ' ' + (unit === 'kg' ? 'KG' : 'L') +
-    '\nTransporter: ' + (c.transporter || '-') +
-    '\nFrom: ' + (c.from || '-') +
-    '\nTo: ' + (c.to || '-') +
-    '\nVehicle: ' + (c.vehicle || '-');
-
-  window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(text), '_blank');
 }
 
 function handlePhotoUpload(input, pid) {
@@ -677,10 +633,10 @@ async function addInventory() {
 
   var vol = unit === 'litre' ? qty : (density ? qty / density : 0);
   var enteredKg = unit === 'kg' ? qty : (density ? qty * density : null);
-
   var meta = state.productMeta[product] || {};
 
   var row = {
+    company_id: state.currentCompanyId,
     product: product,
     hsn: document.getElementById('inv-hsn').value.trim() || meta.hsn || '-',
     grade: document.getElementById('inv-grade').value || '-',
@@ -737,13 +693,11 @@ async function addTrade() {
 
   var vol = unit === 'litre' ? qty : (density ? qty / density : 0);
   var enteredKg = unit === 'kg' ? qty : (density ? qty * density : null);
-
   var termsVal = document.getElementById('tr-terms').value;
-  if (termsVal === '__custom__') {
-    termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
-  }
+  if (termsVal === '__custom__') termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
 
   var row = {
+    company_id: state.currentCompanyId,
     type: type,
     product: product,
     party: party,
@@ -764,6 +718,7 @@ async function addTrade() {
   renderTradesTable();
   renderRecentTrades();
   renderDashboardKpis();
+  renderReports();
   toast('Trade recorded');
 }
 
@@ -771,7 +726,6 @@ function renderOrdersTable() {
   document.getElementById('ordersTable').innerHTML = state.orders.slice().reverse().map(function(o) {
     var qty = o.entered_qty || o.entered_kg || o.qty || 0;
     var unit = o.qty_unit || (o.entered_kg ? 'kg' : 'litre');
-
     return '<tr><td class="mono">'+o.id+'</td><td><b>'+o.customer+'</b></td><td>'+o.product+'</td><td class="mono">'+fmtN(qty)+' ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td class="mono">'+fmt(o.price)+' / ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td class="mono">'+fmt(Number(qty) * Number(o.price || 0))+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+(o.due||'')+'</td><td style="display:flex;gap:4px"><select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)"><option '+(o.status==='Pending'?'selected':'')+'>Pending</option><option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option><option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option></select><button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">✕</button></td></tr>';
   }).join('');
 }
@@ -787,7 +741,8 @@ async function addOrder() {
 
   if (!customer || !qty || !price) return toast('Please enter customer, quantity and rate', true);
 
-  const { data: lastOrders } = await supabase.from('orders').select('id').order('created_at', { ascending:false }).limit(1);
+  const { data: lastOrders, error: lastErr } = await supabase.from('orders').select('id').eq('company_id', state.currentCompanyId).order('created_at', { ascending:false }).limit(1);
+  if (lastErr) return toast(lastErr.message, true);
 
   var nextNum = 1;
   if (lastOrders && lastOrders.length) {
@@ -798,6 +753,7 @@ async function addOrder() {
   var id = 'ORD-' + String(nextNum).padStart(3, '0');
 
   var row = {
+    company_id: state.currentCompanyId,
     id: id,
     customer: customer,
     product: product,
@@ -825,7 +781,7 @@ async function addOrder() {
 }
 
 async function updateOrderStatus(id, s) {
-  const { error } = await supabase.from('orders').update({ status: s }).eq('id', id);
+  const { error } = await supabase.from('orders').update({ status: s }).eq('id', id).eq('company_id', state.currentCompanyId);
   if (error) return toast(error.message, true);
 
   for (var i = 0; i < state.orders.length; i++) {
@@ -846,7 +802,6 @@ function renderChallansTable() {
   document.getElementById('challansTable').innerHTML = state.challans.slice().reverse().map(function(c) {
     var qty = c.entered_qty || c.entered_kg || c.vol || 0;
     var unit = c.qty_unit || (c.entered_kg ? 'kg' : 'litre');
-
     return '<tr><td class="mono"><b>'+c.id+'</b></td><td>'+(c.type==='in'?'<span class="badge badge-teal">In</span>':'<span class="badge badge-green">Out</span>')+'</td><td class="mono">'+c.date+'</td><td>'+c.product+'</td><td class="mono">'+fmtN(qty)+' ' + (unit === 'kg' ? 'KG' : 'L') + '</td><td>'+(c.transporter||'-')+'</td><td>'+(c.from||'-')+'</td><td>'+(c.to||'-')+'</td><td class="mono">'+(c.vehicle||'-')+'</td><td style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="downloadChallanPDF(\''+c.id+'\')">PDF</button><button class="btn btn-green btn-sm" onclick="shareWhatsApp(\''+c.id+'\')">WA</button><button class="btn btn-danger btn-sm" onclick="deleteChallan(\''+c.id+'\')">✕</button></td></tr>';
   }).join('');
 }
@@ -861,7 +816,8 @@ async function addChallan() {
   var density = densityInput ? parseFloat(densityInput) : null;
 
   if (!no) {
-    const { data: lastRows } = await supabase.from('challans').select('id').order('created_at', { ascending:false }).limit(1);
+    const { data: lastRows, error: lastErr } = await supabase.from('challans').select('id').eq('company_id', state.currentCompanyId).order('created_at', { ascending:false }).limit(1);
+    if (lastErr) return toast(lastErr.message, true);
     var nextNum = 1;
     if (lastRows && lastRows.length) {
       var m = String(lastRows[0].id).match(/CH-(\d+)/);
@@ -876,6 +832,7 @@ async function addChallan() {
   var weight = unit === 'kg' ? qty : (density ? qty * density : null);
 
   var row = {
+    company_id: state.currentCompanyId,
     id: no,
     type: type,
     date: document.getElementById('ch-date').value || today(),
@@ -914,6 +871,7 @@ async function addSupplier() {
   if (!n) return toast('Enter company name', true);
 
   var row = {
+    company_id: state.currentCompanyId,
     name: n,
     gst: document.getElementById('sup-gst').value,
     contact: document.getElementById('sup-contact').value,
@@ -942,6 +900,7 @@ async function addCustomer() {
   if (!n) return toast('Enter customer name', true);
 
   var row = {
+    company_id: state.currentCompanyId,
     name: n,
     gst: document.getElementById('cust-gst').value,
     contact: document.getElementById('cust-contact').value,
@@ -997,10 +956,12 @@ function customConfirm(msg) {
   document.getElementById('confirmModal').classList.add('show');
   return new Promise(function(r){ _confirmResolve = r; });
 }
+
 document.getElementById('confirmYes').onclick = function() {
   document.getElementById('confirmModal').classList.remove('show');
   if (_confirmResolve) _confirmResolve(true);
 };
+
 document.getElementById('confirmNo').onclick = function() {
   document.getElementById('confirmModal').classList.remove('show');
   if (_confirmResolve) _confirmResolve(false);
@@ -1010,13 +971,13 @@ async function deleteItem(arr, id) {
   const tableMap = { inventory:'inventory', trades:'trades', suppliers:'suppliers', customers:'customers' };
   customConfirm('Remove this item?').then(async function(ok) {
     if (!ok) return;
-    const { error } = await supabase.from(tableMap[arr]).delete().eq('id', id);
+    const { error } = await supabase.from(tableMap[arr]).delete().eq('id', id).eq('company_id', state.currentCompanyId);
     if (error) return toast(error.message, true);
 
     state[arr] = state[arr].filter(function(x){ return x.id !== id; });
 
     if (arr === 'inventory') { renderInventoryTable(); renderDashboardKpis(); renderInvLevels(); }
-    if (arr === 'trades') { renderTradesTable(); renderRecentTrades(); renderDashboardKpis(); }
+    if (arr === 'trades') { renderTradesTable(); renderRecentTrades(); renderDashboardKpis(); renderReports(); }
     if (arr === 'suppliers') { renderSuppliersTable(); populateTradePartySelect(); }
     if (arr === 'customers') { renderCustomersTable(); populateCustomerSelect(); populateTradePartySelect(); }
 
@@ -1027,7 +988,7 @@ async function deleteItem(arr, id) {
 async function deleteOrder(id) {
   customConfirm('Delete order ' + id + '?').then(async function(ok) {
     if (!ok) return;
-    const { error } = await supabase.from('orders').delete().eq('id', id);
+    const { error } = await supabase.from('orders').delete().eq('id', id).eq('company_id', state.currentCompanyId);
     if (error) return toast(error.message, true);
     state.orders = state.orders.filter(function(o){ return o.id !== id; });
     renderOrdersTable();
@@ -1039,7 +1000,7 @@ async function deleteOrder(id) {
 async function deleteChallan(id) {
   customConfirm('Delete challan ' + id + '?').then(async function(ok) {
     if (!ok) return;
-    const { error } = await supabase.from('challans').delete().eq('id', id);
+    const { error } = await supabase.from('challans').delete().eq('id', id).eq('company_id', state.currentCompanyId);
     if (error) return toast(error.message, true);
     state.challans = state.challans.filter(function(c){ return c.id !== id; });
     renderChallansTable();
@@ -1050,7 +1011,7 @@ async function deleteChallan(id) {
 async function deleteProduct(n) {
   customConfirm('Delete product "' + n + '"?').then(async function(ok) {
     if (!ok) return;
-    const { error } = await supabase.from('products').delete().eq('name', n);
+    const { error } = await supabase.from('products').delete().eq('name', n).eq('company_id', state.currentCompanyId);
     if (error) return toast(error.message, true);
     state.products = state.products.filter(function(p){ return p !== n; });
     delete state.productMeta[n];
@@ -1068,6 +1029,7 @@ async function addProductMaster() {
   var densityVal = document.getElementById('pm-density').value.trim();
 
   var row = {
+    company_id: state.currentCompanyId,
     name: n,
     hsn: document.getElementById('pm-hsn').value.trim() || '',
     density: densityVal ? parseFloat(densityVal) : null
@@ -1113,6 +1075,7 @@ window.switchPage = switchPage;
 window.syncUnitLabels = syncUnitLabels;
 window.toggleCustomTerm = toggleCustomTerm;
 window.openDeliveryOrderApp = openDeliveryOrderApp;
+window.changeCompany = changeCompany;
 window.addProductMaster = addProductMaster;
 window.deleteProduct = deleteProduct;
 window.handlePhotoUpload = handlePhotoUpload;
@@ -1150,29 +1113,7 @@ async function init() {
     document.getElementById('ord-due').value = today();
     document.getElementById('ch-date').value = today();
 
-    await loadState();
-
-    populateSelects();
-    populateCustomerSelect();
-    populateTradePartySelect();
-    renderProductsList();
-
-    syncUnitLabels('inv');
-    syncUnitLabels('tr');
-    syncUnitLabels('ord');
-    syncUnitLabels('ch');
-
-    renderDashboardKpis();
-    renderInvLevels();
-    renderRecentTrades();
-    renderActiveOrders();
-    renderInventoryTable();
-    renderTradesTable();
-    renderOrdersTable();
-    renderChallansTable();
-    renderSuppliersTable();
-    renderCustomersTable();
-    renderReports();
+    await refreshAllViews();
     toggleChallanFields();
     toggleCustomTerm('tr');
 
@@ -1180,7 +1121,7 @@ async function init() {
     setInterval(fetchBrentPrice, 300000);
   } catch (e) {
     console.error(e);
-    toast('Failed to load Supabase data: ' + e.message, true);
+    toast('Failed to load data: ' + e.message, true);
   }
 }
 init();
