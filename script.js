@@ -3,7 +3,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js'
 const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
 
 var DEF_P = ['Crude Oil','Diesel','Petrol','Kerosene','LPG'];
-var DEF_D = {'Crude Oil':0.850,'Diesel':0.832,'Petrol':0.740,'Kerosene':0.810,'LPG':0.510};
 
 var state = {
   products: [],
@@ -31,7 +30,7 @@ async function seedDefaultsIfEmpty() {
   if (!data || data.length === 0) {
     await supabase.from('products').insert(
       DEF_P.map(function(name){
-        return { name:name, density:DEF_D[name] || null, hsn:'' };
+        return { name:name, density:null, hsn:'' };
       })
     );
   }
@@ -122,39 +121,30 @@ function downloadChallanPDF(id) {
   }
   if (!c) return toast('Challan not found', true);
 
-  var typeLabel = c.type === 'in' ? 'INWARD DELIVERY CHALLAN' : 'OUTWARD DELIVERY CHALLAN';
-
   var html = '' +
   '<div class="print-header">' +
       '<h1>MURJI RAVJI & CO.</h1>' +
       '<p>OIL TRADING & LOGISTICS</p>' +
   '</div>' +
-  '<div class="print-title">' + escH(typeLabel) + '</div>' +
+  '<div class="print-title">' + escH(c.type === 'in' ? 'INWARD DELIVERY CHALLAN' : 'OUTWARD DELIVERY CHALLAN') + '</div>' +
   '<table class="print-table">' +
       '<tr><th>Challan No.</th><td>' + escH(c.id) + '</td></tr>' +
       '<tr><th>Date</th><td>' + escH(c.date) + '</td></tr>' +
-  '</table>' +
-  '<table class="print-table">' +
       '<tr><th>Product</th><td>' + escH(c.product) + '</td></tr>' +
       '<tr><th>Volume</th><td>' + fmtN(c.vol) + ' Litres</td></tr>' +
       '<tr><th>Weight</th><td>' + (c.weight ? fmtKG(c.weight) + ' KG' : '-') + '</td></tr>' +
       '<tr><th>Density</th><td>' + (c.density || '-') + '</td></tr>' +
       '<tr><th>Transporter</th><td>' + escH(c.transporter || '-') + '</td></tr>' +
-  '</table>' +
-  '<table class="print-table">' +
-      '<tr><th>' + (c.type==='in'?'Received From':'Dispatched From') + '</th><td>' + escH(c.from) + '</td></tr>' +
-      '<tr><th>' + (c.type==='in'?'Stored At':'Delivered To') + '</th><td>' + escH(c.to) + '</td></tr>' +
-  '</table>' +
-  '<table class="print-table">' +
-      '<tr><th>Vehicle No.</th><td>' + escH(c.vehicle) + '</td></tr>' +
-      '<tr><th>Driver Name</th><td>' + escH(c.driver) + '</td></tr>' +
-      '<tr><th>Driver Phone</th><td>' + escH(c.driverPh) + '</td></tr>' +
+      '<tr><th>' + (c.type==='in'?'Received From':'Dispatched From') + '</th><td>' + escH(c.from || '-') + '</td></tr>' +
+      '<tr><th>' + (c.type==='in'?'Stored At':'Delivered To') + '</th><td>' + escH(c.to || '-') + '</td></tr>' +
+      '<tr><th>Vehicle No.</th><td>' + escH(c.vehicle || '-') + '</td></tr>' +
+      '<tr><th>Driver Name</th><td>' + escH(c.driver || '-') + '</td></tr>' +
+      '<tr><th>Driver Phone</th><td>' + escH(c.driverPh || '-') + '</td></tr>' +
   '</table>' +
   '<div class="print-footer">' +
       '<div class="sig-block"><div class="sig-line">Authorized Signatory</div></div>' +
       '<div class="sig-block"><div class="sig-line">Receiver Signature</div></div>' +
-  '</div>' +
-  '<div class="print-note">This is a computer-generated document from Murji Ravji & Co. — ' + new Date().toLocaleString('en-IN') + '</div>';
+  '</div>';
 
   document.getElementById('printZone').innerHTML = html;
   toast('Opening print dialog — select "Save as PDF"');
@@ -171,7 +161,7 @@ function exportInventoryExcel() {
         i.density || '',
         i.tank || '-',
         i.vol,
-        i.density ? toKG(i.vol, i.density) : '',
+        i.entered_kg || (i.density ? toKG(i.vol, i.density) : ''),
         i.cost,
         i.vol * i.cost,
         i.threshold
@@ -179,9 +169,8 @@ function exportInventoryExcel() {
     });
 
     var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-    html += '<head><meta charset="UTF-8"><style>td,th{padding:6px 10px;border:1px solid #999;font-size:12px;font-family:Calibri,sans-serif;}th{background:#d4e6b5;font-weight:bold;color:#1a5c2e;}.num{text-align:right;}</style></head><body>';
-    html += '<table>';
-    html += '<tr><th>Product</th><th>HSN</th><th>Grade</th><th>Density (kg/L)</th><th>Tank</th><th>Volume (L)</th><th>Weight (KG)</th><th>Cost/L (₹)</th><th>Total Value (₹)</th><th>Threshold (KG)</th></tr>';
+    html += '<head><meta charset="UTF-8"><style>td,th{padding:6px 10px;border:1px solid #999;font-size:12px;font-family:Calibri,sans-serif;}th{background:#d4e6b5;font-weight:bold;color:#1a5c2e;}.num{text-align:right;}</style></head><body><table>';
+    html += '<tr><th>Product</th><th>HSN</th><th>Grade</th><th>Density</th><th>Tank</th><th>Volume (L)</th><th>Weight (KG)</th><th>Cost/L</th><th>Total Value</th><th>Threshold</th></tr>';
     for (var r = 0; r < rows.length; r++) {
       html += '<tr>';
       html += '<td>' + escH(rows[r][0]) + '</td>';
@@ -214,15 +203,19 @@ function exportInventoryExcel() {
 }
 
 function shareWhatsApp(id) {
-  var c = null;
-  for (var i = 0; i < state.challans.length; i++) {
-    if (state.challans[i].id === id) { c = state.challans[i]; break; }
-  }
+  var c = state.challans.find(function(x){ return x.id === id; });
   if (!c) return toast('Challan not found', true);
-  var text = '*MURJI RAVJI & CO.*\nChallan: ' + c.id + '\nDate: ' + c.date +
-    '\nProduct: ' + c.product + '\nVol: ' + fmtN(c.vol) + ' L\nWeight: ' + (c.weight ? fmtKG(c.weight) + ' KG' : '-') +
+
+  var text = '*MURJI RAVJI & CO.*\nChallan: ' + c.id +
+    '\nDate: ' + c.date +
+    '\nProduct: ' + c.product +
+    '\nVol: ' + fmtN(c.vol) + ' L' +
+    '\nWeight: ' + (c.weight ? fmtKG(c.weight) + ' KG' : '-') +
     '\nTransporter: ' + (c.transporter || '-') +
-    '\nFrom: ' + (c.from||'-') + '\nTo: ' + (c.to||'-') + '\nVehicle: ' + c.vehicle;
+    '\nFrom: ' + (c.from || '-') +
+    '\nTo: ' + (c.to || '-') +
+    '\nVehicle: ' + (c.vehicle || '-');
+
   window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(text), '_blank');
 }
 
@@ -269,7 +262,8 @@ function dualCalc(px, ch) {
   _lk[px] = true;
 
   var d = parseFloat(document.getElementById(m.denId).value);
-  var vEl = document.getElementById(m.volId), kEl = document.getElementById(m.kgId);
+  var vEl = document.getElementById(m.volId);
+  var kEl = document.getElementById(m.kgId);
 
   if (!d) {
     setTimeout(function(){ _lk[px] = false; }, 60);
@@ -277,11 +271,11 @@ function dualCalc(px, ch) {
   }
 
   if (ch === 'vol') {
-    var v = parseFloat(vEl.value)||0;
-    kEl.value = v>0 ? toKG(v,d).toFixed(1) : '';
+    var v = parseFloat(vEl.value) || 0;
+    kEl.value = v > 0 ? (v * d).toFixed(1) : '';
   } else {
-    var kg = parseFloat(kEl.value)||0;
-    vEl.value = kg>0 ? (kg/d).toFixed(1) : '';
+    var kg = parseFloat(kEl.value) || 0;
+    vEl.value = kg > 0 ? (kg / d).toFixed(1) : '';
   }
 
   setTimeout(function(){ _lk[px] = false; }, 60);
@@ -335,14 +329,14 @@ function statusBadge(s) {
 function renderDashboardKpis() {
   var ts = 0, totalKG = 0;
   for (var i = 0; i < state.inventory.length; i++) {
-    ts += Number(state.inventory[i].vol) * Number(state.inventory[i].cost);
-    totalKG += toKG(Number(state.inventory[i].vol), state.inventory[i].density);
+    ts += Number(state.inventory[i].vol || 0) * Number(state.inventory[i].cost || 0);
+    totalKG += Number(state.inventory[i].entered_kg || 0) || toKG(state.inventory[i].vol, state.inventory[i].density);
   }
   var totalMT = totalKG / 1000;
 
   var sl = 0;
   for (var j = 0; j < state.trades.length; j++) {
-    if (state.trades[j].type === 'Sell') sl += Number(state.trades[j].vol) * Number(state.trades[j].price);
+    if (state.trades[j].type === 'Sell') sl += Number(state.trades[j].vol || 0) * Number(state.trades[j].price || 0);
   }
 
   document.getElementById('kpiGrid').innerHTML =
@@ -353,7 +347,7 @@ function renderDashboardKpis() {
 
 function renderInvLevels() {
   document.getElementById('invLevels').innerHTML = state.inventory.map(function(i) {
-    var kg = toKG(Number(i.vol), i.density);
+    var kg = Number(i.entered_kg || 0) || toKG(i.vol, i.density);
     var threshold = Number(i.threshold || 0);
     var p = threshold > 0 ? Math.min(100, Math.round(kg / (threshold * 10) * 100)) : 0;
     var c = p > 50 ? 'green' : p > 25 ? '' : 'red';
@@ -363,13 +357,14 @@ function renderInvLevels() {
 
 function renderRecentTrades() {
   document.getElementById('recentTradesTbl').innerHTML = state.trades.slice(-5).reverse().map(function(t) {
-    return '<tr><td>'+t.product+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+(t.density ? fmtKG(toKG(t.vol,t.density)) : '-')+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(Number(t.vol)*Number(t.price))+'</td></tr>';
+    var kg = Number(t.entered_kg || 0) || (t.density ? toKG(t.vol, t.density) : 0);
+    return '<tr><td>'+t.product+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+(kg ? fmtKG(kg) : '-')+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(Number(t.vol||0)*Number(t.price||0))+'</td></tr>';
   }).join('');
 }
 
 function renderActiveOrders() {
   document.getElementById('activeOrdersTbl').innerHTML = state.orders.filter(function(o){ return o.status !== 'Delivered'; }).map(function(o) {
-    return '<tr><td class="mono">'+o.id+'</td><td>'+o.customer+'</td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(Number(o.qty)*Number(o.price))+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+(o.due || '')+'</td></tr>';
+    return '<tr><td class="mono">'+o.id+'</td><td>'+o.customer+'</td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(Number(o.qty||0)*Number(o.price||0))+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+(o.due || '')+'</td></tr>';
   }).join('');
 }
 
@@ -412,21 +407,28 @@ function renderInventoryTable() {
   document.getElementById('invTable').innerHTML = state.inventory.filter(function(i){
     return String(i.product || '').toLowerCase().indexOf(q) >= 0;
   }).map(function(i) {
-    var kg = i.density ? toKG(i.vol, i.density) : 0;
+    var kg = Number(i.entered_kg || 0) || (i.density ? toKG(i.vol, i.density) : 0);
     var threshold = Number(i.threshold || 0);
     var lvPct = threshold > 0 ? Math.min(100, kg / threshold * 10) : 0;
-    return '<tr><td><b>'+i.product+'</b></td><td>'+(i.hsn || '-')+'</td><td>'+i.grade+'</td><td class="mono">'+(i.density || '-')+'</td><td>'+i.tank+'</td><td class="mono">'+fmtN(i.vol)+'</td><td class="mono">'+(i.density ? fmtKG(kg) : '-')+'</td><td class="mono">'+fmt(i.cost)+'</td><td class="mono">'+fmt(Number(i.vol)*Number(i.cost))+'</td><td><div class="progress" style="width:60px"><div class="progress-fill '+(kg > threshold ? 'green':'red')+'" style="width:'+lvPct+'%"></div></div></td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\','+i.id+')">✕</button></td></tr>';
+    return '<tr><td><b>'+i.product+'</b></td><td>'+(i.hsn || '-')+'</td><td>'+i.grade+'</td><td class="mono">'+(i.density || '-')+'</td><td>'+i.tank+'</td><td class="mono">'+fmtN(i.vol)+'</td><td class="mono">'+(kg ? fmtKG(kg) : '-')+'</td><td class="mono">'+fmt(i.cost)+'</td><td class="mono">'+fmt(Number(i.vol||0)*Number(i.cost||0))+'</td><td><div class="progress" style="width:60px"><div class="progress-fill '+(kg > threshold ? 'green':'red')+'" style="width:'+lvPct+'%"></div></div></td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\','+i.id+')">✕</button></td></tr>';
   }).join('');
 }
 
 async function addInventory() {
   var product = document.getElementById('inv-product').value;
-  var vol = parseFloat(document.getElementById('inv-vol').value);
+  var volInput = parseFloat(document.getElementById('inv-vol').value);
+  var kgInput = parseFloat(document.getElementById('inv-kg').value);
   var cost = parseFloat(document.getElementById('inv-cost').value);
   var densityInput = document.getElementById('inv-density').value.trim();
   var density = densityInput ? parseFloat(densityInput) : null;
 
-  if (!vol || !cost) return toast('Please fill quantity and price', true);
+  if ((!volInput && !kgInput) || !cost) {
+    return toast('Please enter litre or kg, and price', true);
+  }
+
+  var vol = volInput || null;
+  if (!vol && kgInput && density) vol = kgInput / density;
+  if (!vol) vol = 0;
 
   var meta = state.productMeta[product] || {};
 
@@ -436,6 +438,7 @@ async function addInventory() {
     grade: document.getElementById('inv-grade').value || '-',
     tank: document.getElementById('inv-tank').value || '-',
     vol: vol,
+    entered_kg: kgInput || null,
     cost: cost,
     threshold: parseFloat(document.getElementById('inv-thresh').value) || 1000,
     density: density,
@@ -462,7 +465,7 @@ function clearInvForm() {
 
 function renderTradesTable() {
   document.getElementById('tradesTable').innerHTML = state.trades.slice().reverse().map(function(t) {
-    return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(Number(t.vol)*Number(t.price))+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">✕</button></td></tr>';
+    return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(Number(t.vol||0)*Number(t.price||0))+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">✕</button></td></tr>';
   }).join('');
 }
 
@@ -470,12 +473,19 @@ async function addTrade() {
   var type = document.getElementById('tr-type').value;
   var product = document.getElementById('tr-product').value;
   var party = document.getElementById('tr-party').value;
-  var vol = parseFloat(document.getElementById('tr-vol').value);
+  var volInput = parseFloat(document.getElementById('tr-vol').value);
+  var kgInput = parseFloat(document.getElementById('tr-kg').value);
   var price = parseFloat(document.getElementById('tr-price').value);
   var densityInput = document.getElementById('tr-density').value.trim();
   var density = densityInput ? parseFloat(densityInput) : null;
 
-  if (!party || !vol || !price) return toast('Please fill all required fields', true);
+  if (!party || (!volInput && !kgInput) || !price) {
+    return toast('Please fill required fields', true);
+  }
+
+  var vol = volInput || null;
+  if (!vol && kgInput && density) vol = kgInput / density;
+  if (!vol) vol = 0;
 
   var termsVal = document.getElementById('tr-terms').value;
   if (termsVal === '__custom__') termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
@@ -485,6 +495,7 @@ async function addTrade() {
     product: product,
     party: party,
     vol: vol,
+    entered_kg: kgInput || null,
     price: price,
     date: document.getElementById('tr-date').value || today(),
     terms: termsVal,
@@ -503,19 +514,26 @@ async function addTrade() {
 
 function renderOrdersTable() {
   document.getElementById('ordersTable').innerHTML = state.orders.slice().reverse().map(function(o) {
-    return '<tr><td class="mono">'+o.id+'</td><td><b>'+o.customer+'</b></td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(Number(o.qty)*Number(o.price))+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+(o.due||'')+'</td><td style="display:flex;gap:4px"><select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)"><option '+(o.status==='Pending'?'selected':'')+'>Pending</option><option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option><option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option></select><button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">✕</button></td></tr>';
+    return '<tr><td class="mono">'+o.id+'</td><td><b>'+o.customer+'</b></td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(Number(o.qty||0)*Number(o.price||0))+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+(o.due||'')+'</td><td style="display:flex;gap:4px"><select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)"><option '+(o.status==='Pending'?'selected':'')+'>Pending</option><option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option><option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option></select><button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">✕</button></td></tr>';
   }).join('');
 }
 
 async function addOrder() {
   var customer = document.getElementById('ord-customer').value;
   var product = document.getElementById('ord-product').value;
-  var qty = parseFloat(document.getElementById('ord-qty').value);
+  var volInput = parseFloat(document.getElementById('ord-qty').value);
+  var kgInput = parseFloat(document.getElementById('ord-kg').value);
   var price = parseFloat(document.getElementById('ord-price').value);
   var densityInput = document.getElementById('ord-density').value.trim();
   var density = densityInput ? parseFloat(densityInput) : null;
 
-  if (!customer || !qty || !price) return toast('Please fill all required fields', true);
+  if (!customer || (!volInput && !kgInput) || !price) {
+    return toast('Please fill all required fields', true);
+  }
+
+  var qty = volInput || null;
+  if (!qty && kgInput && density) qty = kgInput / density;
+  if (!qty) qty = 0;
 
   const { data: lastOrders } = await supabase.from('orders').select('id').order('created_at', { ascending:false }).limit(1);
   var nextNum = 1;
@@ -530,6 +548,7 @@ async function addOrder() {
     customer: customer,
     product: product,
     qty: qty,
+    entered_kg: kgInput || null,
     price: price,
     date: document.getElementById('ord-date').value || today(),
     due: document.getElementById('ord-due').value || null,
@@ -569,7 +588,7 @@ function toggleChallanFields() {
 
 function renderChallansTable() {
   document.getElementById('challansTable').innerHTML = state.challans.slice().reverse().map(function(c) {
-    return '<tr><td class="mono"><b>'+c.id+'</b></td><td>'+(c.type==='in'?'<span class="badge badge-teal">In</span>':'<span class="badge badge-green">Out</span>')+'</td><td class="mono">'+c.date+'</td><td>'+c.product+'</td><td class="mono">'+fmtN(c.vol)+'</td><td>'+(c.transporter||'-')+'</td><td>'+(c.from||'-')+'</td><td>'+(c.to||'-')+'</td><td class="mono">'+c.vehicle+'</td><td style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="downloadChallanPDF(\''+c.id+'\')">PDF</button><button class="btn btn-green btn-sm" onclick="shareWhatsApp(\''+c.id+'\')">WA</button><button class="btn btn-danger btn-sm" onclick="deleteChallan(\''+c.id+'\')">✕</button></td></tr>';
+    return '<tr><td class="mono"><b>'+c.id+'</b></td><td>'+(c.type==='in'?'<span class="badge badge-teal">In</span>':'<span class="badge badge-green">Out</span>')+'</td><td class="mono">'+c.date+'</td><td>'+c.product+'</td><td class="mono">'+fmtN(c.vol)+'</td><td>'+(c.transporter||'-')+'</td><td>'+(c.from||'-')+'</td><td>'+(c.to||'-')+'</td><td class="mono">'+(c.vehicle||'-')+'</td><td style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="downloadChallanPDF(\''+c.id+'\')">PDF</button><button class="btn btn-green btn-sm" onclick="shareWhatsApp(\''+c.id+'\')">WA</button><button class="btn btn-danger btn-sm" onclick="deleteChallan(\''+c.id+'\')">✕</button></td></tr>';
   }).join('');
 }
 
@@ -588,11 +607,16 @@ async function addChallan() {
   }
 
   var product = document.getElementById('ch-product').value;
+  var volInput = parseFloat(document.getElementById('ch-vol').value);
+  var kgInput = parseFloat(document.getElementById('ch-kg').value);
   var densityInput = document.getElementById('ch-density').value.trim();
   var density = densityInput ? parseFloat(densityInput) : null;
-  var vol = parseFloat(document.getElementById('ch-vol').value);
 
-  if (!vol) return toast('Enter quantity', true);
+  if (!volInput && !kgInput) return toast('Enter litre or kg', true);
+
+  var vol = volInput || null;
+  if (!vol && kgInput && density) vol = kgInput / density;
+  if (!vol) vol = 0;
 
   var row = {
     id: no,
@@ -600,8 +624,9 @@ async function addChallan() {
     date: document.getElementById('ch-date').value || today(),
     product: product,
     vol: vol,
+    entered_kg: kgInput || null,
     density: density,
-    weight: density ? toKG(vol, density) : null,
+    weight: kgInput || (density && vol ? toKG(vol, density) : null),
     from: document.getElementById('ch-from').value,
     to: document.getElementById('ch-to').value,
     transporter: document.getElementById('ch-transporter').value,
@@ -680,8 +705,8 @@ function renderReports() {
   var sales = 0, buys = 0;
   for (var i = 0; i < state.trades.length; i++) {
     var t = state.trades[i];
-    if (t.type === 'Sell') sales += Number(t.vol) * Number(t.price);
-    else buys += Number(t.vol) * Number(t.price);
+    if (t.type === 'Sell') sales += Number(t.vol || 0) * Number(t.price || 0);
+    else buys += Number(t.vol || 0) * Number(t.price || 0);
   }
   var profit = sales - buys;
   document.getElementById('reportKpis').innerHTML =
@@ -697,7 +722,7 @@ function renderReports() {
   var cust = {};
   for (var j = 0; j < state.trades.length; j++) {
     var tr = state.trades[j];
-    if (tr.type === 'Sell') cust[tr.party] = (cust[tr.party]||0) + (Number(tr.vol) * Number(tr.price));
+    if (tr.type === 'Sell') cust[tr.party] = (cust[tr.party]||0) + (Number(tr.vol || 0) * Number(tr.price || 0));
   }
   var top = Object.keys(cust).map(function(k){ return [k, cust[k]]; }).sort(function(a,b){ return b[1]-a[1]; }).slice(0, 5);
   document.getElementById('topCustomers').innerHTML = top.map(function(c) {
