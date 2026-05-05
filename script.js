@@ -394,7 +394,7 @@ function populateTradeParties() {
     }
 }
 function calcTradeTotals() {
-    var vol = parseFloat(document.getElementById('tr-vol').value) || 0;
+    var rawQty = parseFloat(document.getElementById('tr-vol').value) || 0;
     var den = parseFloat(document.getElementById('tr-density').value) || 0.85;
     var unit = document.getElementById('tr-unit').value;
     var mode = document.getElementById('tr-mode').value;
@@ -402,7 +402,6 @@ function calcTradeTotals() {
     var price = 0;
     if (mode === 'import' || mode === 'hs_sale') {
         price = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-        // For import, we also need to consider ex_rate if it's not high seas
         var isHs = document.getElementById('tr-is-hs') ? document.getElementById('tr-is-hs').checked : false;
         if (mode === 'import' && !isHs) {
             var ex = parseFloat(document.getElementById('tr-ex-rate').value) || 0;
@@ -412,11 +411,8 @@ function calcTradeTotals() {
         price = parseFloat(document.getElementById('tr-price-local').value) || 0;
     }
 
-    var qtyForCalc = vol;
-    if (unit === 'KG') qtyForCalc = vol * den;
-    if (unit === 'MTON') qtyForCalc = (vol * den) / 1000;
-
-    var totalInr = qtyForCalc * price;
+    // Total INR is always Raw Quantity in box * Price per that unit
+    var totalInr = rawQty * price;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
 }
 function toggleTradeModeField() {
@@ -492,8 +488,7 @@ function loadPurchaseDetails() {
 }
 function calcImportTotal() {
     var isHs = document.getElementById('tr-is-hs').checked;
-    var vol = parseFloat(document.getElementById('tr-vol').value) || 0;
-    var den = parseFloat(document.getElementById('tr-density').value) || 0.85;
+    var rawQty = parseFloat(document.getElementById('tr-vol').value) || 0;
     var rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
     
     var currEl = document.getElementById('tr-imp-curr');
@@ -512,20 +507,12 @@ function calcImportTotal() {
         if (currEl.value === 'INR') currEl.value = 'USD';
     }
 
-    var ex = parseFloat(exEl.value) || 0;
-    var unit = document.getElementById('tr-unit').value;
+    var totalFor = rawQty * rate;
     var curr = currEl.value;
-
-    var qtyForCalc = vol;
-    if (unit === 'KG') qtyForCalc = vol * den;
-    if (unit === 'MTON') qtyForCalc = (vol * den) / 1000;
-
-    var totalFor = qtyForCalc * rate;
-    var totalInr = totalFor * ex;
 
     document.getElementById('tr-total-for').value = curr + ' ' + totalFor.toLocaleString('en-US', {minimumFractionDigits:2});
     
-    if (vol > 0) {
+    if (rawQty > 0) {
         calcTradeTotals();
     }
 }
@@ -645,8 +632,9 @@ function renderTradesTable() {
         else modeLabel = t.mode === 'hs_sale' ? 'HS Sale' : 'Local';
         
         var modeInfo = ' <small>(' + modeLabel + ')</small>';
+        var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
         var unitSuffix = t.unit ? ' ' + t.unit : ' L';
-        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(t.vol)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(t.vol*t.price)+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></td></tr>';
+        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></td></tr>';
     }).join('');
 }
 function addTrade() {
@@ -657,7 +645,14 @@ function addTrade() {
                 document.getElementById('tr-party-select').value : 
                 document.getElementById('tr-party').value;
     
-    var vol = parseFloat(document.getElementById('tr-vol').value);
+    var rawQty = parseFloat(document.getElementById('tr-vol').value);
+    var den = parseFloat(document.getElementById('tr-density').value) || getDensity(product);
+    var unit = document.getElementById('tr-unit').value;
+    
+    var volInL = rawQty;
+    if (unit === 'KG') volInL = rawQty / den;
+    if (unit === 'MTON') volInL = (rawQty * 1000) / den;
+
     var price = 0;
     if (mode === 'import' || mode === 'hs_sale') {
         price = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
@@ -665,7 +660,7 @@ function addTrade() {
         price = parseFloat(document.getElementById('tr-price-local').value) || 0;
     }
 
-    if (!party || !vol || !price) return toast('Please fill all required fields', true);
+    if (!party || !rawQty || !price) return toast('Please fill all required fields', true);
     
     var termsVal = document.getElementById('tr-terms').value;
     if (termsVal === '__custom__') termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
@@ -674,11 +669,12 @@ function addTrade() {
         id: state.nextTradeId++,
         type: type, mode: mode, 
         product: product, party: party,
-        vol: vol, price: price,
-        unit: document.getElementById('tr-unit').value,
+        vol: volInL, price: price,
+        raw_qty: rawQty,
+        unit: unit,
         date: document.getElementById('tr-date').value || today(),
         terms: termsVal,
-        density: parseFloat(document.getElementById('tr-density').value) || getDensity(product)
+        density: den
     };
 
     if (type === 'Sell' && mode === 'hs_sale') {
