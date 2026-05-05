@@ -52,6 +52,9 @@ function loadState(){
         if (!s.bankName) s.bankName = '';
         if (!s.bankAc) s.bankAc = '';
         if (!s.bankIfsc) s.bankIfsc = '';
+        if (!s.bankIban) s.bankIban = '';
+        if (!s.bankSwift) s.bankSwift = '';
+        if (!s.bankCurr) s.bankCurr = '';
     });
   }
   if (!state.buyers) state.buyers = [];
@@ -642,13 +645,34 @@ function addChallan() {
 function renderSuppliersTable() {
     document.getElementById('suppliersTable').innerHTML = state.suppliers.map(function(s) {
         var typeBadge = s.type === 'import' ? '<span class="badge badge-teal">Import</span>' : '<span class="badge badge-gray">Local</span>';
-        var bankInfo = s.bankName ? '<div style="font-size:10px;color:var(--muted)">'+escH(s.bankName)+' - '+escH(s.bankAc)+'</div>' : '-';
+        var bankInfo = '-';
+        if (s.type === 'import') {
+            bankInfo = '<div style="font-size:10px;color:var(--muted)">' + 
+                       (s.bankIban ? 'IBAN: '+escH(s.bankIban) : (s.bankName ? escH(s.bankName) : '-')) + 
+                       (s.bankSwift ? ' <br>SWIFT: '+escH(s.bankSwift) : '') + 
+                       '</div>';
+        } else if (s.bankName) {
+            bankInfo = '<div style="font-size:10px;color:var(--muted)">'+escH(s.bankName)+' - '+escH(s.bankAc)+'</div>';
+        }
+        
         return '<tr><td><b>'+escH(s.name)+'</b></td><td>'+typeBadge+'</td><td>'+escH(s.contact)+'</td><td class="mono">'+escH(s.phone)+'</td><td>'+escH(s.city)+'</td><td>'+bankInfo+'</td><td>' +
                '<div style="display:flex;gap:4px">' +
                  '<button class="btn btn-primary btn-sm" onclick="editSupplier('+s.id+')">&#x270F;</button>' +
                  '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'suppliers\','+s.id+')">&#x2715;</button>' +
                '</div></td></tr>';
     }).join('');
+}
+function toggleSupIntlFields() {
+    var type = document.getElementById('sup-type').value;
+    var intl = document.querySelectorAll('.sup-intl-fields');
+    var local = document.getElementById('sup-ifsc-group');
+    if (type === 'import') {
+        intl.forEach(function(el){ el.style.display = 'flex'; });
+        local.style.display = 'none';
+    } else {
+        intl.forEach(function(el){ el.style.display = 'none'; });
+        local.style.display = 'flex';
+    }
 }
 var editingSupId = null;
 function editSupplier(id) {
@@ -663,6 +687,11 @@ function editSupplier(id) {
     document.getElementById('sup-bank-name').value = s.bankName || '';
     document.getElementById('sup-bank-ac').value = s.bankAc || '';
     document.getElementById('sup-bank-ifsc').value = s.bankIfsc || '';
+    document.getElementById('sup-bank-iban').value = s.bankIban || '';
+    document.getElementById('sup-bank-swift').value = s.bankSwift || '';
+    document.getElementById('sup-bank-curr').value = s.bankCurr || 'USD';
+    
+    toggleSupIntlFields();
     
     var btn = document.getElementById('btn-add-supplier');
     btn.innerHTML = '&#x1F4BE; Update Supplier';
@@ -671,7 +700,10 @@ function editSupplier(id) {
 }
 function clearSupForm() {
     editingSupId = null;
-    ['sup-name','sup-contact','sup-phone','sup-city','sup-bank-name','sup-bank-ac','sup-bank-ifsc'].forEach(function(id){document.getElementById(id).value='';});
+    ['sup-name','sup-contact','sup-phone','sup-city','sup-bank-name','sup-bank-ac','sup-bank-ifsc','sup-bank-iban','sup-bank-swift'].forEach(function(id){
+        var el = document.getElementById(id); if (el) el.value = '';
+    });
+    toggleSupIntlFields();
     var btn = document.getElementById('btn-add-supplier');
     btn.innerHTML = '&#x1F3ED; Add Supplier';
     btn.classList.remove('btn-blue');
@@ -688,7 +720,10 @@ function addSupplier() {
         city: document.getElementById('sup-city').value,
         bankName: document.getElementById('sup-bank-name').value,
         bankAc: document.getElementById('sup-bank-ac').value,
-        bankIfsc: document.getElementById('sup-bank-ifsc').value
+        bankIfsc: document.getElementById('sup-bank-ifsc').value,
+        bankIban: document.getElementById('sup-bank-iban').value,
+        bankSwift: document.getElementById('sup-bank-swift').value,
+        bankCurr: document.getElementById('sup-bank-curr').value
     };
 
     if (editingSupId) {

@@ -185,13 +185,18 @@
   <div class="panel">
     <div class="form-grid">
       <div class="form-group"><label>Company</label><input id="sup-name" placeholder="Name"></div>
-      <div class="form-group"><label>Supplier Type</label><select id="sup-type"><option value="local">Local Supplier</option><option value="import">Import Supplier</option></select></div>
+      <div class="form-group"><label>Supplier Type</label><select id="sup-type" onchange="toggleSupIntlFields()"><option value="local">Local Supplier</option><option value="import">Import Supplier</option></select></div>
       <div class="form-group"><label>Contact</label><input id="sup-contact" placeholder="Person"></div>
       <div class="form-group"><label>Phone</label><input id="sup-phone" placeholder="+91"></div>
       <div class="form-group"><label>City</label><input id="sup-city" placeholder="Mumbai"></div>
       <div class="form-group"><label>Bank Name</label><input id="sup-bank-name" placeholder="Bank Name"></div>
       <div class="form-group"><label>Account No.</label><input id="sup-bank-ac" placeholder="Account Number"></div>
-      <div class="form-group"><label>IFSC / SWIFT</label><input id="sup-bank-ifsc" placeholder="IFSC or SWIFT"></div>
+      <div id="sup-ifsc-group" class="form-group"><label>IFSC Code</label><input id="sup-bank-ifsc" placeholder="IFSC Code"></div>
+      
+      <!-- International Fields -->
+      <div class="sup-intl-fields form-group" style="display:none"><label>IBAN</label><input id="sup-bank-iban" placeholder="International Bank Account No."></div>
+      <div class="sup-intl-fields form-group" style="display:none"><label>SWIFT / BIC</label><input id="sup-bank-swift" placeholder="SWIFT Code"></div>
+      <div class="sup-intl-fields form-group" style="display:none"><label>A/c Currency</label><select id="sup-bank-curr"><option>USD</option><option>EUR</option><option>AED</option><option>GBP</option></select></div>
     </div>
     <div class="btn-row">
         <button id="btn-add-supplier" class="btn btn-primary" onclick="addSupplier()">&#x1F3ED; Add Supplier</button>
