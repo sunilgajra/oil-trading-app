@@ -44,6 +44,10 @@ function loadState(){
     }
   } catch(e) {}
   state = JSON.parse(JSON.stringify(DEF_S));
+  // Migration: Add type to existing suppliers
+  if (state.suppliers) {
+    state.suppliers.forEach(function(s) { if (!s.type) s.type = 'local'; });
+  }
 }
 function saveState(){try{localStorage.setItem('murji_oil_v12',JSON.stringify(state));}catch(e){}}
 loadState();
@@ -629,14 +633,16 @@ function addChallan() {
 
 function renderSuppliersTable() {
     document.getElementById('suppliersTable').innerHTML = state.suppliers.map(function(s) {
-        return '<tr><td><b>'+s.name+'</b></td><td>'+s.contact+'</td><td class="mono">'+s.phone+'</td><td>'+s.city+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'suppliers\','+s.id+')">&#x2715;</button></td></tr>';
+        var typeBadge = s.type === 'import' ? '<span class="badge badge-teal">Import</span>' : '<span class="badge badge-gray">Local</span>';
+        return '<tr><td><b>'+s.name+'</b></td><td>'+typeBadge+'</td><td>'+s.contact+'</td><td class="mono">'+s.phone+'</td><td>'+s.city+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'suppliers\','+s.id+')">&#x2715;</button></td></tr>';
     }).join('');
 }
 function addSupplier() {
     var n = document.getElementById('sup-name').value;
+    var t = document.getElementById('sup-type').value;
     if (!n) return toast('Enter company name', true);
     state.suppliers.push({
-        id: state.nextSupId++, name: n,
+        id: state.nextSupId++, name: n, type: t,
         contact: document.getElementById('sup-contact').value,
         phone: document.getElementById('sup-phone').value,
         city: document.getElementById('sup-city').value
