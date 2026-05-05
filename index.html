@@ -10,6 +10,14 @@
 <link rel="stylesheet" href="style.css">
 <!-- html2pdf for clean mobile downloads -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+    .docs-mgr { background: var(--surface); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+    .docs-list { display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto; }
+    .doc-item { display: flex; justify-content: space-between; align-items: center; background: var(--surface2); padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+    .doc-item small { color: var(--muted); margin-left: 5px; }
+    .btn-gold { background: var(--gold2); color: #000; }
+    .btn-gold:hover { background: #eab308; }
+  </style>
 </head>
 <body>
 
@@ -129,6 +137,18 @@
 
       <div class="form-group full"><label>Payment Terms</label>
         <div class="terms-row"><div class="form-group" style="flex:1"><select id="tr-terms" onchange="toggleCustomTerm('tr')"><option>Immediate</option><option>Net 15</option><option>Net 30</option><option value="__custom__">Custom...</option></select></div><div class="custom-input" id="tr-custom-term"><input id="tr-custom-term-val" placeholder="Enter custom term"></div></div>
+      </div>
+
+      <div class="form-group full">
+        <label style="color:var(--gold2)">Trade Documents</label>
+        <div class="docs-mgr">
+            <div style="display:flex; gap:10px; margin-bottom:10px">
+                <input type="file" id="tr-doc-file" style="display:none" onchange="handleTradeDocUpload(this)">
+                <button class="btn btn-sm" onclick="document.getElementById('tr-doc-file').click()">&#x1F4CE; Attach Document</button>
+                <button class="btn btn-sm btn-gold" onclick="scanTradeDocWithAI()" id="btn-scan-ai" style="display:none">&#x2728; Scan with AI</button>
+            </div>
+            <div id="tr-docs-list" class="docs-list"></div>
+        </div>
       </div>
     </div>
     <div class="btn-row"><button class="btn btn-primary" onclick="addTrade()">&#x1F4B1; Record Trade</button></div>
