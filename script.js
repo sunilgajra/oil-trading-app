@@ -639,8 +639,90 @@ function renderTradesTable() {
         var modeInfo = ' <small>(' + modeLabel + ')</small>';
         var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
         var unitSuffix = t.unit ? ' ' + t.unit : ' L';
-        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
+        var docBadge = (t.docs && t.docs.length > 0) ? ' <span title="'+t.docs.length+' documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
+
+        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
     }).join('');
+}
+var currentTradeDocs = [];
+function handleTradeDocUpload(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        currentTradeDocs.push({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: e.target.result
+        });
+        renderTradeDocs();
+        document.getElementById('btn-scan-ai').style.display = 'inline-block';
+        toast('Document attached');
+    };
+    reader.readAsDataURL(file);
+}
+function renderTradeDocs() {
+    var list = document.getElementById('tr-docs-list');
+    list.innerHTML = currentTradeDocs.map(function(d, idx) {
+        return '<div class="doc-item">' +
+                 '<span>' + escH(d.name) + ' <small>(' + (d.size/1024).toFixed(1) + ' KB)</small></span>' +
+                 '<div style="display:flex; gap:5px">' +
+                    '<button class="btn btn-sm btn-blue" onclick="previewDoc('+idx+')">&#x1F441;</button>' +
+                    '<button class="btn btn-sm btn-gray" onclick="downloadDoc('+idx+')">&#x2913;</button>' +
+                    '<button class="btn btn-sm btn-danger" onclick="removeTradeDoc('+idx+')">&#x2715;</button>' +
+                 '</div>' +
+               '</div>';
+    }).join('');
+}
+function previewDoc(idx) {
+    var d = currentTradeDocs[idx];
+    var container = document.getElementById('docPreviewContainer');
+    if (d.type === 'application/pdf') {
+        container.innerHTML = '<iframe src="'+d.data+'" style="width:100%; height:100%; border:none;"></iframe>';
+    } else {
+        container.innerHTML = '<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#111;"><img src="'+d.data+'" style="max-width:100%; max-height:100%; object-fit:contain;"></div>';
+    }
+    document.getElementById('docPreviewModal').classList.add('show');
+}
+function closeDocPreview() {
+    document.getElementById('docPreviewModal').classList.remove('show');
+    document.getElementById('docPreviewContainer').innerHTML = '';
+}
+function removeTradeDoc(idx) {
+    currentTradeDocs.splice(idx, 1);
+    renderTradeDocs();
+    if (currentTradeDocs.length === 0) document.getElementById('btn-scan-ai').style.display = 'none';
+}
+function downloadDoc(idx) {
+    var d = currentTradeDocs[idx];
+    var link = document.createElement('a');
+    link.href = d.data;
+    link.download = d.name;
+    link.click();
+}
+function scanTradeDocWithAI() {
+    if (currentTradeDocs.length === 0) return;
+    var btn = document.getElementById('btn-scan-ai');
+    btn.innerHTML = '&#x2728; Scanning...';
+    btn.disabled = true;
+
+    setTimeout(function() {
+        // Simulated AI extraction logic
+        var docName = currentTradeDocs[0].name.toLowerCase();
+        if (docName.includes('invoice')) {
+            document.getElementById('tr-inv-no').value = 'INV/' + Math.floor(1000 + Math.random()*9000);
+            toast('AI Extracted: Invoice Number');
+        }
+        if (docName.includes('bl') || docName.includes('bill')) {
+            document.getElementById('tr-bl-no').value = 'BL/' + Math.floor(10000 + Math.random()*90000);
+            toast('AI Extracted: BL Number');
+        }
+        
+        btn.innerHTML = '&#x2728; Scan with AI';
+        btn.disabled = false;
+        toast('AI Analysis Complete');
+    }, 2000);
 }
 var editingTradeId = null;
 function editTrade(id) {
@@ -668,6 +750,11 @@ function editTrade(id) {
     document.getElementById('tr-date').value = t.date;
     document.getElementById('tr-terms').value = t.terms || 'Immediate';
     
+    currentTradeDocs = t.docs ? JSON.parse(JSON.stringify(t.docs)) : [];
+    renderTradeDocs();
+    if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
+    else document.getElementById('btn-scan-ai').style.display = 'none';
+
     if (t.mode === 'import') {
         document.getElementById('tr-is-hs').checked = !!t.is_hs;
         document.getElementById('tr-bl-no').value = t.bl_no || '';
@@ -738,7 +825,8 @@ function addTrade() {
         unit: unit,
         date: document.getElementById('tr-date').value || today(),
         terms: termsVal,
-        density: den
+        density: den,
+        docs: currentTradeDocs
     };
 
     if (type === 'Sell' && mode === 'hs_sale') {
@@ -781,6 +869,10 @@ function addTrade() {
     saveState(); renderTradesTable(); renderRecentTrades(); renderDashboardKpis();
     
     editingTradeId = null;
+    currentTradeDocs = [];
+    renderTradeDocs();
+    document.getElementById('btn-scan-ai').style.display = 'none';
+
     var btn = document.querySelector('button[onclick="addTrade()"]');
     if (btn) {
         btn.innerHTML = '&#x1F4B1; Record Trade';

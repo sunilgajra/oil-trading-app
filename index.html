@@ -143,8 +143,8 @@
         <label style="color:var(--gold2)">Trade Documents</label>
         <div class="docs-mgr">
             <div style="display:flex; gap:10px; margin-bottom:10px">
-                <input type="file" id="tr-doc-file" style="display:none" onchange="handleTradeDocUpload(this)">
-                <button class="btn btn-sm" onclick="document.getElementById('tr-doc-file').click()">&#x1F4CE; Attach Document</button>
+                <input type="file" id="tr-doc-file" style="display:none" accept=".pdf,image/*" onchange="handleTradeDocUpload(this)">
+                <button class="btn btn-sm" onclick="document.getElementById('tr-doc-file').click()">&#x1F4CE; Attach PDF / Image</button>
                 <button class="btn btn-sm btn-gold" onclick="scanTradeDocWithAI()" id="btn-scan-ai" style="display:none">&#x2728; Scan with AI</button>
             </div>
             <div id="tr-docs-list" class="docs-list"></div>
@@ -276,6 +276,13 @@
 <div class="toast no-print" id="toast" role="alert" aria-live="polite"></div>
 
 <!-- Your Custom JavaScript -->
+<div id="docPreviewModal" class="modal">
+    <div class="modal-content" style="width:90%; height:90%; padding:0; overflow:hidden; position:relative;">
+        <span class="close" onclick="closeDocPreview()" style="position:absolute; right:15px; top:10px; z-index:100; background:rgba(0,0,0,0.5); width:30px; height:30px; border-radius:50%; text-align:center; line-height:26px;">&times;</span>
+        <div id="docPreviewContainer" style="width:100%; height:100%;"></div>
+    </div>
+</div>
+
 <script src="script.js"></script>
 </body>
 </html>
