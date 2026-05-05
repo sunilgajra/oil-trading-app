@@ -35,30 +35,41 @@ function loadState(){
     var s = localStorage.getItem('murji_oil_v12');
     if(s){
       state = JSON.parse(s);
-      // Migration: Convert string products to objects
-      if (state.products && state.products.length > 0 && typeof state.products[0] === 'string') {
-        state.products = state.products.map(function(p) {
-          return { name: p, density: (state.densities && state.densities[p]) || 0.850, hsn: '', other: '' };
-        });
-      }
-      return;
+    } else {
+      state = JSON.parse(JSON.stringify(DEF_S));
     }
-  } catch(e) {}
-  state = JSON.parse(JSON.stringify(DEF_S));
-  // Migration: Add type to existing suppliers
+  } catch(e) {
+    state = JSON.parse(JSON.stringify(DEF_S));
+  }
+  
+  // --- MIGRATIONS (Must run for everyone) ---
+  
+  // 1. Convert string products to objects
+  if (state.products && state.products.length > 0 && typeof state.products[0] === 'string') {
+    state.products = state.products.map(function(p) {
+      return { name: p, density: (state.densities && state.densities[p]) || 0.850, hsn: '', other: '' };
+    });
+  }
+  
+  // 2. Ensure buyers array exists
+  if (!state.buyers) state.buyers = [];
+  if (!state.nextBuyId) state.nextBuyId = 1;
+  
+  // 3. Ensure suppliers have all required fields
   if (state.suppliers) {
     state.suppliers.forEach(function(s) { 
         if (!s.type) s.type = 'local'; 
-        if (!s.bankName) s.bankName = '';
-        if (!s.bankAc) s.bankAc = '';
-        if (!s.bankIfsc) s.bankIfsc = '';
-        if (!s.bankIban) s.bankIban = '';
-        if (!s.bankSwift) s.bankSwift = '';
-        if (!s.bankCurr) s.bankCurr = '';
+        if (s.bankName === undefined) s.bankName = '';
+        if (s.bankAc === undefined) s.bankAc = '';
+        if (s.bankIfsc === undefined) s.bankIfsc = '';
+        if (s.bankIban === undefined) s.bankIban = '';
+        if (s.bankSwift === undefined) s.bankSwift = '';
+        if (s.bankCurr === undefined) s.bankCurr = '';
     });
   }
-  if (!state.buyers) state.buyers = [];
-  if (!state.nextBuyId) state.nextBuyId = 1;
+
+  // 4. Clean up legacy densities map if it exists
+  delete state.densities;
 }
 function saveState(){try{localStorage.setItem('murji_oil_v12',JSON.stringify(state));}catch(e){}}
 loadState();
