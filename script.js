@@ -1,8 +1,13 @@
 /* ═══════ STATE & CONFIG ═══════ */
-var DEF_P = ['Crude Oil','Diesel','Petrol','Kerosene','LPG'];
-var DEF_D = {'Crude Oil':0.850,'Diesel':0.832,'Petrol':0.740,'Kerosene':0.810,'LPG':0.510};
+var DEF_P = [
+  {name:'Crude Oil', density:0.850, hsn:'2709', other:''},
+  {name:'Diesel', density:0.832, hsn:'2710', other:'HSD'},
+  {name:'Petrol', density:0.740, hsn:'2710', other:'MS'},
+  {name:'Kerosene', density:0.810, hsn:'2710', other:'SKO'},
+  {name:'LPG', density:0.510, hsn:'2711', other:''}
+];
 var DEF_S = {
-  products: DEF_P.slice(), densities: Object.assign({}, DEF_D),
+  products: JSON.parse(JSON.stringify(DEF_P)),
   inventory:[
     {id:1,product:'Diesel',grade:'EN590',tank:'Tank A',vol:85000,cost:92.5,threshold:10000,density:0.832,slip:null},
     {id:2,product:'Petrol',grade:'91 RON',tank:'Tank B',vol:62000,cost:104.2,threshold:8000,density:0.740,slip:null},
@@ -24,15 +29,33 @@ var DEF_S = {
 };
 
 var state;
-function loadState(){try{var s=localStorage.getItem('murji_oil_v12');if(s){state=JSON.parse(s);return;}}catch(e){}state=JSON.parse(JSON.stringify(DEF_S));}
+function loadState(){
+  try {
+    var s = localStorage.getItem('murji_oil_v12');
+    if(s){
+      state = JSON.parse(s);
+      // Migration: Convert string products to objects
+      if (state.products && state.products.length > 0 && typeof state.products[0] === 'string') {
+        state.products = state.products.map(function(p) {
+          return { name: p, density: (state.densities && state.densities[p]) || 0.850, hsn: '', other: '' };
+        });
+      }
+      return;
+    }
+  } catch(e) {}
+  state = JSON.parse(JSON.stringify(DEF_S));
+}
 function saveState(){try{localStorage.setItem('murji_oil_v12',JSON.stringify(state));}catch(e){}}
 loadState();
 
 var fmt=function(n){return'\u20B9'+Number(n).toLocaleString('en-IN',{maximumFractionDigits:2});};
 var fmtN=function(n){return Number(n).toLocaleString('en-IN');};
 var fmtKG=function(n){return Number(n).toLocaleString('en-IN',{maximumFractionDigits:1});};
-var today=function(){return new Date().toISOString().split('T')[0];};
-var getDensity=function(p){return state.densities[p]||0.850;};
+var getDensity = function(pName) {
+    if (!state.products) return 0.850;
+    var found = state.products.find(function(x) { return x.name === pName; });
+    return found ? found.density : 0.850;
+};
 var toKG=function(v,d){return v*(d||0.85);};
 var escH=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
 
@@ -368,12 +391,16 @@ function populateSelects() {
     ['inv-product','tr-product','ord-product','ch-product'].forEach(function(id) {
         var el = document.getElementById(id);
         if (!el) return;
-        el.innerHTML = state.products.map(function(p){ return '<option>'+p+'</option>'; }).join('');
+        el.innerHTML = state.products.map(function(p){ 
+            var label = p.name + (p.other ? ' (' + p.other + ')' : '');
+            return '<option value="'+escH(p.name)+'">'+escH(label)+'</option>'; 
+        }).join('');
     });
 }
 function renderProductsList() {
     document.getElementById('productsList').innerHTML = state.products.map(function(p) {
-        return '<div class="product-tag"><span>'+p+'</span><span class="remove-prod" onclick="deleteProduct(\''+p.replace(/'/g,"\\'")+'\')">&#x2715;</span></div>';
+        var info = p.hsn ? ' [HSN: '+p.hsn+']' : '';
+        return '<div class="product-tag"><span><b>'+escH(p.name)+'</b>'+escH(info)+'</span><span class="remove-prod" onclick="deleteProduct(\''+p.name.replace(/'/g,"\\'")+'\')">&#x2715;</span></div>';
     }).join('');
 }
 
@@ -602,12 +629,27 @@ function deleteProduct(n) {
 }
 function addProductMaster() {
     var n = document.getElementById('pm-name').value.trim();
+    var other = document.getElementById('pm-other').value.trim();
+    var hsn = document.getElementById('pm-hsn').value.trim();
+    var density = parseFloat(document.getElementById('pm-density').value) || 0.85;
+
     if (!n) return toast('Enter product name', true);
-    if (state.products.indexOf(n) >= 0) return toast('Product already exists', true);
-    state.products.push(n);
-    state.densities[n] = parseFloat(document.getElementById('pm-density').value) || 0.85;
+    
+    var exists = state.products.some(function(p) { return p.name.toLowerCase() === n.toLowerCase(); });
+    if (exists) return toast('Product already exists', true);
+
+    state.products.push({
+        name: n,
+        other: other,
+        hsn: hsn,
+        density: density
+    });
+
     saveState(); populateSelects(); renderProductsList();
+    
     document.getElementById('pm-name').value = '';
+    document.getElementById('pm-other').value = '';
+    document.getElementById('pm-hsn').value = '';
     document.getElementById('pm-density').value = '';
     toast('Added: ' + n);
 }
