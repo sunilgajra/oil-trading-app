@@ -374,6 +374,9 @@ function toggleCustomTerm(px) {
 function toggleTradeModeField() {
     var type = document.getElementById('tr-type').value;
     var modeGrp = document.getElementById('tr-mode-group');
+    
+    populateTradeParties();
+    
     if (type === 'Buy') {
         modeGrp.style.display = 'flex';
         toggleTradeDetailFields();
@@ -382,6 +385,47 @@ function toggleTradeModeField() {
         document.querySelector('.tr-import-fields').style.display = 'none';
         document.querySelector('.tr-local-fields').style.display = 'none';
     }
+}
+function populateTradeParties() {
+    var type = document.getElementById('tr-type').value;
+    var iWrap = document.getElementById('tr-party-input-wrap');
+    var sWrap = document.getElementById('tr-party-select-wrap');
+    var sel = document.getElementById('tr-party-select');
+    
+    if (type === 'Buy') {
+        iWrap.style.display = 'none';
+        sWrap.style.display = 'block';
+        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
+            state.suppliers.map(function(s){ return '<option>'+escH(s.name)+'</option>'; }).join('');
+    } else {
+        iWrap.style.display = 'block';
+        sWrap.style.display = 'none';
+        // Optional: Populate Buyers if we have a buyers list
+        if (state.buyers && state.buyers.length > 0) {
+            iWrap.style.display = 'none';
+            sWrap.style.display = 'block';
+            sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
+                state.buyers.map(function(b){ return '<option>'+escH(b.name)+'</option>'; }).join('');
+        }
+    }
+}
+function calcTradeTotals() {
+    var vol = parseFloat(document.getElementById('tr-vol').value) || 0;
+    var den = parseFloat(document.getElementById('tr-density').value) || 0.85;
+    var price = parseFloat(document.getElementById('tr-price').value) || 0;
+    var unit = document.getElementById('tr-unit').value;
+    
+    var unitLabel = document.getElementById('tr-unit-label');
+    if (unit === 'LITRE') unitLabel.textContent = '/ L';
+    else if (unit === 'KG') unitLabel.textContent = '/ KG';
+    else if (unit === 'MTON') unitLabel.textContent = '/ MT';
+
+    var qtyForCalc = vol;
+    if (unit === 'KG') qtyForCalc = vol * den;
+    if (unit === 'MTON') qtyForCalc = (vol * den) / 1000;
+
+    var totalInr = qtyForCalc * price;
+    document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
 }
 function toggleTradeDetailFields() {
     var type = document.getElementById('tr-type').value;
@@ -426,7 +470,7 @@ function calcImportTotal() {
     }
 
     var ex = parseFloat(exEl.value) || 0;
-    var unit = document.getElementById('tr-imp-unit').value;
+    var unit = document.getElementById('tr-unit').value;
     var curr = currEl.value;
 
     var qtyForCalc = vol;
@@ -437,10 +481,10 @@ function calcImportTotal() {
     var totalInr = totalFor * ex;
 
     document.getElementById('tr-total-for').value = curr + ' ' + totalFor.toLocaleString('en-US', {minimumFractionDigits:2});
-    document.getElementById('tr-total-inr').value = '\u20B9 ' + totalInr.toLocaleString('en-IN', {minimumFractionDigits:2});
     
     if (vol > 0) {
         document.getElementById('tr-price').value = (totalInr / vol).toFixed(2);
+        calcTradeTotals();
     }
 }
 
@@ -555,14 +599,18 @@ function clearInvForm() {
 function renderTradesTable() {
     document.getElementById('tradesTable').innerHTML = state.trades.slice().reverse().map(function(t) {
         var modeInfo = t.type === 'Buy' ? ' <small>(' + (t.mode === 'import' ? 'Import' : 'Local') + ')</small>' : '';
-        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(t.vol*t.price)+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></td></tr>';
+        var unitSuffix = t.unit ? ' ' + t.unit : ' L';
+        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(t.vol)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(t.vol*t.price)+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></td></tr>';
     }).join('');
 }
 function addTrade() {
     var type = document.getElementById('tr-type').value;
     var mode = document.getElementById('tr-mode').value;
     var product = document.getElementById('tr-product').value;
-    var party = document.getElementById('tr-party').value;
+    var party = document.getElementById('tr-party-select-wrap').style.display !== 'none' ? 
+                document.getElementById('tr-party-select').value : 
+                document.getElementById('tr-party').value;
+    
     var vol = parseFloat(document.getElementById('tr-vol').value);
     var price = parseFloat(document.getElementById('tr-price').value);
     if (!party || !vol || !price) return toast('Please fill all required fields', true);
@@ -575,6 +623,7 @@ function addTrade() {
         type: type, mode: (type === 'Buy' ? mode : null), 
         product: product, party: party,
         vol: vol, price: price,
+        unit: document.getElementById('tr-unit').value,
         date: document.getElementById('tr-date').value || today(),
         terms: termsVal,
         density: parseFloat(document.getElementById('tr-density').value) || getDensity(product)
@@ -605,9 +654,10 @@ function addTrade() {
     toast('Trade recorded');
     
     // Clear extra fields
-    ['tr-party','tr-vol','tr-price','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr'].forEach(function(id){
+    ['tr-party','tr-vol','tr-price','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
     });
+    document.getElementById('tr-party-select').value = '';
     document.getElementById('tr-is-hs').checked = false;
     toggleTradeDetailFields();
 }
