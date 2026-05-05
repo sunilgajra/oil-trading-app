@@ -392,12 +392,30 @@ function toggleTradeDetailFields() {
     }
 }
 function calcImportTotal() {
+    var isHs = document.getElementById('tr-is-hs').checked;
     var vol = parseFloat(document.getElementById('tr-vol').value) || 0;
     var den = parseFloat(document.getElementById('tr-density').value) || 0.85;
     var rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-    var ex = parseFloat(document.getElementById('tr-ex-rate').value) || 0;
+    
+    var currEl = document.getElementById('tr-imp-curr');
+    var exEl = document.getElementById('tr-ex-rate');
+    var exGrp = document.getElementById('tr-ex-rate-group');
+    var currGrp = document.getElementById('tr-imp-curr-group');
+
+    if (isHs) {
+        currEl.value = 'INR';
+        exEl.value = '1';
+        exGrp.style.display = 'none';
+        currGrp.style.display = 'none';
+    } else {
+        exGrp.style.display = 'flex';
+        currGrp.style.display = 'flex';
+        if (currEl.value === 'INR') currEl.value = 'USD';
+    }
+
+    var ex = parseFloat(exEl.value) || 0;
     var unit = document.getElementById('tr-imp-unit').value;
-    var curr = document.getElementById('tr-imp-curr').value;
+    var curr = currEl.value;
 
     var qtyForCalc = vol;
     if (unit === 'KG') qtyForCalc = vol * den;
@@ -409,7 +427,6 @@ function calcImportTotal() {
     document.getElementById('tr-total-for').value = curr + ' ' + totalFor.toLocaleString('en-US', {minimumFractionDigits:2});
     document.getElementById('tr-total-inr').value = '\u20B9 ' + totalInr.toLocaleString('en-IN', {minimumFractionDigits:2});
     
-    // Also update the shared price per litre if possible
     if (vol > 0) {
         document.getElementById('tr-price').value = (totalInr / vol).toFixed(2);
     }
@@ -553,6 +570,7 @@ function addTrade() {
 
     if (type === 'Buy') {
         if (mode === 'import') {
+            trade.is_hs = document.getElementById('tr-is-hs').checked;
             trade.bl_no = document.getElementById('tr-bl-no').value;
             trade.vessel = document.getElementById('tr-vessel').value;
             trade.port_load = document.getElementById('tr-port-load').value;
@@ -578,6 +596,8 @@ function addTrade() {
     ['tr-party','tr-vol','tr-price','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
     });
+    document.getElementById('tr-is-hs').checked = false;
+    toggleTradeDetailFields();
 }
 
 function renderOrdersTable() {
