@@ -526,6 +526,7 @@ function statusBadge(s) {
     return '<span class="badge '+(m[s]||'badge-gray')+'">'+s+'</span>';
 }
 
+/* Murji Oil Dashboard - v1.2.1 - Build Refresh */
 function renderDashboardKpis() {
     var ts = 0, tv = 0;
     for (var i = 0; i < state.inventory.length; i++) {
