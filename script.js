@@ -529,12 +529,15 @@ function statusBadge(s) {
 function renderDashboardKpis() {
     var ts = 0, tv = 0;
     for (var i = 0; i < state.inventory.length; i++) {
-        ts += state.inventory[i].vol * state.inventory[i].cost;
-        tv += state.inventory[i].vol;
+        var inv = state.inventory[i];
+        ts += inv.vol * inv.cost;
+        tv += inv.vol;
     }
     var sl = 0;
     for (var i = 0; i < state.trades.length; i++) {
-        if (state.trades[i].type === 'Sell') sl += state.trades[i].vol * state.trades[i].price;
+        var t = state.trades[i];
+        var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
+        if (t.type === 'Sell') sl += displayQty * t.price;
     }
     document.getElementById('kpiGrid').innerHTML =
         kpiC('Inventory Value', fmt(ts), 'Total Stock') +
@@ -550,7 +553,9 @@ function renderInvLevels() {
 }
 function renderRecentTrades() {
     document.getElementById('recentTradesTbl').innerHTML = state.trades.slice(-5).reverse().map(function(t) {
-        return '<tr><td>'+t.product+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td class="mono">'+fmtN(t.vol)+'</td><td class="mono">'+fmtKG(toKG(t.vol,t.density))+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(t.vol*t.price)+'</td></tr>';
+        var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
+        var unitSuffix = t.unit ? ' ' + t.unit : ' L';
+        return '<tr><td>'+t.product+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmtKG(toKG(t.vol,t.density))+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td></tr>';
     }).join('');
 }
 function renderActiveOrders() {
@@ -696,7 +701,7 @@ function addTrade() {
             trade.ex_rate = document.getElementById('tr-ex-rate').value;
             trade.imp_rate = document.getElementById('tr-imp-rate').value;
             trade.currency = document.getElementById('tr-imp-curr').value;
-            trade.imp_unit = document.getElementById('tr-imp-unit').value;
+            trade.imp_unit = document.getElementById('tr-unit').value;
             trade.total_for = document.getElementById('tr-total-for').value;
             trade.total_inr = document.getElementById('tr-total-inr-shared').value;
         } else {
@@ -943,8 +948,9 @@ function renderReports() {
     var sales = 0, buys = 0;
     for (var i = 0; i < state.trades.length; i++) {
         var t = state.trades[i];
-        if (t.type === 'Sell') sales += t.vol * t.price;
-        else buys += t.vol * t.price;
+        var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
+        if (t.type === 'Sell') sales += displayQty * t.price;
+        else buys += displayQty * t.price;
     }
     var profit = sales - buys;
     document.getElementById('reportKpis').innerHTML =
@@ -958,7 +964,8 @@ function renderReports() {
     var cust = {};
     for (var i = 0; i < state.trades.length; i++) {
         var t = state.trades[i];
-        if (t.type === 'Sell') cust[t.party] = (cust[t.party]||0) + (t.vol * t.price);
+        var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
+        if (t.type === 'Sell') cust[t.party] = (cust[t.party]||0) + (displayQty * t.price);
     }
     var top = Object.keys(cust).map(function(k){return [k, cust[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0, 5);
     document.getElementById('topCustomers').innerHTML = top.map(function(c) {
