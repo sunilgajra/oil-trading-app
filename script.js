@@ -654,7 +654,12 @@ function addTrade() {
     if (unit === 'MTON') volInL = (rawQty * 1000) / den;
 
     var price = 0;
-    if (mode === 'import' || mode === 'hs_sale') {
+    if (mode === 'import') {
+        var rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+        var isHs = document.getElementById('tr-is-hs').checked;
+        var ex = isHs ? 1 : (parseFloat(document.getElementById('tr-ex-rate').value) || 1);
+        price = rate * ex;
+    } else if (mode === 'hs_sale') {
         price = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
     } else {
         price = parseFloat(document.getElementById('tr-price-local').value) || 0;
@@ -693,7 +698,7 @@ function addTrade() {
             trade.currency = document.getElementById('tr-imp-curr').value;
             trade.imp_unit = document.getElementById('tr-imp-unit').value;
             trade.total_for = document.getElementById('tr-total-for').value;
-            trade.total_inr = document.getElementById('tr-total-inr').value;
+            trade.total_inr = document.getElementById('tr-total-inr-shared').value;
         } else {
             trade.inv_no = document.getElementById('tr-inv-no').value;
             trade.gst = document.getElementById('tr-gst').value;
