@@ -25,6 +25,7 @@
   <div class="nav-tab" onclick="switchPage('orders')">&#x1F4CB; Orders</div>
   <div class="nav-tab" onclick="switchPage('challans')">&#x1F4E6; Challans</div>
   <div class="nav-tab" onclick="switchPage('suppliers')">&#x1F3ED; Suppliers</div>
+  <div class="nav-tab" onclick="switchPage('buyers')">&#x1F464; Buyers</div>
   <div class="nav-tab" onclick="switchPage('reports')">&#x1F4C8; Reports</div>
 </div>
 
@@ -188,11 +189,38 @@
       <div class="form-group"><label>Contact</label><input id="sup-contact" placeholder="Person"></div>
       <div class="form-group"><label>Phone</label><input id="sup-phone" placeholder="+91"></div>
       <div class="form-group"><label>City</label><input id="sup-city" placeholder="Mumbai"></div>
+      <div class="form-group"><label>Bank Name</label><input id="sup-bank-name" placeholder="Bank Name"></div>
+      <div class="form-group"><label>Account No.</label><input id="sup-bank-ac" placeholder="Account Number"></div>
+      <div class="form-group"><label>IFSC / SWIFT</label><input id="sup-bank-ifsc" placeholder="IFSC or SWIFT"></div>
     </div>
-    <div class="btn-row"><button class="btn btn-primary" onclick="addSupplier()">&#x1F3ED; Add Supplier</button></div>
+    <div class="btn-row">
+        <button id="btn-add-supplier" class="btn btn-primary" onclick="addSupplier()">&#x1F3ED; Add Supplier</button>
+        <button class="btn btn-ghost" onclick="clearSupForm()">Clear</button>
+    </div>
   </div>
-  <div class="section-title">Supplier Directory</div>
-  <div class="table-wrap scroll-x"><table><thead><tr><th>Company</th><th>Contact</th><th>Phone</th><th>City</th><th>Actions</th></tr></thead><tbody id="suppliersTable"></tbody></table></div>
+  <div class="table-wrap scroll-x"><table><thead><tr><th>Company</th><th>Type</th><th>Contact</th><th>Phone</th><th>City</th><th>Bank Details</th><th>Actions</th></tr></thead><tbody id="suppliersTable"></tbody></table></div>
+</div></div>
+
+<!-- BUYERS -->
+<div class="page" id="page-buyers"><div class="container">
+  <div class="section-title">Add / Edit Buyer</div>
+  <div class="panel">
+    <div class="form-grid">
+      <div class="form-group"><label>Company</label><input id="buy-name" placeholder="Name"></div>
+      <div class="form-group"><label>Contact</label><input id="buy-contact" placeholder="Person"></div>
+      <div class="form-group"><label>Phone</label><input id="buy-phone" placeholder="+91"></div>
+      <div class="form-group"><label>City</label><input id="buy-city" placeholder="Mumbai"></div>
+      <div class="form-group"><label>Bank Name</label><input id="buy-bank-name" placeholder="Bank Name"></div>
+      <div class="form-group"><label>Account No.</label><input id="buy-bank-ac" placeholder="Account Number"></div>
+      <div class="form-group"><label>IFSC / SWIFT</label><input id="buy-bank-ifsc" placeholder="IFSC or SWIFT"></div>
+    </div>
+    <div class="btn-row">
+        <button id="btn-add-buyer" class="btn btn-primary" onclick="addBuyer()">&#x1F464; Add Buyer</button>
+        <button class="btn btn-ghost" onclick="clearBuyForm()">Clear</button>
+    </div>
+  </div>
+  <div class="section-title">Buyer Directory</div>
+  <div class="table-wrap scroll-x"><table><thead><tr><th>Company</th><th>Contact</th><th>Phone</th><th>City</th><th>Bank Details</th><th>Actions</th></tr></thead><tbody id="buyersTable"></tbody></table></div>
 </div></div>
 
 <!-- REPORTS -->
