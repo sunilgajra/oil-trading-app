@@ -77,6 +77,7 @@ loadState();
 var fmt=function(n){return'\u20B9'+Number(n).toLocaleString('en-IN',{maximumFractionDigits:2});};
 var fmtN=function(n){return Number(n).toLocaleString('en-IN');};
 var fmtKG=function(n){return Number(n).toLocaleString('en-IN',{maximumFractionDigits:1});};
+var today=function(){return new Date().toISOString().split('T')[0];};
 var getDensity = function(pName) {
     if (!state.products) return 0.850;
     var found = state.products.find(function(x) { return x.name === pName; });
