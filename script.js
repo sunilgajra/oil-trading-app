@@ -400,7 +400,13 @@ function populateSelects() {
 function renderProductsList() {
     document.getElementById('productsList').innerHTML = state.products.map(function(p) {
         var info = p.hsn ? ' [HSN: '+p.hsn+']' : '';
-        return '<div class="product-tag"><span><b>'+escH(p.name)+'</b>'+escH(info)+'</span><span class="remove-prod" onclick="deleteProduct(\''+p.name.replace(/'/g,"\\'")+'\')">&#x2715;</span></div>';
+        return '<div class="product-tag">' +
+                 '<span><b>'+escH(p.name)+'</b>'+escH(info)+'</span>' +
+                 '<div style="display:flex;gap:5px;margin-left:10px;">' +
+                   '<span class="edit-prod" title="Edit" onclick="editProduct(\''+p.name.replace(/'/g,"\\'")+'\')">&#x270F;</span>' +
+                   '<span class="remove-prod" title="Delete" onclick="deleteProduct(\''+p.name.replace(/'/g,"\\'")+'\')">&#x2715;</span>' +
+                 '</div>' +
+               '</div>';
     }).join('');
 }
 
@@ -627,6 +633,27 @@ function deleteProduct(n) {
         saveState(); populateSelects(); renderProductsList(); toast('Product removed');
     });
 }
+var editingProductName = null;
+
+function editProduct(n) {
+    var p = state.products.find(function(x) { return x.name === n; });
+    if (!p) return;
+    
+    editingProductName = n;
+    document.getElementById('pm-name').value = p.name;
+    document.getElementById('pm-other').value = p.other || '';
+    document.getElementById('pm-hsn').value = p.hsn || '';
+    document.getElementById('pm-density').value = p.density;
+    
+    var btn = document.querySelector('.page.active button[onclick="addProductMaster()"]');
+    if (btn) {
+        btn.innerHTML = '&#x1F4BE; Update Product';
+        btn.classList.add('btn-blue');
+    }
+    toast('Editing: ' + n);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function addProductMaster() {
     var n = document.getElementById('pm-name').value.trim();
     var other = document.getElementById('pm-other').value.trim();
@@ -635,15 +662,32 @@ function addProductMaster() {
 
     if (!n) return toast('Enter product name', true);
     
-    var exists = state.products.some(function(p) { return p.name.toLowerCase() === n.toLowerCase(); });
-    if (exists) return toast('Product already exists', true);
+    if (editingProductName) {
+        // Update existing
+        var idx = state.products.findIndex(function(p) { return p.name === editingProductName; });
+        if (idx >= 0) {
+            state.products[idx] = { name: n, other: other, hsn: hsn, density: density };
+            toast('Updated: ' + n);
+        }
+        editingProductName = null;
+        var btn = document.querySelector('.page.active button[onclick="addProductMaster()"]');
+        if (btn) {
+            btn.innerHTML = '&#x2795; Add Product';
+            btn.classList.remove('btn-blue');
+        }
+    } else {
+        // Add new
+        var exists = state.products.some(function(p) { return p.name.toLowerCase() === n.toLowerCase(); });
+        if (exists) return toast('Product already exists', true);
 
-    state.products.push({
-        name: n,
-        other: other,
-        hsn: hsn,
-        density: density
-    });
+        state.products.push({
+            name: n,
+            other: other,
+            hsn: hsn,
+            density: density
+        });
+        toast('Added: ' + n);
+    }
 
     saveState(); populateSelects(); renderProductsList();
     
@@ -651,7 +695,6 @@ function addProductMaster() {
     document.getElementById('pm-other').value = '';
     document.getElementById('pm-hsn').value = '';
     document.getElementById('pm-density').value = '';
-    toast('Added: ' + n);
 }
 
 /* ═══════ TOAST ═══════ */

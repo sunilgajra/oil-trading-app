@@ -103,6 +103,8 @@ td.mono{font-family:'DM Mono',monospace;}
 .product-tag{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;}
 .product-tag .remove-prod{cursor:pointer;color:var(--red);font-size:14px;opacity:.7;transition:.2s;}
 .product-tag .remove-prod:hover{opacity:1;}
+.product-tag .edit-prod{cursor:pointer;color:var(--blue);font-size:14px;opacity:.7;transition:.2s;}
+.product-tag .edit-prod:hover{opacity:1;}
 .products-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
 .export-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
 .stat-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
