@@ -371,21 +371,6 @@ function toggleCustomTerm(px) {
     if (sel.value === '__custom__') cust.classList.add('show');
     else cust.classList.remove('show');
 }
-function toggleTradeModeField() {
-    var type = document.getElementById('tr-type').value;
-    var modeGrp = document.getElementById('tr-mode-group');
-    
-    populateTradeParties();
-    
-    if (type === 'Buy') {
-        modeGrp.style.display = 'flex';
-        toggleTradeDetailFields();
-    } else {
-        modeGrp.style.display = 'none';
-        document.querySelector('.tr-import-fields').style.display = 'none';
-        document.querySelector('.tr-local-fields').style.display = 'none';
-    }
-}
 function populateTradeParties() {
     var type = document.getElementById('tr-type').value;
     var iWrap = document.getElementById('tr-party-input-wrap');
@@ -400,7 +385,6 @@ function populateTradeParties() {
     } else {
         iWrap.style.display = 'block';
         sWrap.style.display = 'none';
-        // Optional: Populate Buyers if we have a buyers list
         if (state.buyers && state.buyers.length > 0) {
             iWrap.style.display = 'none';
             sWrap.style.display = 'block';
@@ -427,13 +411,35 @@ function calcTradeTotals() {
     var totalInr = qtyForCalc * price;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
 }
+function toggleTradeModeField() {
+    var type = document.getElementById('tr-type').value;
+    var modeGrp = document.getElementById('tr-mode-group');
+    var modeSel = document.getElementById('tr-mode');
+    
+    populateTradeParties();
+    
+    // Update Mode Options based on Type
+    var oldVal = modeSel.value;
+    if (type === 'Buy') {
+        modeSel.innerHTML = '<option value="local">Local Purchase</option><option value="import">Import Purchase</option>';
+    } else {
+        modeSel.innerHTML = '<option value="local">Local Sale</option><option value="hs_sale">High Seas Sale</option>';
+    }
+    // Try to restore value if applicable
+    if (modeSel.querySelector('option[value="'+oldVal+'"]')) modeSel.value = oldVal;
+    
+    modeGrp.style.display = 'flex';
+    toggleTradeDetailFields();
+}
 function toggleTradeDetailFields() {
     var type = document.getElementById('tr-type').value;
     var mode = document.getElementById('tr-mode').value;
     var imp = document.querySelector('.tr-import-fields');
     var loc = document.querySelector('.tr-local-fields');
+    var linkGrp = document.getElementById('tr-link-group');
     
     if (type === 'Buy') {
+        linkGrp.style.display = 'none';
         if (mode === 'import') {
             imp.style.display = 'grid';
             loc.style.display = 'none';
@@ -443,9 +449,38 @@ function toggleTradeDetailFields() {
             loc.style.display = 'grid';
         }
     } else {
+        // Sell
         imp.style.display = 'none';
         loc.style.display = 'none';
+        if (mode === 'hs_sale') {
+            linkGrp.style.display = 'flex';
+            populatePurchaseLinks();
+        } else {
+            linkGrp.style.display = 'none';
+        }
     }
+}
+function populatePurchaseLinks() {
+    var sel = document.getElementById('tr-link-purchase');
+    // Find Buy trades that are Import or already tagged as Buy-HS
+    var buys = state.trades.filter(function(t){ return t.type === 'Buy' && t.mode === 'import'; });
+    
+    sel.innerHTML = '<option value="">-- Link to Import Purchase --</option>' + 
+        buys.map(function(t){ 
+            return '<option value="'+t.id+'">'+escH(t.id+' | '+t.party+' | '+t.product+' ('+t.vol+'L)')+'</option>'; 
+        }).join('');
+}
+function loadPurchaseDetails() {
+    var id = parseInt(document.getElementById('tr-link-purchase').value);
+    if (!id) return;
+    var p = state.trades.find(function(t){ return t.id === id; });
+    if (!p) return;
+    
+    document.getElementById('tr-product').value = p.product;
+    document.getElementById('tr-vol').value = p.vol;
+    document.getElementById('tr-density').value = p.density;
+    calcTradeTotals();
+    toast('Loaded details from Purchase ' + id);
 }
 function calcImportTotal() {
     var isHs = document.getElementById('tr-is-hs').checked;
@@ -598,7 +633,11 @@ function clearInvForm() {
 
 function renderTradesTable() {
     document.getElementById('tradesTable').innerHTML = state.trades.slice().reverse().map(function(t) {
-        var modeInfo = t.type === 'Buy' ? ' <small>(' + (t.mode === 'import' ? 'Import' : 'Local') + ')</small>' : '';
+        var modeLabel = '';
+        if (t.type === 'Buy') modeLabel = t.mode === 'import' ? 'Import' : 'Local';
+        else modeLabel = t.mode === 'hs_sale' ? 'HS Sale' : 'Local';
+        
+        var modeInfo = ' <small>(' + modeLabel + ')</small>';
         var unitSuffix = t.unit ? ' ' + t.unit : ' L';
         return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(t.vol)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(t.vol*t.price)+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></td></tr>';
     }).join('');
@@ -620,7 +659,7 @@ function addTrade() {
     
     var trade = {
         id: state.nextTradeId++,
-        type: type, mode: (type === 'Buy' ? mode : null), 
+        type: type, mode: mode, 
         product: product, party: party,
         vol: vol, price: price,
         unit: document.getElementById('tr-unit').value,
@@ -628,6 +667,10 @@ function addTrade() {
         terms: termsVal,
         density: parseFloat(document.getElementById('tr-density').value) || getDensity(product)
     };
+
+    if (type === 'Sell' && mode === 'hs_sale') {
+        trade.link_purchase_id = document.getElementById('tr-link-purchase').value;
+    }
 
     if (type === 'Buy') {
         if (mode === 'import') {
