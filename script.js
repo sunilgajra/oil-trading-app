@@ -861,7 +861,20 @@ async function refineWithCloudAI(rawText) {
             })
         });
 
+        if (!response.ok) {
+            var errData = await response.json();
+            if (response.status === 403) {
+                throw new Error("403 Forbidden: Your Gemini API Key is likely not enabled or restricted. Please check Google AI Studio.");
+            }
+            throw new Error(errData.error?.message || "Gemini API Error: " + response.status);
+        }
+
         const data = await response.json();
+        
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+            throw new Error("Gemini returned an empty response. Check if your API key has usage limits.");
+        }
+
         const rawJson = data.candidates[0].content.parts[0].text;
         const ai = JSON.parse(rawJson);
         
@@ -877,7 +890,8 @@ async function refineWithCloudAI(rawText) {
         toast('&#x2728; Gemini AI Scan Perfected!');
     } catch (e) {
         console.error("Cloud AI Error:", e);
-        toast("Gemini AI Failed: " + e.message, true);
+        toast(e.message, true);
+        // Fallback to local OCR results if they exist
     } finally {
         btn.innerHTML = '&#x2728; Scan with AI';
     }
