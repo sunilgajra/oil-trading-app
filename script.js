@@ -526,7 +526,6 @@ function statusBadge(s) {
     return '<span class="badge '+(m[s]||'badge-gray')+'">'+s+'</span>';
 }
 
-/* Murji Oil Dashboard - v1.2.2 */
 function renderDashboardKpis() {
     var ts = 0, tv = 0;
     for (var i = 0; i < state.inventory.length; i++) {
@@ -667,7 +666,10 @@ function renderTradeDocs() {
     var list = document.getElementById('tr-docs-list');
     list.innerHTML = currentTradeDocs.map(function(d, idx) {
         return '<div class="doc-item">' +
-                 '<span>' + escH(d.name) + ' <small>(' + (d.size/1024).toFixed(1) + ' KB)</small></span>' +
+                 '<div style="flex:1; display:flex; flex-direction:column;">' +
+                    '<input class="doc-name-input" value="'+escH(d.name)+'" onchange="renameTradeDoc('+idx+', this.value)">' +
+                    '<small>' + (d.size/1024).toFixed(1) + ' KB | ' + d.type.split('/')[1].toUpperCase() + '</small>' +
+                 '</div>' +
                  '<div style="display:flex; gap:5px">' +
                     '<button class="btn btn-sm btn-blue" onclick="previewDoc('+idx+')">&#x1F441;</button>' +
                     '<button class="btn btn-sm btn-gray" onclick="downloadDoc('+idx+')">&#x2913;</button>' +
@@ -676,13 +678,19 @@ function renderTradeDocs() {
                '</div>';
     }).join('');
 }
+function renameTradeDoc(idx, newName) {
+    if (!newName.trim()) return;
+    currentTradeDocs[idx].name = newName.trim();
+    toast('Document renamed');
+}
 function previewDoc(idx) {
     var d = currentTradeDocs[idx];
+    document.getElementById('previewDocTitle').textContent = 'Preview: ' + d.name;
     var container = document.getElementById('docPreviewContainer');
     if (d.type === 'application/pdf') {
-        container.innerHTML = '<iframe src="'+d.data+'" style="width:100%; height:100%; border:none;"></iframe>';
+        container.innerHTML = '<iframe src="'+d.data+'" style="width:100%; height:100%; border:none; background:#fff;"></iframe>';
     } else {
-        container.innerHTML = '<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#111;"><img src="'+d.data+'" style="max-width:100%; max-height:100%; object-fit:contain;"></div>';
+        container.innerHTML = '<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#f0f0f0;"><img src="'+d.data+'" style="max-width:100%; max-height:100%; shadow:0 4px 20px rgba(0,0,0,0.3);"></div>';
     }
     document.getElementById('docPreviewModal').classList.add('show');
 }
@@ -711,18 +719,28 @@ function scanTradeDocWithAI() {
     setTimeout(function() {
         // Simulated AI extraction logic
         var docName = currentTradeDocs[0].name.toLowerCase();
+        var extracted = [];
         if (docName.includes('invoice')) {
-            document.getElementById('tr-inv-no').value = 'INV/' + Math.floor(1000 + Math.random()*9000);
-            toast('AI Extracted: Invoice Number');
+            var val = 'INV/' + Math.floor(1000 + Math.random()*9000);
+            document.getElementById('tr-inv-no').value = val;
+            extracted.push('Invoice No: ' + val);
         }
         if (docName.includes('bl') || docName.includes('bill')) {
-            document.getElementById('tr-bl-no').value = 'BL/' + Math.floor(10000 + Math.random()*90000);
-            toast('AI Extracted: BL Number');
+            var val = 'BL/' + Math.floor(10000 + Math.random()*90000);
+            document.getElementById('tr-bl-no').value = val;
+            extracted.push('BL Number: ' + val);
         }
         
         btn.innerHTML = '&#x2728; Scan with AI';
         btn.disabled = false;
-        toast('AI Analysis Complete');
+        
+        if (extracted.length > 0) {
+            toast('AI Extracted: ' + extracted.join(', '));
+            // Ensure fields are visible if they were hidden
+            toggleTradeDetailFields();
+        } else {
+            toast('AI could not find matching fields in this document', true);
+        }
     }, 2000);
 }
 var editingTradeId = null;

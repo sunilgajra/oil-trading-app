@@ -13,8 +13,10 @@
 <style>
     .docs-mgr { background: var(--surface); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
     .docs-list { display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto; }
-    .doc-item { display: flex; justify-content: space-between; align-items: center; background: var(--surface2); padding: 8px 12px; border-radius: 6px; font-size: 13px; }
-    .doc-item small { color: var(--muted); margin-left: 5px; }
+    .doc-item { display: flex; justify-content: space-between; align-items: center; background: var(--surface2); padding: 8px 12px; border-radius: 6px; font-size: 13px; border-left: 3px solid var(--gold2); }
+    .doc-name-input { background: transparent; border: none; color: var(--text); font-weight: bold; width: 60%; }
+    .doc-name-input:focus { outline: 1px solid var(--gold2); background: var(--surface); }
+    .doc-item small { color: var(--muted); margin-left: 5px; font-size: 10px; }
     .btn-gold { background: var(--gold2); color: #000; }
     .btn-gold:hover { background: #eab308; }
   </style>
@@ -277,9 +279,12 @@
 
 <!-- Your Custom JavaScript -->
 <div id="docPreviewModal" class="modal">
-    <div class="modal-content" style="width:90%; height:90%; padding:0; overflow:hidden; position:relative;">
-        <span class="close" onclick="closeDocPreview()" style="position:absolute; right:15px; top:10px; z-index:100; background:rgba(0,0,0,0.5); width:30px; height:30px; border-radius:50%; text-align:center; line-height:26px;">&times;</span>
-        <div id="docPreviewContainer" style="width:100%; height:100%;"></div>
+    <div class="modal-content" style="width:95%; height:95%; padding:0; overflow:hidden; border:none; background:var(--bg);">
+        <div style="background:rgba(20,20,20,0.8); backdrop-filter:blur(10px); padding:10px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border);">
+            <h3 id="previewDocTitle" style="margin:0; font-size:16px; color:var(--gold2);">Document Preview</h3>
+            <span class="close" onclick="closeDocPreview()" style="font-size:24px; cursor:pointer;">&times;</span>
+        </div>
+        <div id="docPreviewContainer" style="width:100%; height:calc(100% - 50px); background:#fff;"></div>
     </div>
 </div>
 
