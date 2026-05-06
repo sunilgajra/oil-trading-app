@@ -862,36 +862,36 @@ async function refineWithCloudAI(rawText) {
         });
 
         if (!response.ok) {
-            var errData = await response.json();
             if (response.status === 403) {
-                throw new Error("403 Forbidden: Your Gemini API Key is likely not enabled or restricted. Please check Google AI Studio.");
+                throw new Error("403 Forbidden: Your Gemini API Key is not authorized. Please ensure you have enabled 'Generative Language API' in Google Cloud or use a fresh key from AI Studio.");
             }
-            throw new Error(errData.error?.message || "Gemini API Error: " + response.status);
+            const errText = await response.text();
+            throw new Error("Gemini API Error (" + response.status + "): " + errText.substring(0, 100));
         }
 
         const data = await response.json();
         
-        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-            throw new Error("Gemini returned an empty response. Check if your API key has usage limits.");
+        // Defensive check for Gemini response structure
+        if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+            const rawJson = data.candidates[0].content.parts[0].text;
+            const ai = JSON.parse(rawJson);
+            
+            if (ai.bl_no) document.getElementById('tr-bl-no').value = ai.bl_no;
+            if (ai.vessel) document.getElementById('tr-vessel').value = ai.vessel;
+            if (ai.port_load) document.getElementById('tr-port-load').value = ai.port_load;
+            if (ai.port_dis) document.getElementById('tr-port-dis').value = ai.port_dis;
+            if (ai.dest_agent) document.getElementById('tr-dest-agent').value = ai.dest_agent;
+            if (ai.hs_code) document.getElementById('tr-hs-code').value = ai.hs_code;
+            if (ai.net_weight) document.getElementById('tr-net-weight').value = ai.net_weight;
+            if (ai.containers) document.getElementById('tr-containers').value = Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers;
+            
+            toast('&#x2728; Gemini AI Scan Perfected!');
+        } else {
+            throw new Error("Gemini API returned an unexpected data structure. Please try again.");
         }
-
-        const rawJson = data.candidates[0].content.parts[0].text;
-        const ai = JSON.parse(rawJson);
-        
-        if (ai.bl_no) document.getElementById('tr-bl-no').value = ai.bl_no;
-        if (ai.vessel) document.getElementById('tr-vessel').value = ai.vessel;
-        if (ai.port_load) document.getElementById('tr-port-load').value = ai.port_load;
-        if (ai.port_dis) document.getElementById('tr-port-dis').value = ai.port_dis;
-        if (ai.dest_agent) document.getElementById('tr-dest-agent').value = ai.dest_agent;
-        if (ai.hs_code) document.getElementById('tr-hs-code').value = ai.hs_code;
-        if (ai.net_weight) document.getElementById('tr-net-weight').value = ai.net_weight;
-        if (ai.containers) document.getElementById('tr-containers').value = ai.containers.join(', ');
-        
-        toast('&#x2728; Gemini AI Scan Perfected!');
     } catch (e) {
         console.error("Cloud AI Error:", e);
         toast(e.message, true);
-        // Fallback to local OCR results if they exist
     } finally {
         btn.innerHTML = '&#x2728; Scan with AI';
     }
