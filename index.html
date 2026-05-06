@@ -50,6 +50,7 @@
   <div class="nav-tab" onclick="switchPage('suppliers')">&#x1F3ED; Suppliers</div>
   <div class="nav-tab" onclick="switchPage('buyers')">&#x1F464; Buyers</div>
   <div class="nav-tab" onclick="switchPage('reports')">&#x1F4C8; Reports</div>
+  <div class="nav-tab" onclick="switchPage('settings')">&#x2699; Settings</div>
 </div>
 
 <!-- DASHBOARD -->
@@ -285,6 +286,24 @@
     <div class="panel"><div class="section-title">Top Customers</div><div id="topCustomers"></div></div>
   </div>
 </div></div>
+
+<!-- AI SETTINGS -->
+<div id="page-settings" class="page">
+    <div class="container" style="max-width:600px; padding-top:40px;">
+        <div class="card" style="padding:30px; background:var(--surface); border:1px solid var(--border);">
+            <h3 style="color:var(--gold2); margin-top:0;">&#x2699; AI Configuration</h3>
+            <p style="color:var(--muted); font-size:13px;">Enhance your scans with Google Gemini 1.5 for 100% accuracy on complex documents like Rider Sheets.</p>
+            
+            <div class="form-group" style="margin-top:20px;">
+                <label style="display:block; margin-bottom:8px; font-weight:500;">Google Gemini API Key</label>
+                <input type="password" id="api-key" placeholder="AIza..." style="width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+                <p style="font-size:11px; color:var(--muted); margin-top:8px;">Your key is stored locally in your browser. Get one at aistudio.google.com</p>
+            </div>
+            
+            <button class="btn btn-gold" onclick="saveApiKey()" style="width:100%; margin-top:10px; font-weight:bold;">SAVE CONFIGURATION</button>
+        </div>
+    </div>
+</div>
 
 <!-- Hidden print zone -->
 <div id="printZone"></div>

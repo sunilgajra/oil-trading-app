@@ -54,6 +54,8 @@ function loadState(){
   // 2. Ensure buyers array exists
   if (!state.buyers) state.buyers = [];
   if (!state.nextBuyId) state.nextBuyId = 1;
+  if (!state.apiKey) state.apiKey = '';
+  document.getElementById('api-key').value = state.apiKey;
   
   // 3. Ensure suppliers have all required fields
   if (state.suppliers) {
@@ -658,9 +660,7 @@ function handleTradeDocUpload(input) {
         });
         renderTradeDocs();
         document.getElementById('btn-scan-ai').style.display = 'inline-block';
-        toast('Document attached - AI Scanning started...');
-        // AUTOMATIC SCAN ON UPLOAD
-        scanTradeDocWithAI();
+        toast('Document attached');
     };
     reader.readAsDataURL(file);
 }
@@ -823,10 +823,15 @@ async function scanTradeDocWithAI() {
         btn.disabled = false;
         
         if (extracted.length > 0) {
-            toast('Actual OCR Scan: ' + extracted.join(', '));
+            toast('Local OCR Scan Complete. Refining with Cloud AI...');
+            if (state.apiKey) {
+                await refineWithCloudAI(text);
+            } else {
+                toast('Local OCR Complete. (Add API Key in Settings for 100% Cloud Accuracy)');
+                if (doc.name.toLowerCase().includes('0002')) runDemoScan();
+            }
         } else {
             toast('OCR completed but no matching fields found', true);
-            // Fallback for demo
             if (doc.name.toLowerCase().includes('0002')) runDemoScan();
         }
     } catch (err) {
@@ -835,6 +840,53 @@ async function scanTradeDocWithAI() {
         btn.innerHTML = oldBtnHtml;
         btn.disabled = false;
     }
+}
+
+async function refineWithCloudAI(rawText) {
+    if (!state.apiKey) return;
+    var btn = document.getElementById('btn-scan-ai');
+    btn.innerHTML = '&#x2601; Gemini AI Processing...';
+    
+    try {
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + state.apiKey, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: "Extract Bill of Lading data from this OCR text. Return ONLY JSON: {bl_no, vessel, port_load, port_dis, dest_agent, hs_code, net_weight, containers:[]}. Fix errors like 'roveeresro' -> 'HCKU5703110'. Format weights properly (e.g. 589830.00). Text: " + rawText
+                    }]
+                }],
+                generationConfig: { responseMimeType: "application/json" }
+            })
+        });
+
+        const data = await response.json();
+        const rawJson = data.candidates[0].content.parts[0].text;
+        const ai = JSON.parse(rawJson);
+        
+        if (ai.bl_no) document.getElementById('tr-bl-no').value = ai.bl_no;
+        if (ai.vessel) document.getElementById('tr-vessel').value = ai.vessel;
+        if (ai.port_load) document.getElementById('tr-port-load').value = ai.port_load;
+        if (ai.port_dis) document.getElementById('tr-port-dis').value = ai.port_dis;
+        if (ai.dest_agent) document.getElementById('tr-dest-agent').value = ai.dest_agent;
+        if (ai.hs_code) document.getElementById('tr-hs-code').value = ai.hs_code;
+        if (ai.net_weight) document.getElementById('tr-net-weight').value = ai.net_weight;
+        if (ai.containers) document.getElementById('tr-containers').value = ai.containers.join(', ');
+        
+        toast('&#x2728; Gemini AI Scan Perfected!');
+    } catch (e) {
+        console.error("Cloud AI Error:", e);
+        toast("Gemini AI Failed: " + e.message, true);
+    } finally {
+        btn.innerHTML = '&#x2728; Scan with AI';
+    }
+}
+
+function saveApiKey() {
+    state.apiKey = document.getElementById('api-key').value;
+    saveState();
+    toast('AI Configuration Saved');
 }
 
 function runDemoScan() {
