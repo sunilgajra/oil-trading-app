@@ -19,6 +19,15 @@
     .doc-item small { color: var(--muted); margin-left: 5px; font-size: 10px; }
     .btn-gold { background: var(--gold2); color: #000; }
     .btn-gold:hover { background: #eab308; }
+
+    /* Modal Core Styles - FIX FOR PREVIEW WINDOW */
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1000; align-items:center; justify-content:center; padding:20px; }
+    .modal.show { display:flex; }
+    .modal-content { position:relative; animation: modalSlide 0.3s ease; }
+    @keyframes modalSlide { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+    
+    .extracted-pulse { animation: pulseHighlight 2s ease infinite; border-color: var(--gold2) !important; box-shadow: 0 0 10px var(--gold); }
+    @keyframes pulseHighlight { 0% { box-shadow: 0 0 0px var(--gold); } 50% { box-shadow: 0 0 15px var(--gold); } 100% { box-shadow: 0 0 0px var(--gold); } }
   </style>
 </head>
 <body>
