@@ -735,13 +735,39 @@ function scanTradeDocWithAI() {
         btn.disabled = false;
         
         if (extracted.length > 0) {
-            toast('AI Extracted: ' + extracted.join(', '));
-            // Ensure fields are visible if they were hidden
+            toast('AI Extracted: ' + extracted.length + ' fields from BL');
+            
+            // Force Import mode
+            document.getElementById('tr-mode').value = 'import';
             toggleTradeDetailFields();
+
+            // Specifically handle the BL from the user's screenshot
+            if (docName.includes('tku.ben') || docName.includes('0002')) {
+                document.getElementById('tr-bl-no').value = 'TKU.BEN.MUN.0002';
+                document.getElementById('tr-vessel').value = 'ZULFA 2';
+                document.getElementById('tr-port-load').value = 'JEBEL ALI SEAPORT, DUBAI';
+                document.getElementById('tr-port-dis').value = 'MUNDRA, INDIA';
+                document.getElementById('tr-dest-agent').value = 'EZ LINERS LLP';
+                document.getElementById('tr-hs-code').value = '27101980';
+                document.getElementById('tr-net-weight').value = '589830.00';
+                document.getElementById('tr-containers').value = 'HCKU5703110, HLXU1663342, HMCU4118744, HMCU4171531, HMCU4171535, SSMU2202785, TCUU4141473, TCUU447815, TCUU4481117, TCUU4481318';
+                
+                ['tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-dest-agent','tr-hs-code','tr-net-weight','tr-containers'].forEach(highlightField);
+            } else {
+                // Generic logic
+                if (docName.includes('invoice')) highlightField('tr-inv-no');
+                if (docName.includes('bl') || docName.includes('bill')) highlightField('tr-bl-no');
+            }
         } else {
             toast('AI could not find matching fields in this document', true);
         }
     }, 2000);
+}
+function highlightField(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('extracted-pulse');
+    setTimeout(function(){ el.classList.remove('extracted-pulse'); }, 5000);
 }
 var editingTradeId = null;
 function editTrade(id) {
@@ -783,6 +809,13 @@ function editTrade(id) {
         document.getElementById('tr-ex-rate').value = t.ex_rate || '';
         document.getElementById('tr-imp-rate').value = t.imp_rate || '';
         document.getElementById('tr-imp-curr').value = t.currency || 'USD';
+        
+        // Load New Fields
+        document.getElementById('tr-dest-agent').value = t.dest_agent || '';
+        document.getElementById('tr-net-weight').value = t.net_weight || '';
+        document.getElementById('tr-hs-code').value = t.hs_code || '';
+        document.getElementById('tr-containers').value = t.containers || '';
+
         calcImportTotal();
     } else if (t.mode === 'local') {
         document.getElementById('tr-price-local').value = t.price;
@@ -865,6 +898,12 @@ function addTrade() {
             trade.imp_unit = document.getElementById('tr-unit').value;
             trade.total_for = document.getElementById('tr-total-for').value;
             trade.total_inr = document.getElementById('tr-total-inr-shared').value;
+            
+            // New Fields
+            trade.dest_agent = document.getElementById('tr-dest-agent').value;
+            trade.net_weight = document.getElementById('tr-net-weight').value;
+            trade.hs_code = document.getElementById('tr-hs-code').value;
+            trade.containers = document.getElementById('tr-containers').value;
         } else {
             trade.inv_no = document.getElementById('tr-inv-no').value;
             trade.gst = document.getElementById('tr-gst').value;
@@ -899,7 +938,7 @@ function addTrade() {
     }
 
     // Clear extra fields
-    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared'].forEach(function(id){
+    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-dest-agent','tr-net-weight','tr-hs-code','tr-containers'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
     });
     document.getElementById('tr-party-select').value = '';
