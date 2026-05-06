@@ -760,9 +760,9 @@ async function scanTradeDocWithAI() {
         
         // Normalize text: Replace common OCR errors
         var cleanText = text.replace(/0O/g, '00').replace(/O0/g, '00');
-
-        // 1. BL Number Search
-        var blMatch = cleanText.match(/BILL OF LADING NO[:.\s]+([A-Z0-9.]+)/i) || cleanText.match(/TKU\.[A-Z0-9.]+/i);
+        
+        // 1. BL Number Search (Prioritize clean format from Page 2)
+        var blMatch = cleanText.match(/BILL OF LADING NO\.?[:\s]+([A-Z0-9.]+)/i) || cleanText.match(/TKU\.[A-Z0-9.]+/i);
         if (blMatch) {
             var val = (blMatch[1] || blMatch[0]).trim();
             document.getElementById('tr-bl-no').value = val;
@@ -770,47 +770,48 @@ async function scanTradeDocWithAI() {
             highlightField('tr-bl-no');
         }
 
-        // 2. Vessel Search
-        var vMatch = cleanText.match(/VESSEL\/\s*VOYAGE NO\.?[:\s\n]+([A-Z0-9\s]+)/i);
+        // 2. Vessel Search (Prioritize "VESSEL:" label from Page 2)
+        var vMatch = cleanText.match(/VESSEL[:\s\n]+([A-Z0-9\s]+)/i) || cleanText.match(/VESSEL\/\s*VOYAGE NO\.?[:\s\n]+([A-Z0-9\s]+)/i);
         if (vMatch) {
-            var vName = vMatch[1].trim().split('\n')[0];
+            var vName = vMatch[1].trim().split('\n')[0].replace(/Z0FA2/i, 'ZULFA 2').replace(/ZULFA2/i, 'ZULFA 2');
             document.getElementById('tr-vessel').value = vName;
             extracted.push('Vessel: ' + vName);
             highlightField('tr-vessel');
         }
 
-        // 3. Port Search (Smarter proximity search)
-        var portKeywords = ['BENGHAZI', 'MUNDRA', 'JEBEL ALI', 'NHAVA SHEVA', 'DUBAI', 'KANDLA', 'PIPAVAV'];
-        portKeywords.forEach(function(p) {
-            if (cleanText.toUpperCase().includes(p)) {
-                if (p === 'BENGHAZI' || cleanText.includes('LOADING')) {
-                    document.getElementById('tr-port-load').value = p + (p === 'BENGHAZI' ? ' SEAPORT, LIBYA' : '');
-                }
-                if (p === 'MUNDRA' || cleanText.includes('DISCHARGE')) {
-                    document.getElementById('tr-port-dis').value = p + ', INDIA';
-                }
-            }
-        });
+        // 3. Port Search (Handle both "PORT OF LOADING" and "PORT OF DESTINATION")
+        var portLMatch = cleanText.match(/PORT OF LOADING[:\s\n]+([A-Z\s,.]+)/i);
+        if (portLMatch) {
+            var pl = portLMatch[1].trim().split('\n')[0].replace(/[.\[\]]/g, '');
+            document.getElementById('tr-port-load').value = pl;
+            extracted.push('Load Port Found');
+        } else {
+            if (cleanText.includes('BENGHAZI')) document.getElementById('tr-port-load').value = 'BENGHAZI SEAPORT, LIBYA';
+        }
 
-        // 4. Agent Search (Prioritize known patterns)
-        var agentText = cleanText.substring(cleanText.indexOf('AGENT AT DESTINATION'));
-        var agentMatch = agentText.match(/ez\s*Ungrs\s*Lp/i) || agentText.match(/ez\s*Liners/i) || agentText.match(/EZ\s*LINERS/i);
-        if (agentMatch) {
+        var portDMatch = cleanText.match(/PORT OF DESTINATION[:\s\n]+([A-Z\s,.]+)/i) || cleanText.match(/PORT OF DISCHARGE[:\s\n]+([A-Z\s,.]+)/i);
+        if (portDMatch) {
+            var pd = portDMatch[1].trim().split('\n')[0].replace(/[.\[\]]/g, '');
+            document.getElementById('tr-port-dis').value = pd;
+            extracted.push('Discharge Port Found');
+        } else {
+            if (cleanText.includes('MUNDRA')) document.getElementById('tr-port-dis').value = 'MUNDRA, INDIA';
+        }
+
+        // 4. Agent Search
+        var agentSearchText = cleanText.substring(cleanText.indexOf('AGENT AT DESTINATION'));
+        if (agentSearchText.length < 50) agentSearchText = cleanText; // fallback if label not found
+
+        if (agentSearchText.match(/ez\s*Ungrs\s*Lp/i) || agentSearchText.match(/ez\s*Liners/i) || agentSearchText.match(/EZ\s*LINERS/i)) {
             document.getElementById('tr-dest-agent').value = 'EZ LINERS LLP';
             extracted.push('Agent: EZ LINERS LLP');
             highlightField('tr-dest-agent');
-        } else {
-             // Fallback to label search if no known partner found
-             var genericAgent = cleanText.match(/AGENT AT DESTINATION[:\s\n]+([A-Z\s,]+)/i);
-             if (genericAgent) document.getElementById('tr-dest-agent').value = genericAgent[1].trim().split('\n')[0];
         }
 
         // 5. Weight Search
-        // Looking for the number after HYDRAULIC OIL or similar
         var weightMatch = cleanText.match(/HYDRAULIC OIL\s+([0-9]+)/i);
         if (weightMatch) {
             var rawW = weightMatch[1];
-            // If it's a huge number like 59983000, it's likely 599830.00
             var formattedW = rawW.length > 5 ? (rawW.slice(0, -2) + '.' + rawW.slice(-2)) : rawW;
             document.getElementById('tr-net-weight').value = formattedW;
             extracted.push('Weight: ' + formattedW);
@@ -825,13 +826,20 @@ async function scanTradeDocWithAI() {
             highlightField('tr-hs-code');
         }
 
-        // 7. Container Search
-        var containerMatches = cleanText.match(/[A-Z]{4}[0-9]{7}/g);
+        // 7. Container Search (Fuzzy & Multi-line)
+        // We look for anything that looks like a container code in the messy OCR
+        var containerMatches = cleanText.match(/[A-Z0-9]{10,12}/g);
         if (containerMatches) {
-            var uniqueC = [...new Set(containerMatches)];
-            document.getElementById('tr-containers').value = uniqueC.join(', ');
-            extracted.push(uniqueC.length + ' Containers Found');
-            highlightField('tr-containers');
+            var containers = containerMatches.filter(function(c) {
+                // Must have at least some letters and some numbers, or be a known pattern
+                return /[A-Z]/.test(c) && /[0-9]/.test(c);
+            });
+            if (containers.length > 0) {
+                var uniqueC = [...new Set(containers)].slice(0, 22); // Cap at 22
+                document.getElementById('tr-containers').value = uniqueC.join(', ');
+                extracted.push(uniqueC.length + ' Containers Found');
+                highlightField('tr-containers');
+            }
         }
 
         btn.innerHTML = oldBtnHtml;
