@@ -717,33 +717,12 @@ function scanTradeDocWithAI() {
     btn.disabled = true;
 
     setTimeout(function() {
-        // Simulated AI extraction logic
         var docName = currentTradeDocs[0].name.toLowerCase();
         var extracted = [];
-        if (docName.includes('invoice')) {
-            var val = 'INV/' + Math.floor(1000 + Math.random()*9000);
-            document.getElementById('tr-inv-no').value = val;
-            extracted.push('Invoice No: ' + val);
-        }
-        if (docName.includes('bl') || docName.includes('bill')) {
-            var val = 'BL/' + Math.floor(10000 + Math.random()*90000);
-            document.getElementById('tr-bl-no').value = val;
-            extracted.push('BL Number: ' + val);
-        }
-        
-        btn.innerHTML = '&#x2728; Scan with AI';
-        btn.disabled = false;
-        
-    setTimeout(function() {
-        var docName = currentTradeDocs[0].name.toLowerCase();
-        var extracted = [];
-        
-        // Force Import mode
         document.getElementById('tr-mode').value = 'import';
         toggleTradeDetailFields();
 
         if (docName.includes('tku.ben') || docName.includes('0002') || docName.includes('bl') || docName.includes('bill') || docName.includes('scan')) {
-            // High fidelity or simulated BL
             var blNo = docName.includes('0002') ? 'TKU.BEN.MUN.0002' : 'BL/' + Math.floor(10000 + Math.random()*90000);
             document.getElementById('tr-bl-no').value = blNo;
             document.getElementById('tr-vessel').value = 'ZULFA 2';
@@ -753,7 +732,6 @@ function scanTradeDocWithAI() {
             document.getElementById('tr-hs-code').value = '27101980';
             document.getElementById('tr-net-weight').value = '589830.00';
             document.getElementById('tr-containers').value = 'HCKU5703110, HLXU1663342, HMCU4118744, HMCU4171531, HMCU4171535, SSMU2202785, TCUU4141473, TCUU447815, TCUU4481117, TCUU4481318';
-            
             extracted.push('BL: ' + blNo);
             ['tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-dest-agent','tr-hs-code','tr-net-weight','tr-containers'].forEach(highlightField);
         } else if (docName.includes('invoice') || docName.includes('inv')) {
@@ -762,21 +740,14 @@ function scanTradeDocWithAI() {
             extracted.push('Invoice: ' + invNo);
             highlightField('tr-inv-no');
         } else {
-            // Fallback for any other PDF/Image
             var randBl = 'BL/' + Math.floor(10000 + Math.random()*90000);
             document.getElementById('tr-bl-no').value = randBl;
             extracted.push('Simulated BL: ' + randBl);
             highlightField('tr-bl-no');
         }
-        
         btn.innerHTML = '&#x2728; Scan with AI';
         btn.disabled = false;
-        
-        if (extracted.length > 0) {
-            toast('AI Extracted: ' + extracted.join(', '));
-        } else {
-            toast('AI could not find matching fields in this document', true);
-        }
+        if (extracted.length > 0) toast('AI Extracted: ' + extracted.join(', '));
     }, 2000);
 }
 function highlightField(id) {
@@ -790,32 +761,25 @@ function editTrade(id) {
     var t = state.trades.find(function(x){return x.id === id;});
     if (!t) return;
     editingTradeId = id;
-    
     document.getElementById('tr-type').value = t.type;
-    toggleTradeModeField(); // Setup mode options
-    
+    toggleTradeModeField();
     document.getElementById('tr-mode').value = t.mode || 'local';
     toggleTradeDetailFields();
-    
     document.getElementById('tr-product').value = t.product;
-    
     if (t.type === 'Buy' || (t.type === 'Sell' && state.buyers && state.buyers.length > 0)) {
         document.getElementById('tr-party-select').value = t.party;
     } else {
         document.getElementById('tr-party').value = t.party;
     }
-    
     document.getElementById('tr-vol').value = t.raw_qty !== undefined ? t.raw_qty : t.vol;
     document.getElementById('tr-unit').value = t.unit || 'LITRE';
     document.getElementById('tr-density').value = t.density;
     document.getElementById('tr-date').value = t.date;
     document.getElementById('tr-terms').value = t.terms || 'Immediate';
-    
     currentTradeDocs = t.docs ? JSON.parse(JSON.stringify(t.docs)) : [];
     renderTradeDocs();
     if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
     else document.getElementById('btn-scan-ai').style.display = 'none';
-
     if (t.mode === 'import') {
         document.getElementById('tr-is-hs').checked = !!t.is_hs;
         document.getElementById('tr-bl-no').value = t.bl_no || '';
@@ -825,13 +789,10 @@ function editTrade(id) {
         document.getElementById('tr-ex-rate').value = t.ex_rate || '';
         document.getElementById('tr-imp-rate').value = t.imp_rate || '';
         document.getElementById('tr-imp-curr').value = t.currency || 'USD';
-        
-        // Load New Fields
         document.getElementById('tr-dest-agent').value = t.dest_agent || '';
         document.getElementById('tr-net-weight').value = t.net_weight || '';
         document.getElementById('tr-hs-code').value = t.hs_code || '';
         document.getElementById('tr-containers').value = t.containers || '';
-
         calcImportTotal();
     } else if (t.mode === 'local') {
         document.getElementById('tr-price-local').value = t.price;
@@ -842,32 +803,22 @@ function editTrade(id) {
         document.getElementById('tr-link-purchase').value = t.link_purchase_id || '';
         document.getElementById('tr-imp-rate').value = t.price;
     }
-    
     calcTradeTotals();
-    
     var btn = document.querySelector('button[onclick="addTrade()"]');
-    if (btn) {
-        btn.innerHTML = '&#x1F4BE; Update Trade';
-        btn.classList.add('btn-blue');
-    }
+    if (btn) { btn.innerHTML = '&#x1F4BE; Update Trade'; btn.classList.add('btn-blue'); }
     window.scrollTo({top:0, behavior:'smooth'});
 }
 function addTrade() {
     var type = document.getElementById('tr-type').value;
     var mode = document.getElementById('tr-mode').value;
     var product = document.getElementById('tr-product').value;
-    var party = document.getElementById('tr-party-select-wrap').style.display !== 'none' ? 
-                document.getElementById('tr-party-select').value : 
-                document.getElementById('tr-party').value;
-    
+    var party = document.getElementById('tr-party-select-wrap').style.display !== 'none' ? document.getElementById('tr-party-select').value : document.getElementById('tr-party').value;
     var rawQty = parseFloat(document.getElementById('tr-vol').value);
     var den = parseFloat(document.getElementById('tr-density').value) || getDensity(product);
     var unit = document.getElementById('tr-unit').value;
-    
     var volInL = rawQty;
     if (unit === 'KG') volInL = rawQty / den;
     if (unit === 'MTON') volInL = (rawQty * 1000) / den;
-
     var price = 0;
     if (mode === 'import') {
         var rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
@@ -879,28 +830,16 @@ function addTrade() {
     } else {
         price = parseFloat(document.getElementById('tr-price-local').value) || 0;
     }
-
     if (!party || !rawQty || !price) return toast('Please fill all required fields', true);
-    
     var termsVal = document.getElementById('tr-terms').value;
     if (termsVal === '__custom__') termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
-    
     var trade = {
-        type: type, mode: mode, 
-        product: product, party: party,
-        vol: volInL, price: price,
-        raw_qty: rawQty,
-        unit: unit,
+        type: type, mode: mode, product: product, party: party,
+        vol: volInL, price: price, raw_qty: rawQty, unit: unit,
         date: document.getElementById('tr-date').value || today(),
-        terms: termsVal,
-        density: den,
-        docs: currentTradeDocs
+        terms: termsVal, density: den, docs: currentTradeDocs
     };
-
-    if (type === 'Sell' && mode === 'hs_sale') {
-        trade.link_purchase_id = document.getElementById('tr-link-purchase').value;
-    }
-
+    if (type === 'Sell' && mode === 'hs_sale') trade.link_purchase_id = document.getElementById('tr-link-purchase').value;
     if (type === 'Buy') {
         if (mode === 'import') {
             trade.is_hs = document.getElementById('tr-is-hs').checked;
@@ -914,8 +853,6 @@ function addTrade() {
             trade.imp_unit = document.getElementById('tr-unit').value;
             trade.total_for = document.getElementById('tr-total-for').value;
             trade.total_inr = document.getElementById('tr-total-inr-shared').value;
-            
-            // New Fields
             trade.dest_agent = document.getElementById('tr-dest-agent').value;
             trade.net_weight = document.getElementById('tr-net-weight').value;
             trade.hs_code = document.getElementById('tr-hs-code').value;
@@ -926,34 +863,20 @@ function addTrade() {
             trade.veh = document.getElementById('tr-veh').value;
         }
     }
-
     if (editingTradeId) {
         var idx = state.trades.findIndex(function(x){return x.id === editingTradeId;});
-        if (idx>=0) {
-            trade.id = editingTradeId; // Keep same ID
-            state.trades[idx] = trade;
-        }
+        if (idx>=0) { trade.id = editingTradeId; state.trades[idx] = trade; }
         toast('Trade updated');
     } else {
         trade.id = state.nextTradeId++;
         state.trades.push(trade);
         toast('Trade recorded');
     }
-
     saveState(); renderTradesTable(); renderRecentTrades(); renderDashboardKpis();
-    
-    editingTradeId = null;
-    currentTradeDocs = [];
-    renderTradeDocs();
+    editingTradeId = null; currentTradeDocs = []; renderTradeDocs();
     document.getElementById('btn-scan-ai').style.display = 'none';
-
     var btn = document.querySelector('button[onclick="addTrade()"]');
-    if (btn) {
-        btn.innerHTML = '&#x1F4B1; Record Trade';
-        btn.classList.remove('btn-blue');
-    }
-
-    // Clear extra fields
+    if (btn) { btn.innerHTML = '&#x1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
     ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-dest-agent','tr-net-weight','tr-hs-code','tr-containers'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
     });
