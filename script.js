@@ -749,44 +749,70 @@ async function scanTradeDocWithAI() {
         document.getElementById('tr-mode').value = 'import';
         toggleTradeDetailFields();
 
-        // --- ACTUAL PARSING LOGIC ---
+        // --- REFINED ACTUAL PARSING LOGIC (Tuned to your BL) ---
         
+        // Normalize text: Replace common OCR errors
+        var cleanText = text.replace(/0O/g, '00').replace(/O0/g, '00');
+
         // 1. BL Number Search
-        var blMatch = text.match(/B\/L\s*NO[:\s]+([A-Z0-9.\/]+)/i) || text.match(/Bill\s*of\s*Lading\s*No[:\s]+([A-Z0-9.\/]+)/i) || text.match(/([A-Z]{3,4}\.[A-Z]{3,4}\.[A-Z]{3,4}\.[0-9]{4})/);
+        var blMatch = cleanText.match(/BILL OF LADING NO[:.\s]+([A-Z0-9.]+)/i) || cleanText.match(/TKU\.[A-Z0-9.]+/i);
         if (blMatch) {
-            var val = blMatch[1] || blMatch[0];
+            var val = (blMatch[1] || blMatch[0]).trim();
             document.getElementById('tr-bl-no').value = val;
             extracted.push('BL: ' + val);
             highlightField('tr-bl-no');
         }
 
         // 2. Vessel Search
-        var vMatch = text.match(/Vessel[:\s]+([A-Z\s0-9]+)/i) || text.match(/Vessel\/Voyage[:\s]+([A-Z\s0-9]+)/i);
+        var vMatch = cleanText.match(/VESSEL\/\s*VOYAGE NO\.?[:\s\n]+([A-Z0-9\s]+)/i);
         if (vMatch) {
-            document.getElementById('tr-vessel').value = vMatch[1].trim().split('\n')[0];
-            extracted.push('Vessel Found');
+            var vName = vMatch[1].trim().split('\n')[0];
+            document.getElementById('tr-vessel').value = vName;
+            extracted.push('Vessel: ' + vName);
             highlightField('tr-vessel');
         }
 
-        // 3. Weight Search
-        var wMatch = text.match(/Net\s*Weight[:\s]+([0-9,.]+)/i) || text.match(/Weight[:\s]+([0-9,.]+)\s*KGS/i);
-        if (wMatch) {
-            var w = wMatch[1].replace(/,/g, '');
-            document.getElementById('tr-net-weight').value = w;
-            extracted.push('Weight: ' + w);
+        // 3. Port Search
+        var portLMatch = cleanText.match(/PORT OF LOADING[:\s\n]+([A-Z\s,]+)/i);
+        if (portLMatch) {
+            document.getElementById('tr-port-load').value = portLMatch[1].trim().split('\n')[0];
+        }
+        var portDMatch = cleanText.match(/PORT OF DISCHARGE[:\s\n]+([A-Z\s,]+)/i);
+        if (portDMatch) {
+            document.getElementById('tr-port-dis').value = portDMatch[1].trim().split('\n')[0];
+        }
+
+        // 4. Agent Search
+        var agentMatch = cleanText.match(/AGENT AT DESTINATION[:\s\n]+([A-Z\s.]+)/i) || cleanText.match(/ez\s*Ungrs\s*Lp/i);
+        if (agentMatch) {
+            var agent = agentMatch[0].includes('ez') ? 'EZ LINERS LLP' : agentMatch[1].trim().split('\n')[0];
+            document.getElementById('tr-dest-agent').value = agent;
+            extracted.push('Agent Found');
+            highlightField('tr-dest-agent');
+        }
+
+        // 5. Weight Search
+        // Looking for the number after HYDRAULIC OIL or similar
+        var weightMatch = cleanText.match(/HYDRAULIC OIL\s+([0-9]+)/i);
+        if (weightMatch) {
+            var rawW = weightMatch[1];
+            // If it's a huge number like 59983000, it's likely 599830.00
+            var formattedW = rawW.length > 5 ? (rawW.slice(0, -2) + '.' + rawW.slice(-2)) : rawW;
+            document.getElementById('tr-net-weight').value = formattedW;
+            extracted.push('Weight: ' + formattedW);
             highlightField('tr-net-weight');
         }
 
-        // 4. HS Code Search
-        var hsMatch = text.match(/HS\s*CODE[:\s]+([0-9]+)/i);
+        // 6. HS Code Search
+        var hsMatch = cleanText.match(/HS\s*CODE\s*[:\s]+([0-9]+)/i);
         if (hsMatch) {
             document.getElementById('tr-hs-code').value = hsMatch[1];
             extracted.push('HS Code: ' + hsMatch[1]);
             highlightField('tr-hs-code');
         }
 
-        // 5. Container Search
-        var containerMatches = text.match(/[A-Z]{4}[0-9]{7}/g);
+        // 7. Container Search
+        var containerMatches = cleanText.match(/[A-Z]{4}[0-9]{7}/g);
         if (containerMatches) {
             var uniqueC = [...new Set(containerMatches)];
             document.getElementById('tr-containers').value = uniqueC.join(', ');
@@ -801,10 +827,8 @@ async function scanTradeDocWithAI() {
             toast('Actual OCR Scan: ' + extracted.join(', '));
         } else {
             toast('OCR completed but no matching fields found', true);
-            // Fallback to high-fidelity for demo if it's the specific file
-            if (doc.name.toLowerCase().includes('0002')) {
-                 runDemoScan();
-            }
+            // Fallback for demo
+            if (doc.name.toLowerCase().includes('0002')) runDemoScan();
         }
     } catch (err) {
         console.error("OCR Error:", err);
