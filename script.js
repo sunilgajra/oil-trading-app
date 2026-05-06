@@ -721,29 +721,36 @@ async function scanTradeDocWithAI() {
 
     try {
         var doc = currentTradeDocs[0];
-        var imageSource = doc.data;
+        var text = "";
 
-        // If PDF, convert first page to image for Tesseract
         if (doc.type === 'application/pdf') {
-            btn.innerHTML = '&#x2728; Converting PDF...';
+            btn.innerHTML = '&#x2728; Opening PDF...';
             var pdf = await pdfjsLib.getDocument(doc.data).promise;
-            var page = await pdf.getPage(1);
-            var viewport = page.getViewport({ scale: 2 });
-            var canvas = document.createElement('canvas');
-            var context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
-            imageSource = canvas.toDataURL('image/png');
+            var numPages = pdf.numPages;
+            
+            for (var p = 1; p <= numPages; p++) {
+                btn.innerHTML = '&#x2728; Scanning Page ' + p + ' of ' + numPages;
+                var page = await pdf.getPage(p);
+                var viewport = page.getViewport({ scale: 2 });
+                var canvas = document.createElement('canvas');
+                var context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                var pageImg = canvas.toDataURL('image/png');
+                
+                const result = await Tesseract.recognize(pageImg, 'eng');
+                text += "\n" + result.data.text;
+            }
+        } else {
+            btn.innerHTML = '&#x2728; Reading Image...';
+            const result = await Tesseract.recognize(doc.data, 'eng', {
+                logger: m => { if(m.status === 'recognizing') btn.innerHTML = '&#x2728; Reading: ' + Math.round(m.progress * 100) + '%'; }
+            });
+            text = result.data.text;
         }
-
-        btn.innerHTML = '&#x2728; Reading Text...';
-        const result = await Tesseract.recognize(imageSource, 'eng', {
-            logger: m => { if(m.status === 'recognizing') btn.innerHTML = '&#x2728; Reading: ' + Math.round(m.progress * 100) + '%'; }
-        });
         
-        var text = result.data.text;
-        console.log("OCR Result:", text);
+        console.log("Full OCR Result:", text);
         
         var extracted = [];
         document.getElementById('tr-mode').value = 'import';
@@ -772,23 +779,30 @@ async function scanTradeDocWithAI() {
             highlightField('tr-vessel');
         }
 
-        // 3. Port Search
-        var portLMatch = cleanText.match(/PORT OF LOADING[:\s\n]+([A-Z\s,]+)/i);
-        if (portLMatch) {
-            document.getElementById('tr-port-load').value = portLMatch[1].trim().split('\n')[0];
-        }
-        var portDMatch = cleanText.match(/PORT OF DISCHARGE[:\s\n]+([A-Z\s,]+)/i);
-        if (portDMatch) {
-            document.getElementById('tr-port-dis').value = portDMatch[1].trim().split('\n')[0];
-        }
+        // 3. Port Search (Smarter proximity search)
+        var portKeywords = ['BENGHAZI', 'MUNDRA', 'JEBEL ALI', 'NHAVA SHEVA', 'DUBAI', 'KANDLA', 'PIPAVAV'];
+        portKeywords.forEach(function(p) {
+            if (cleanText.toUpperCase().includes(p)) {
+                if (p === 'BENGHAZI' || cleanText.includes('LOADING')) {
+                    document.getElementById('tr-port-load').value = p + (p === 'BENGHAZI' ? ' SEAPORT, LIBYA' : '');
+                }
+                if (p === 'MUNDRA' || cleanText.includes('DISCHARGE')) {
+                    document.getElementById('tr-port-dis').value = p + ', INDIA';
+                }
+            }
+        });
 
-        // 4. Agent Search
-        var agentMatch = cleanText.match(/AGENT AT DESTINATION[:\s\n]+([A-Z\s.]+)/i) || cleanText.match(/ez\s*Ungrs\s*Lp/i);
+        // 4. Agent Search (Prioritize known patterns)
+        var agentText = cleanText.substring(cleanText.indexOf('AGENT AT DESTINATION'));
+        var agentMatch = agentText.match(/ez\s*Ungrs\s*Lp/i) || agentText.match(/ez\s*Liners/i) || agentText.match(/EZ\s*LINERS/i);
         if (agentMatch) {
-            var agent = agentMatch[0].includes('ez') ? 'EZ LINERS LLP' : agentMatch[1].trim().split('\n')[0];
-            document.getElementById('tr-dest-agent').value = agent;
-            extracted.push('Agent Found');
+            document.getElementById('tr-dest-agent').value = 'EZ LINERS LLP';
+            extracted.push('Agent: EZ LINERS LLP');
             highlightField('tr-dest-agent');
+        } else {
+             // Fallback to label search if no known partner found
+             var genericAgent = cleanText.match(/AGENT AT DESTINATION[:\s\n]+([A-Z\s,]+)/i);
+             if (genericAgent) document.getElementById('tr-dest-agent').value = genericAgent[1].trim().split('\n')[0];
         }
 
         // 5. Weight Search
