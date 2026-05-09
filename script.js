@@ -431,7 +431,16 @@ function calcTradeTotals() {
     
     var totalInr = basicInr + logTotal;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
+    
+    // Landed Cost Per Unit calculation
+    if (rawQty > 0) {
+        var landedPerUnit = totalInr / rawQty;
+        document.getElementById('tr-landed-unit').value = fmt(landedPerUnit) + ' / ' + unit;
+    } else {
+        document.getElementById('tr-landed-unit').value = '0.00';
+    }
 }
+
 function toggleTradeModeField() {
     var type = document.getElementById('tr-type').value;
     var modeGrp = document.getElementById('tr-mode-group');
