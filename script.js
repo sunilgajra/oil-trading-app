@@ -1906,21 +1906,16 @@ function renderHssPreviews() {
     const ex = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
     const profitPct = parseFloat(document.getElementById('hss-profit').value) || 2.0;
     const product = document.getElementById('tr-product').value;
-    const hsSeller = document.getElementById('tr-hs-seller').value; // Original Seller
-    const supplierId = document.getElementById('tr-party-select-wrap').style.display !== 'none' ? document.getElementById('tr-party-select').value : document.getElementById('tr-party').value;
-    const supplierObj = state.suppliers.find(s => s.name === supplierId) || {name: supplierId, city: ''};
-    
+    const seller = document.getElementById('tr-hs-seller').value;
+    const buyerId = document.getElementById('tr-party-select-wrap').style.display !== 'none' ? document.getElementById('tr-party-select').value : document.getElementById('tr-party').value;
+    const buyerObj = state.buyers.find(b => b.name === buyerId) || {name: buyerId, address: ''};
     const vessel = document.getElementById('tr-vessel').value;
     const blNo = document.getElementById('tr-bl-no').value;
+    const curr = document.getElementById('tr-imp-curr').value;
     const invNo = document.getElementById('hss-inv-no').value;
     const pIec = document.getElementById('hss-p-iec').value;
 
-    // Use manual CIF value if provided, else calculate from trade
-    const manualCif = parseFloat(document.getElementById('hss-cif-val').value);
-    const cifCurr = document.getElementById('hss-cif-curr').value;
-    const cifValFor = !isNaN(manualCif) && manualCif > 0 ? manualCif : (qty * rate);
-    const curr = !isNaN(manualCif) && manualCif > 0 ? cifCurr : document.getElementById('tr-imp-curr').value;
-
+    const cifValFor = qty * rate;
     const cifValInr = cifValFor * ex;
     const profitAmt = (cifValInr * profitPct) / 100;
     const saleConsideration = cifValInr + profitAmt;
@@ -1930,13 +1925,13 @@ function renderHssPreviews() {
         <div class="hss-print-page" id="hss-p1">
             <h1>HIGH SEAS SALE AGREEMENT</h1>
             <table class="no-border">
-                <tr><td>1. NAME & ADDRESS OF IMPORTER</td><td>: ${supplierObj.name}</td></tr>
-                <tr><td>2. IMPORT EXPORT CODE NUMBER</td><td>: ${supplierObj.iec || '-'}</td></tr>
-                <tr><td>3. NAME & ADDRESS OF PURCHASER</td><td>: MURJI RAVJI AND COMPANY</td></tr>
-                <tr><td>4. IMPORT EXPORT CODE NUMBER</td><td>: ABRFM5531E</td></tr>
+                <tr><td>1. NAME & ADDRESS OF IMPORTER</td><td>: MURJI RAVJI AND COMPANY</td></tr>
+                <tr><td>2. IMPORT EXPORT CODE NUMBER</td><td>: ABRFM5531E</td></tr>
+                <tr><td>3. NAME & ADDRESS OF PURCHASER</td><td>: ${buyerObj.name}</td></tr>
+                <tr><td>4. IMPORT EXPORT CODE NUMBER</td><td>: ${pIec}</td></tr>
                 <tr><td>5. DESCRIPTION OF GOODS SOLD</td><td>: ${product}</td></tr>
                 <tr><td>6. QUANTITY</td><td>: ${(qty/1000).toFixed(2)} MT</td></tr>
-                <tr><td>7. NAME & ADDRESS OF SUPPLIER</td><td>: ${hsSeller}</td></tr>
+                <tr><td>7. NAME & ADDRESS OF SUPPLIER</td><td>: ${seller}</td></tr>
                 <tr><td>8. INVOICE NO & DATE</td><td>: ${invNo} DT: ${today()}</td></tr>
                 <tr><td>9. NAME OF THE VESSEL</td><td>: ${vessel}</td></tr>
                 <tr><td>10. BILL OF LANDING NO. & DATE</td><td>: ${blNo}</td></tr>
@@ -1946,20 +1941,21 @@ function renderHssPreviews() {
             <p style="margin-top:20px; font-size:11px;">13. PAYMENT: Payment should be made to the seller as per high seas sale debit note...</p>
             <p style="font-size:11px;">14. DELIVERY: All the right and the title of the goods will be transferred from sellers to the buyer...</p>
             <div class="signature-row">
-                <div>For, ${supplierObj.name}<br><br><br>Authorized Signatory</div>
                 <div>For, MURJI RAVJI AND COMPANY<br><br><br>Authorized Signatory</div>
+                <div>For, ${buyerObj.name}<br><br><br>Authorized Signatory</div>
             </div>
         </div>
 
         <div class="hss-print-page" id="hss-p2">
             <div class="letterhead">
-                <h3 style="color:#1e40af; font-size:28px; margin:0;">${supplierObj.name}</h3>
-                <p style="margin:5px 0; font-size:12px;">${supplierObj.city || ''}</p>
+                <h3 style="color:#1e40af; font-size:28px; margin:0;">MURJI RAVJI AND COMPANY</h3>
+                <p style="margin:5px 0; font-size:12px;">Shop No. 410, Plot No. DHH, Sector 12, Prime Mall, Kutch, Gandhidham, Gujarat 370201</p>
+                <p style="margin:5px 0; font-size:12px; font-weight:bold;">GSTIN: 27ABRFM5531F1ZJ | IEC: ABRFM5531E</p>
                 <div style="border-bottom:2px solid #1e40af; margin-top:10px;"></div>
             </div>
             <h2 style="text-align:center; text-decoration:none; margin:20px 0; font-size:20px;">HIGH SEAS INVOICE</h2>
             <div style="display:flex; justify-content:space-between; margin-bottom:20px; font-size:14px;">
-                <div><strong>Bill To:</strong><br>MURJI RAVJI AND COMPANY<br>Gandhidham, Gujarat</div>
+                <div><strong>Bill To:</strong><br>${buyerObj.name}<br>${buyerObj.city || ''}</div>
                 <div style="text-align:right;">Invoice No: ${invNo}<br>Date: ${today()}</div>
             </div>
             <table>
@@ -1985,7 +1981,7 @@ function renderHssPreviews() {
             <div class="signature-row" style="margin-top:60px;">
                 <div style="border:1px solid #cbd5e1; padding:10px; width:200px; height:100px; font-size:11px; color:#64748b;">Receiver's Signature</div>
                 <div style="text-align:right;">
-                    <p style="margin-bottom:60px;">For, <strong>${supplierObj.name}</strong></p>
+                    <p style="margin-bottom:60px;">For, <strong>MURJI RAVJI AND COMPANY</strong></p>
                     <p>Authorized Signatory</p>
                 </div>
             </div>
