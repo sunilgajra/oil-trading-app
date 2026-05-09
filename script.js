@@ -1885,3 +1885,127 @@ function syncWeightToQty() {
     if (typeof calcTradeTotals === 'function') calcTradeTotals();
     if (typeof calcImportTotal === 'function') calcImportTotal();
 }
+
+/* ═══════ HIGH SEAS DOCUMENT GENERATION ═══════ */
+function openHssModal() {
+    const buyId = document.getElementById('tr-party').value;
+    const buyer = state.buyers.find(b => b.id === buyId);
+    if (buyer) {
+        document.getElementById('hss-p-iec').value = buyer.iec || '';
+    }
+    document.getElementById('hssModal').classList.add('show');
+    renderHssPreviews();
+}
+
+function closeHssModal() {
+    document.getElementById('hssModal').classList.remove('show');
+}
+
+function renderHssPreviews() {
+    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
+    const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+    const ex = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
+    const profitPct = parseFloat(document.getElementById('hss-profit').value) || 2.0;
+    const product = document.getElementById('tr-prod').value;
+    const seller = document.getElementById('tr-hs-seller').value;
+    const buyerId = document.getElementById('tr-party').value;
+    const buyerObj = state.buyers.find(b => b.id === buyerId) || {name: buyerId, address: ''};
+    const vessel = document.getElementById('tr-vessel').value;
+    const blNo = document.getElementById('tr-bl-no').value;
+    const curr = document.getElementById('tr-imp-curr').value;
+    const invNo = document.getElementById('hss-inv-no').value;
+    const pIec = document.getElementById('hss-p-iec').value;
+
+    const cifValFor = qty * rate;
+    const cifValInr = cifValFor * ex;
+    const profitAmt = (cifValInr * profitPct) / 100;
+    const saleConsideration = cifValInr + profitAmt;
+
+    const previews = document.getElementById('hss-previews');
+    previews.innerHTML = `
+        <div class="hss-print-page" id="hss-p1">
+            <h1>HIGH SEAS SALE AGREEMENT</h1>
+            <table class="no-border">
+                <tr><td>1. NAME & ADDRESS OF IMPORTER</td><td>: MURJI RAVJI AND COMPANY</td></tr>
+                <tr><td>2. IMPORT EXPORT CODE NUMBER</td><td>: ABRFM5531E</td></tr>
+                <tr><td>3. NAME & ADDRESS OF PURCHASER</td><td>: ${buyerObj.name}</td></tr>
+                <tr><td>4. IMPORT EXPORT CODE NUMBER</td><td>: ${pIec}</td></tr>
+                <tr><td>5. DESCRIPTION OF GOODS SOLD</td><td>: ${product}</td></tr>
+                <tr><td>6. QUANTITY</td><td>: ${(qty/1000).toFixed(2)} MT</td></tr>
+                <tr><td>7. NAME & ADDRESS OF SUPPLIER</td><td>: ${seller}</td></tr>
+                <tr><td>8. INVOICE NO & DATE</td><td>: ${invNo} DT: ${today()}</td></tr>
+                <tr><td>9. NAME OF THE VESSEL</td><td>: ${vessel}</td></tr>
+                <tr><td>10. BILL OF LANDING NO. & DATE</td><td>: ${blNo}</td></tr>
+                <tr><td>11. VALUE OF CONSIGNMENT</td><td>: ${curr} ${cifValFor.toLocaleString()}</td></tr>
+                <tr><td>12. SALE CONSIDERATION</td><td>: INR ${saleConsideration.toLocaleString()} (CIF VALUE + ${profitPct}% PROFIT)</td></tr>
+            </table>
+            <p style="margin-top:20px; font-size:11px;">13. PAYMENT: Payment should be made to the seller as per high seas sale debit note...</p>
+            <p style="font-size:11px;">14. DELIVERY: All the right and the title of the goods will be transferred from sellers to the buyer...</p>
+            <div class="signature-row">
+                <div>For, MURJI RAVJI AND COMPANY<br><br><br>Authorized Signatory</div>
+                <div>For, ${buyerObj.name}<br><br><br>Authorized Signatory</div>
+            </div>
+        </div>
+
+        <div class="hss-print-page" id="hss-p2">
+            <div class="letterhead">
+                <h3>MURJI RAVJI AND COMPANY</h3>
+                <p>Shop No. 410, Plot No. DHH, Sector 12, Prime Mall, Kutch, Gandhidham, Gujarat 370201</p>
+                <p>GSTIN: 27ABRFM5531F1ZJ | IEC: ABRFM5531E</p>
+            </div>
+            <h2 style="text-decoration:none;">HIGH SEAS INVOICE</h2>
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:12px;">
+                <div><strong>Bill To:</strong><br>${buyerObj.name}<br>${buyerObj.city || ''}</div>
+                <div>Invoice No: ${invNo}<br>Date: ${today()}</div>
+            </div>
+            <table>
+                <thead><tr style="background:#f4f4f4;"><th>Description of Goods</th><th>Quantity</th><th>Rate</th><th>Amount (INR)</th></tr></thead>
+                <tbody>
+                    <tr><td>${product}<br><small>FOR INDUSTRIAL USE ONLY</small></td><td>${qty.toLocaleString()} KG</td><td>${(saleConsideration/qty).toFixed(2)}</td><td>${saleConsideration.toLocaleString()}</td></tr>
+                    <tr style="font-weight:bold;"><td colspan="3" style="text-align:right;">High Seas Commission (Round Off)</td><td>INC.</td></tr>
+                    <tr style="font-weight:bold; background:#f4f4f4;"><td colspan="3" style="text-align:right;">Total Value</td><td>INR ${saleConsideration.toLocaleString()}</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:11px; margin-top:10px;">Amount in words: INR ${saleConsideration.toFixed(0)} Only</p>
+            <div class="signature-row" style="margin-top:40px;">
+                <div style="border:1px solid #ccc; padding:10px; width:200px; height:80px; font-size:10px;">Receiver's Signature</div>
+                <div style="text-align:right;">For, MURJI RAVJI AND COMPANY<br><br><br>Authorized Signatory</div>
+            </div>
+        </div>
+
+        <div class="hss-print-page" id="hss-p3">
+            <div class="letterhead">
+                <h3>MURJI RAVJI AND COMPANY</h3>
+                <p>Oil Trading & Logistics | Gandhidham, India</p>
+            </div>
+            <div style="text-align:right; margin-bottom:20px;">DATE: ${today()}</div>
+            <p>TO,<br>The Asstt. / Dy. Commissioner of Customs<br>Import Section<br>Mundra Port Mundra, India.</p>
+            <p style="margin-top:20px;">Sub: <strong>HIGH SEAS PURCHASE LETTER</strong></p>
+            <p>Ref: Cargo Description: ${product}<br>NET WEIGHT: ${qty.toLocaleString()} KG<br>B/L NO: ${blNo}</p>
+            <p style="margin-top:20px;">Dear Sir,<br>With reference to the above subject, we wish to inform that we have purchased ${product} on high seas sales as per the High Seas Purchase Agreement enclosed.</p>
+            <p>The subject consignment is covered under Bill of Lading No: ${blNo}</p>
+            <p>Kindly do the need full and oblige. Thanking you.</p>
+            <div class="signature-row" style="margin-top:80px;">
+                <div>Yours faithfully,<br>For, MURJI RAVJI AND COMPANY<br><br><br>(Authorized Signatory)</div>
+            </div>
+        </div>
+    `;
+}
+
+async function downloadAllHssDocs() {
+    const container = document.getElementById('hss-print-container');
+    container.innerHTML = document.getElementById('hss-previews').innerHTML;
+    
+    const opt = {
+        margin: 0,
+        filename: 'High_Seas_Docs_' + Date.now() + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    toast('Generating High Seas Set...');
+    html2pdf().from(container).set(opt).save().then(() => {
+        toast('PDF Set Downloaded Successfully');
+    });
+}
