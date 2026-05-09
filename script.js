@@ -441,8 +441,8 @@ function calcTradeTotals() {
         
         var volKG = volL * den;
         
-        if (volL > 0) document.getElementById('tr-landed-l').value = (totalInr / volL).toFixed(2);
-        if (volKG > 0) document.getElementById('tr-landed-kg').value = (totalInr / volKG).toFixed(2);
+        if (volL > 0) document.getElementById('tr-landed-l').value = '\u20B9 ' + (totalInr / volL).toFixed(2);
+        if (volKG > 0) document.getElementById('tr-landed-kg').value = '\u20B9 ' + (totalInr / volKG).toFixed(2);
     } else {
         document.getElementById('tr-landed-l').value = '';
         document.getElementById('tr-landed-kg').value = '';
