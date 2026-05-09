@@ -186,12 +186,24 @@
         <div class="form-group full" style="border-top:1px solid var(--border); padding-top:15px; margin-top:10px;">
             <label style="color:var(--gold2); font-size:12px; margin-bottom:10px; display:block;">Shipping Documents Checklist</label>
             <div id="tr-ship-docs-list" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
+                <div class="ship-doc-item" data-type="Bill of Lading" style="grid-column: span 2;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span>Bill of Lading</span>
+                        <select id="tr-bl-type" style="background:var(--surface); border:1px solid var(--border); color:var(--teal); font-size:10px; padding:2px; border-radius:4px;" onchange="updateShipDocType(this)">
+                            <option>Draft BL</option>
+                            <option>Original BL (OBL)</option>
+                            <option>Telex Release</option>
+                        </select>
+                    </div>
+                    <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div>
+                </div>
                 <div class="ship-doc-item" data-type="Proforma Invoice"><span>Proforma Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
                 <div class="ship-doc-item" data-type="Commercial Invoice"><span>Commercial Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
                 <div class="ship-doc-item" data-type="Packing List"><span>Packing List</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
-                <div class="ship-doc-item" data-type="Certificate of Origin"><span>CO (Origin)</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
                 <div class="ship-doc-item" data-type="COA"><span>COA (Quality)</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
-                <div class="ship-doc-item" data-type="Other"><span>Other</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
+                <div class="ship-doc-item" data-type="NOR / SOF"><span>NOR / SOF</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
+                <div class="ship-doc-item" data-type="Ullage Report"><span>Ullage Report</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
+                <div class="ship-doc-item" data-type="Origin / Other"><span>Origin / Other</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
             </div>
             <input type="file" id="tr-ship-doc-upload" style="display:none" onchange="handleShipDocUpload(this)">
         </div>

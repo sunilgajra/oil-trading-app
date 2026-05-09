@@ -1006,7 +1006,9 @@ function editTrade(id) {
             const item = document.querySelector(`.ship-doc-item[data-type="${type}"]`);
             if (item) {
                 item.classList.add('active');
-                item.querySelector('button[onclick*="viewShipDoc"]').style.display = 'inline-block';
+                if (type === 'Bill of Lading') {
+                    document.getElementById('tr-bl-type').value = currentShipDocs[type].subType;
+                }
             }
         });
     }
@@ -1668,17 +1670,31 @@ function handleShipDocUpload(input) {
     const reader = new FileReader();
     reader.onload = function(e) {
         const type = activeShipDocItem.dataset.type;
-        currentShipDocs[type] = e.target.result;
+        let finalType = type;
+        if (type === 'Bill of Lading') {
+            finalType = document.getElementById('tr-bl-type').value;
+        }
+        currentShipDocs[type] = {
+            data: e.target.result,
+            subType: finalType
+        };
         activeShipDocItem.classList.add('active');
-        toast(type + ' Uploaded');
+        toast(finalType + ' Uploaded');
     };
     reader.readAsDataURL(input.files[0]);
 }
 
+function updateShipDocType(select) {
+    if (currentShipDocs['Bill of Lading']) {
+        currentShipDocs['Bill of Lading'].subType = select.value;
+    }
+}
+
 function viewShipDoc(btn) {
     const item = btn.closest('.ship-doc-item');
-    const data = currentShipDocs[item.dataset.type];
-    if (!data) return;
+    const docObj = currentShipDocs[item.dataset.type];
+    if (!docObj) return;
+    const data = docObj.data;
     const win = window.open();
     if (data.startsWith('data:application/pdf')) {
         win.document.write('<iframe src="' + data + '" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>');
