@@ -1696,24 +1696,16 @@ function addPaymentRow(data) {
     row.style.borderBottom = '1px solid var(--border)';
     
     const dDate = data ? data.date : today();
-    const dAmt = data ? data.amount : 0;
+    const dAmtInr = data ? data.amount_inr : 0;
     const dEx = data ? data.ex_rate : (parseFloat(document.getElementById('tr-ex-rate').value) || 83.5);
     const dBank = data ? data.bank_chg : 0;
     const dType = data ? data.type : 'Bank';
-    const dCurr = data ? data.currency : document.getElementById('tr-imp-curr').value;
     
     row.innerHTML = `
         <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updatePaymentSummary()"></td>
-        <td style="padding:8px; display:flex; align-items:center;">
-            <select class="pay-curr-select" onchange="updatePaymentSummary()" style="width:auto; margin-right:5px; font-weight:bold; font-size:10px;">
-                <option ${dCurr==='USD'?'selected':''}>USD</option>
-                <option ${dCurr==='AED'?'selected':''}>AED</option>
-                <option ${dCurr==='INR'?'selected':''}>INR</option>
-            </select>
-            <input type="number" value="${dAmt}" placeholder="0.00" oninput="updatePaymentSummary()">
-        </td>
-        <td style="padding:8px;"><input type="number" value="${dEx}" step="0.01" oninput="updatePaymentSummary()"></td>
-        <td style="padding:8px;"><input type="number" value="${dBank}" placeholder="0" oninput="calcTradeTotals()"></td>
+        <td style="padding:8px;"><input type="number" value="${dAmtInr}" placeholder="Amt INR" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px;"><input type="number" value="${dEx}" step="0.01" placeholder="Rate" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px;"><input type="number" value="${dBank}" placeholder="Charges" oninput="calcTradeTotals()"></td>
         <td style="padding:8px;">
             <select onchange="updatePaymentSummary()">
                 <option ${dType==='Bank'?'selected':''}>Bank</option>
@@ -1739,26 +1731,21 @@ function updatePaymentSummary() {
     
     let totalInMainCurr = 0;
     let totalBankINR = 0;
+    let totalPaidINR = 0;
     
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        const selectCurr = row.querySelector('.pay-curr-select').value;
-        const amt = parseFloat(inputs[1].value) || 0;
+        const amtInr = parseFloat(inputs[1].value) || 0;
+        const exRate = parseFloat(inputs[2].value) || 1;
         const bank = parseFloat(inputs[3].value) || 0;
         
+        totalPaidINR += amtInr;
         totalBankINR += bank;
         
-        // Convert to Main Trade Currency
-        let convertedAmt = amt;
-        if (selectCurr !== mainCurr) {
-            if (mainCurr === 'USD' && selectCurr === 'AED') convertedAmt = amt / 3.6725;
-            else if (mainCurr === 'AED' && selectCurr === 'USD') convertedAmt = amt * 3.6725;
-            else if (mainCurr === 'INR') {
-                const ex = parseFloat(inputs[2].value) || 1;
-                convertedAmt = amt * ex;
-            }
+        // Convert INR to Main Trade Currency (USD/AED)
+        if (exRate > 0) {
+            totalInMainCurr += (amtInr / exRate);
         }
-        totalInMainCurr += convertedAmt;
     });
     
     document.getElementById('tr-pay-total-for').textContent = mainCurr + ' ' + totalInMainCurr.toLocaleString('en-US', {minimumFractionDigits:2});
@@ -1767,13 +1754,13 @@ function updatePaymentSummary() {
     // Balance calculation
     const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
     const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-    const totalDue = qty * rate;
+    const totalDue = qty * rate; // Total Due in USD/AED
     const balance = totalDue - totalInMainCurr;
     
     const balEl = document.getElementById('tr-pay-balance');
     balEl.textContent = mainCurr + ' ' + (balance > 0 ? balance : 0).toLocaleString('en-US', {minimumFractionDigits:2});
     
-    if (balance <= 0.01 && totalDue > 0) {
+    if (balance <= 0.05 && totalDue > 0) {
         balEl.style.color = 'var(--green)';
         document.getElementById('tr-payment-status').style.display = 'block';
     } else {
@@ -1787,14 +1774,13 @@ function getSupplierPayments() {
     const payments = [];
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        const selects = row.querySelectorAll('select');
+        const select = row.querySelector('select');
         payments.push({
             date: inputs[0].value,
-            amount: parseFloat(inputs[1].value) || 0,
+            amount_inr: parseFloat(inputs[1].value) || 0,
             ex_rate: parseFloat(inputs[2].value) || 0,
             bank_chg: parseFloat(inputs[3].value) || 0,
-            currency: selects[0].value,
-            type: selects[1].value
+            type: select.value
         });
     });
     return payments;
