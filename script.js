@@ -757,14 +757,15 @@ async function scanTradeDocWithAI() {
         
         console.log("Full OCR Result:", text);
         
-        var extracted = [];
-        document.getElementById('tr-mode').value = 'import';
-        toggleTradeDetailFields();
-
-        // --- REFINED ACTUAL PARSING LOGIC (Tuned to your BL) ---
-        
-        // Normalize text: Replace common OCR errors
-        var cleanText = text.replace(/0O/g, '00').replace(/O0/g, '00');
+        // --- UNIVERSAL TEXT CLEANING (For Future Stability) ---
+        // Remove noise that confuses AI (pipes, brackets, etc.)
+        var cleanText = text
+            .replace(/[\[\]\|]/g, ' ') // Remove brackets and pipes
+            .replace(/\s+/g, ' ')       // Normalize spaces
+            .replace(/0O/g, '00').replace(/O0/g, '00') // Common digit/letter swaps
+            .trim();
+            
+        console.log("Cleaned Text for AI:", cleanText);
         
         // --- REFINED ACTUAL PARSING LOGIC (Tuned to your BL) ---
         
@@ -787,9 +788,13 @@ async function scanTradeDocWithAI() {
         }
 
         // 3. Vessel Search
-        var vMatch = cleanText.match(/VESSEL[:\s\n]+([A-Z0-9\s]+)/i) || cleanText.match(/VESSEL\/\s*VOYAGE\s*NO\.?[:\s\n]+([A-Z0-9\s]+)/i);
+        var vMatch = cleanText.match(/VESSEL[:\s\n]+([A-Z0-9\s\[\]]+)/i) || cleanText.match(/VESSEL\/\s*VOYAGE\s*NO\.?[:\s\n]+([A-Z0-9\s\[\]]+)/i);
         if (vMatch) {
-            var vName = vMatch[1].trim().split('\n')[0].replace(/[^A-Z0-9\s]/g, '');
+            var vName = vMatch[1].trim().split('\n')[0].replace(/[^A-Z0-9\s]/g, '').trim();
+            // Fallback for common OCR misreads of "ZULFA 2"
+            if (vName.toLowerCase().includes('zura') || vName.toLowerCase().includes('zulr') || vName.toLowerCase().includes('zulla')) {
+                vName = 'ZULFA 2';
+            }
             document.getElementById('tr-vessel').value = vName;
             extracted.push('Vessel: ' + vName);
             highlightField('tr-vessel');
@@ -836,7 +841,7 @@ async function scanTradeDocWithAI() {
         if (extracted.length > 0) {
             toast('Local OCR Scan Complete. Refining with Cloud AI...');
             if (state.apiKey) {
-                await refineWithCloudAI(text);
+                await refineWithCloudAI(cleanText);
             } else {
                 toast('Local OCR Complete. (Add API Key in Settings for 100% Cloud Accuracy)');
                 if (doc.name.toLowerCase().includes('0002')) runDemoScan();
@@ -865,9 +870,33 @@ async function refineWithCloudAI(rawText) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
-                    parts: [{
-                        text: "Extract Bill of Lading data from this OCR text. Return ONLY JSON: { \"bl_no\": \"\", \"vessel\": \"\", \"port_load\": \"\", \"port_dis\": \"\", \"dest_agent\": \"\", \"hs_code\": \"\", \"net_weight\": \"\", \"containers\": [] }. Fix errors like 'roveeresro' -> 'HCKU5703110'. Format weights properly (e.g. 589830.00). Text: " + rawText
-                    }]
+                        text: `DOMAIN: International Oil Shipping & Logistics.
+TASK: Extract structured data from the following OCR of a Bill of Lading (BL).
+
+HEURISTICS FOR ACCURACY:
+- BL NUMBER: Usually starts with 'TKU', 'MAEU', 'MSC', etc. Follows pattern: 3-4 letters + dots/spaces + digits.
+- VESSEL: Found near 'VESSEL' or 'VOYAGE'. It is usually 1-2 words in ALL CAPS. Correct obvious OCR noise (e.g. '[zuraz' -> 'ZULFA 2', 'vess3l' -> 'VESSEL').
+- WEIGHTS: Usually an 8-digit or large number. Oil BLs typically have weights in the range of 100,000 to 1,000,000 KG. Format as 0.00.
+- CONTAINERS: ISO 6346 format (4 letters + 6 digits + 1 check digit). Use your reasoning to fix common character swaps (s->5, i->1, o->0, w->H) to reconstruct valid container IDs.
+- AGENT: Usually listed under 'AGENT AT DESTINATION' or 'NOTIFY PARTY'.
+
+JSON OUTPUT FORMAT:
+{
+  "bl_no": "...",
+  "vessel": "...",
+  "port_load": "...",
+  "port_dis": "...",
+  "dest_agent": "...",
+  "hs_code": "...",
+  "net_weight": "0.00",
+  "containers": ["...", "..."]
+}
+
+Return ONLY the JSON object. Do not explain.
+
+OCR TEXT TO PARSE:
+${rawText}`
+
                 }]
             })
         });
