@@ -1700,11 +1700,18 @@ function addPaymentRow(data) {
     const dEx = data ? data.ex_rate : (parseFloat(document.getElementById('tr-ex-rate').value) || 83.5);
     const dBank = data ? data.bank_chg : 0;
     const dType = data ? data.type : 'Bank';
-    const curr = document.getElementById('tr-imp-curr').value;
+    const dCurr = data ? data.currency : document.getElementById('tr-imp-curr').value;
     
     row.innerHTML = `
         <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updatePaymentSummary()"></td>
-        <td style="padding:8px; display:flex; align-items:center;"><span class="pay-curr-label">${curr}</span><input type="number" value="${dAmt}" placeholder="0.00" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px; display:flex; align-items:center;">
+            <select class="pay-curr-select" onchange="updatePaymentSummary()" style="width:auto; margin-right:5px; font-weight:bold; font-size:10px;">
+                <option ${dCurr==='USD'?'selected':''}>USD</option>
+                <option ${dCurr==='AED'?'selected':''}>AED</option>
+                <option ${dCurr==='INR'?'selected':''}>INR</option>
+            </select>
+            <input type="number" value="${dAmt}" placeholder="0.00" oninput="updatePaymentSummary()">
+        </td>
         <td style="padding:8px;"><input type="number" value="${dEx}" step="0.01" oninput="updatePaymentSummary()"></td>
         <td style="padding:8px;"><input type="number" value="${dBank}" placeholder="0" oninput="calcTradeTotals()"></td>
         <td style="padding:8px;">
@@ -1728,29 +1735,45 @@ function removePaymentRow(id) {
 
 function updatePaymentSummary() {
     const rows = document.querySelectorAll('#tr-payments-body tr');
-    let totalFor = 0;
-    let totalBank = 0;
+    const mainCurr = document.getElementById('tr-imp-curr').value;
+    
+    let totalInMainCurr = 0;
+    let totalBankINR = 0;
     
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        totalFor += parseFloat(inputs[1].value) || 0;
-        totalBank += parseFloat(inputs[3].value) || 0;
+        const selectCurr = row.querySelector('.pay-curr-select').value;
+        const amt = parseFloat(inputs[1].value) || 0;
+        const bank = parseFloat(inputs[3].value) || 0;
+        
+        totalBankINR += bank;
+        
+        // Convert to Main Trade Currency
+        let convertedAmt = amt;
+        if (selectCurr !== mainCurr) {
+            if (mainCurr === 'USD' && selectCurr === 'AED') convertedAmt = amt / 3.6725;
+            else if (mainCurr === 'AED' && selectCurr === 'USD') convertedAmt = amt * 3.6725;
+            else if (mainCurr === 'INR') {
+                const ex = parseFloat(inputs[2].value) || 1;
+                convertedAmt = amt * ex;
+            }
+        }
+        totalInMainCurr += convertedAmt;
     });
     
-    const curr = document.getElementById('tr-imp-curr').value;
-    document.getElementById('tr-pay-total-for').textContent = curr + ' ' + totalFor.toLocaleString('en-US', {minimumFractionDigits:2});
-    document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBank.toLocaleString('en-IN');
+    document.getElementById('tr-pay-total-for').textContent = mainCurr + ' ' + totalInMainCurr.toLocaleString('en-US', {minimumFractionDigits:2});
+    document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBankINR.toLocaleString('en-IN');
     
     // Balance calculation
     const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
     const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
     const totalDue = qty * rate;
-    const balance = totalDue - totalFor;
+    const balance = totalDue - totalInMainCurr;
     
     const balEl = document.getElementById('tr-pay-balance');
-    balEl.textContent = curr + ' ' + balance.toLocaleString('en-US', {minimumFractionDigits:2});
+    balEl.textContent = mainCurr + ' ' + (balance > 0 ? balance : 0).toLocaleString('en-US', {minimumFractionDigits:2});
     
-    if (balance <= 0 && totalDue > 0) {
+    if (balance <= 0.01 && totalDue > 0) {
         balEl.style.color = 'var(--green)';
         document.getElementById('tr-payment-status').style.display = 'block';
     } else {
@@ -1764,13 +1787,14 @@ function getSupplierPayments() {
     const payments = [];
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        const select = row.querySelector('select');
+        const selects = row.querySelectorAll('select');
         payments.push({
             date: inputs[0].value,
             amount: parseFloat(inputs[1].value) || 0,
             ex_rate: parseFloat(inputs[2].value) || 0,
             bank_chg: parseFloat(inputs[3].value) || 0,
-            type: select.value
+            currency: selects[0].value,
+            type: selects[1].value
         });
     });
     return payments;
