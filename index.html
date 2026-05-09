@@ -169,17 +169,26 @@
       <!-- Import Specific -->
       <div class="tr-import-fields form-group full" style="display:none; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px;">
         <div class="form-group"><label style="color:var(--teal)">High Seas Deal?</label><div style="display:flex;align-items:center;height:100%;"><input id="tr-is-hs" type="checkbox" style="width:20px;height:20px" onchange="calcImportTotal()"> <span style="font-size:11px;margin-left:5px">Yes</span></div></div>
-        <div class="form-group"><label>Purchase Rate</label><input id="tr-imp-rate" type="number" step="0.01" placeholder="740.00" oninput="calcImportTotal()"></div>
-        <div id="tr-imp-curr-group" class="form-group"><label>Currency</label><select id="tr-imp-curr" onchange="calcImportTotal()"><option>USD</option><option>EUR</option><option>AED</option><option>INR</option></select></div>
-        <div id="tr-ex-rate-group" class="form-group"><label>Ex. Rate (&#x20B9;/$)</label><input id="tr-ex-rate" type="number" step="0.01" placeholder="83.50" oninput="calcImportTotal()"></div>
-        <div class="form-group"><label>Total (Foreign)</label><input id="tr-total-for" readonly style="background:var(--surface2); color:var(--gold2); font-weight:bold;"></div>
-        <div class="form-group"><label>BL No.</label><input id="tr-bl-no" placeholder="XYZ123"></div>
+        <div class="form-group"><label>Purchase Rate</label><input id="tr-imp-rate" type="number" step="0.01" placeholder="0.00" oninput="calcTradeTotals()"></div>
+        <div class="form-group"><label>Currency</label><select id="tr-imp-curr" onchange="calcTradeTotals()"><option>USD</option><option>AED</option></select></div>
+        <div class="form-group"><label>Ex. Rate (&#x20B9;/$)</label><input id="tr-ex-rate" type="number" step="0.01" placeholder="83.50" oninput="calcTradeTotals()"></div>
+        <div class="form-group"><label>Total (Foreign)</label><input id="tr-imp-total" readonly style="background:var(--surface2); color:var(--gold); font-weight:bold;"></div>
+        <div class="form-group"><label>BL NO.</label><input id="tr-bl-no" placeholder="XY123"></div>
         <div class="form-group"><label>Vessel</label><input id="tr-vessel" placeholder="Vessel Name"></div>
         <div class="form-group"><label>Loading Port</label><input id="tr-port-load" placeholder="Jebel Ali"></div>
         <div class="form-group"><label>Discharge Port</label><input id="tr-port-dis" placeholder="Nhava Sheva"></div>
-        <div class="form-group"><label>Agent @ Dest.</label><input id="tr-dest-agent" placeholder="Agent Name"></div>
+        <div class="form-group"><label>Agent @ Dest.</label><input id="tr-agent" placeholder="Agent Name"></div>
         <div class="form-group"><label>Net Weight (KG)</label><input id="tr-net-weight" type="number" step="0.01" placeholder="0.00" oninput="syncWeightToQty()"></div>
         <div class="form-group"><label>HS Code</label><input id="tr-hs-code" placeholder="27101980"></div>
+        
+        <!-- High Seas Purchase Details -->
+        <div id="tr-hs-purchase-fields" class="form-group full" style="display:none; background:rgba(245,158,11,0.05); padding:10px; border-radius:8px; border:1px dashed var(--gold); margin-top:10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
+            <div class="form-group"><label style="color:var(--gold)">Purchased From (High Seas Seller)</label><input id="tr-hs-seller" placeholder="Seller Name"></div>
+            <div class="form-group" style="display:flex; align-items:flex-end;">
+                <button class="btn btn-sm btn-gold" onclick="toast('High Seas Document Format Pending (Waiting for User Upload)')" style="width:100%">&#x1F4D1; Create High Seas Docs</button>
+            </div>
+        </div>
+
         <div class="form-group full"><label>Container Numbers</label><textarea id="tr-containers" placeholder="HCKU5703110, HLXU1663342, ..." style="min-height:40px"></textarea></div>
         
         <!-- Shipping Documents Checklist -->

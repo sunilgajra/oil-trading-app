@@ -440,6 +440,11 @@ function calcTradeTotals() {
     var totalInr = basicInr + logTotal + bankTotal;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
     
+    // Toggle High Seas Purchase fields
+    var isHS = document.getElementById('tr-is-hs').checked;
+    var hsFields = document.getElementById('tr-hs-purchase-fields');
+    if (hsFields) hsFields.style.display = isHS ? 'grid' : 'none';
+    
     // Update Payment Summary
     updatePaymentSummary();
     
@@ -996,6 +1001,9 @@ function editTrade(id) {
         });
     }
 
+    document.getElementById('tr-is-hs').checked = !!t.is_hs;
+    document.getElementById('tr-hs-seller').value = t.hs_seller || '';
+    
     calcTradeTotals();
     
     // Load Ship Docs
@@ -1054,7 +1062,9 @@ function addTrade() {
         terms: termsVal, density: den, docs: currentTradeDocs,
         expenses: getTradeExpenses(),
         ship_docs: currentShipDocs,
-        payments: getSupplierPayments()
+        payments: getSupplierPayments(),
+        is_hs: document.getElementById('tr-is-hs').checked,
+        hs_seller: document.getElementById('tr-hs-seller').value
     };
     if (type === 'Sell' && mode === 'hs_sale') trade.link_purchase_id = document.getElementById('tr-link-purchase').value;
     if (type === 'Buy') {
