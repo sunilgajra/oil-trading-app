@@ -1997,15 +1997,18 @@ async function downloadAllHssDocs() {
     container.innerHTML = document.getElementById('hss-previews').innerHTML;
     
     const opt = {
-        margin: 0,
+        margin: [10, 5],
         filename: 'High_Seas_Docs_' + Date.now() + '.pdf',
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
-    toast('Generating High Seas Set...');
-    html2pdf().from(container).set(opt).save().then(() => {
-        toast('PDF Set Downloaded Successfully');
-    });
+    toast('Generating PDFs... Please wait.');
+    setTimeout(() => {
+        html2pdf().set(opt).from(container).save().then(() => {
+            toast('High Seas Set Downloaded');
+        });
+    }, 500);
 }
