@@ -178,9 +178,9 @@ function openPrintWindow(html, filename) {
     <!DOCTYPE html>
     <html>
     <head>
-        <title>\${filename}</title>
-        \${commonStyle()}
-        \${previewScript()}
+        <title>${filename}</title>
+        ${commonStyle()}
+        ${previewScript()}
     </head>
     <body>
         <div class="previewActions">
@@ -189,7 +189,7 @@ function openPrintWindow(html, filename) {
             <button onclick="window.close()" style="background:#888">Back</button>
         </div>
         <div class="doc">
-            \${html}
+            ${html}
         </div>
     </body>
     </html>`;
@@ -274,7 +274,7 @@ function exportInventoryExcel() {
         html += '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Inventory</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->';
         html += '<style>td,th{padding:6px 10px;border:1px solid #999;font-size:12px;font-family:Calibri,sans-serif;}th{background:#d4e6b5;font-weight:bold;color:#1a5c2e;}.num{text-align:right;}</style></head><body>';
         html += '<table>';
-        html += '<tr><th>Product</th><th>Grade</th><th>Density (kg/L)</th><th>Tank</th><th>Volume (L)</th><th>Weight (KG)</th><th>Cost/L (\u20B9)</th><th>Total Value (\u20B9)</th><th>Threshold (L)</th></tr>';
+        html += '<tr><th>Product</th><th>Grade</th><th>Density (kg/L)</th><th>Tank</th><th>Volume (L)</th><th>Weight (KG)</th><th>Cost/L (&#x20B9;)</th><th>Total Value (&#x20B9;)</th><th>Threshold (L)</th></tr>';
         for (var r = 0; r < rows.length; r++) {
             html += '<tr>';
             html += '<td>' + escH(rows[r][0]) + '</td>';
@@ -434,7 +434,7 @@ function calcTradeTotals() {
     var bankTotal = 0;
     payRows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        bankTotal += parseFloat(inputs[3].value) || 0;
+        bankTotal += parseFloat(inputs[2].value) || 0;
     });
     
     var totalInr = basicInr + logTotal + bankTotal;
@@ -682,12 +682,12 @@ function addInventory() {
     renderDashboardKpis();
     renderInvLevels();
     clearInvForm();
-    toast('Stock added successfully \u2705');
+    toast('Stock added successfully ✅');
 }
 
 function clearInvForm() {
     ['inv-grade','inv-vol','inv-kg','inv-cost','inv-cost-kg','inv-tank','inv-thresh'].forEach(function(id){document.getElementById(id).value='';});
-    document.getElementById('inv-slip-preview').innerHTML = '<div class="photo-placeholder">\u1F4F7</div>';
+    document.getElementById('inv-slip-preview').innerHTML = '<div class="photo-placeholder">&#x1F4F7;</div>';
 }
 
 function renderTradesTable() {
@@ -699,9 +699,9 @@ function renderTradesTable() {
         var modeInfo = ' <small>(' + modeLabel + ')</small>';
         var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
         var unitSuffix = t.unit ? ' ' + t.unit : ' L';
-        var docBadge = (t.docs && t.docs.length > 0) ? ' <span title="'+t.docs.length+' documents attached" style="color:var(--gold2)">\u1F4CE;</span>' : '';
+        var docBadge = (t.docs && t.docs.length > 0) ? ' <span title="'+t.docs.length+' documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
 
-        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">\u270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">\u2715;</button></div></td></tr>';
+        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
     }).join('');
 }
 var currentTradeDocs = [];
@@ -731,9 +731,9 @@ function renderTradeDocs() {
                     '<small>' + (d.size/1024).toFixed(1) + ' KB | ' + d.type.split('/')[1].toUpperCase() + '</small>' +
                  '</div>' +
                  '<div style="display:flex; gap:5px">' +
-                    '<button class="btn btn-sm btn-blue" onclick="previewDoc('+idx+')">\u1F441;</button>' +
-                    '<button class="btn btn-sm btn-gray" onclick="downloadDoc('+idx+')">\u2913;</button>' +
-                    '<button class="btn btn-sm btn-danger" onclick="removeTradeDoc('+idx+')">\u2715;</button>' +
+                    '<button class="btn btn-sm btn-blue" onclick="previewDoc('+idx+')">&#x1F441;</button>' +
+                    '<button class="btn btn-sm btn-gray" onclick="downloadDoc('+idx+')">&#x2913;</button>' +
+                    '<button class="btn btn-sm btn-danger" onclick="removeTradeDoc('+idx+')">&#x2715;</button>' +
                  '</div>' +
                '</div>';
     }).join('');
@@ -783,13 +783,13 @@ async function scanTradeDocWithAI() {
 
         if (state.apiKey) {
             // DIRECT AI SCAN (Best accuracy, skips local OCR)
-            btn.innerHTML = '\u2601; AI Vision Scanning...';
+            btn.innerHTML = '&#x2601; AI Vision Scanning...';
             await refineWithCloudAI(doc);
             btn.innerHTML = oldBtnHtml;
             btn.disabled = false;
         } else {
             // LOCAL OCR FALLBACK
-            btn.innerHTML = '\u2728; Local OCR Scanning...';
+            btn.innerHTML = '&#x2728; Local OCR Scanning...';
             var text = "";
 
             if (doc.type === 'application/pdf') {
@@ -871,7 +871,7 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
             // TEXT-ONLY REFINEMENT
             payload = {
                 contents: [{
-                    parts: [{ text: `DOMAIN: Oil Shipping. Extract JSON from this OCR: \${docOrText}` }]
+                    parts: [{ text: `DOMAIN: Oil Shipping. Extract JSON from this OCR: ${docOrText}` }]
                 }]
             };
         }
@@ -881,6 +881,8 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+
+
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
@@ -897,9 +899,13 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
 
         const data = await response.json();
         
+        // Defensive check for Gemini response structure
         if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
             let rawJson = data.candidates[0].content.parts[0].text;
+            
+            // Clean up JSON if AI wrapped it in markdown code blocks
             rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
+            
             const ai = JSON.parse(rawJson);
             
             if (ai.bl_no) document.getElementById('tr-bl-no').value = ai.bl_no;
@@ -915,7 +921,7 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
             if (ai.containers) document.getElementById('tr-containers').value = Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers;
             
             calcTradeTotals();
-            toast('\u2728; Gemini AI Scan Perfected!');
+            toast('&#x2728; Gemini AI Scan Perfected!');
         } else {
             throw new Error("Gemini API returned an unexpected data structure. Please try again.");
         }
@@ -923,7 +929,7 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
         console.error("Cloud AI Error:", e);
         toast(e.message, true);
     } finally {
-        btn.innerHTML = '\u2728; Scan with AI';
+        btn.innerHTML = '&#x2728; Scan with AI';
     }
 }
 
@@ -985,12 +991,12 @@ function editTrade(id) {
         document.getElementById('tr-ex-rate').value = t.ex_rate || '';
         document.getElementById('tr-imp-rate').value = t.imp_rate || '';
         document.getElementById('tr-imp-curr').value = t.currency || 'USD';
-        document.getElementById('tr-agent').value = t.dest_agent || '';
+        document.getElementById('tr-dest-agent').value = t.dest_agent || '';
         document.getElementById('tr-net-weight').value = t.net_weight || '';
         document.getElementById('tr-hs-code').value = t.hs_code || '';
         document.getElementById('tr-containers').value = t.containers || '';
         calcImportTotal();
-    } else if (t.mode === 'hs_sale') {
+    } else if (mode === 'hs_sale') {
         document.getElementById('tr-link-purchase').value = t.link_purchase_id || '';
         document.getElementById('tr-imp-rate').value = t.price;
     }
@@ -1017,7 +1023,7 @@ function editTrade(id) {
     if (t.ship_docs) {
         currentShipDocs = JSON.parse(JSON.stringify(t.ship_docs));
         Object.keys(currentShipDocs).forEach(type => {
-            const item = document.querySelector(`.ship-doc-item[data-type="\${type}"]`);
+            const item = document.querySelector(`.ship-doc-item[data-type="${type}"]`);
             if (item) {
                 item.classList.add('active');
                 if (type === 'Bill of Lading') {
@@ -1033,15 +1039,9 @@ function editTrade(id) {
     }
     
     var btn = document.querySelector('button[onclick="addTrade()"]');
-    if (btn) { btn.innerHTML = '\u1F4BE; Update Trade'; btn.classList.add('btn-blue'); }
+    if (btn) { btn.innerHTML = '&#x1F4BE; Update Trade'; btn.classList.add('btn-blue'); }
     window.scrollTo({top:0, behavior:'smooth'});
 }
-
-function clearExpenses() {
-    document.getElementById('tr-expenses-body').innerHTML = '';
-    updateTotalExpenses();
-}
-
 function addTrade() {
     var type = document.getElementById('tr-type').value;
     var mode = document.getElementById('tr-mode').value;
@@ -1092,7 +1092,7 @@ function addTrade() {
             trade.imp_unit = document.getElementById('tr-unit').value;
             trade.total_for = document.getElementById('tr-total-for').value;
             trade.total_inr = document.getElementById('tr-total-inr-shared').value;
-            trade.dest_agent = document.getElementById('tr-agent').value;
+            trade.dest_agent = document.getElementById('tr-dest-agent').value;
             trade.net_weight = document.getElementById('tr-net-weight').value;
             trade.hs_code = document.getElementById('tr-hs-code').value;
             trade.containers = document.getElementById('tr-containers').value;
@@ -1115,8 +1115,8 @@ function addTrade() {
     editingTradeId = null; currentTradeDocs = []; renderTradeDocs();
     document.getElementById('btn-scan-ai').style.display = 'none';
     var btn = document.querySelector('button[onclick="addTrade()"]');
-    if (btn) { btn.innerHTML = '\u1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
-    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-agent','tr-net-weight','tr-hs-code','tr-containers'].forEach(function(id){
+    if (btn) { btn.innerHTML = '&#x1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
+    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-dest-agent','tr-net-weight','tr-hs-code','tr-containers'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
     });
     document.getElementById('tr-party-select').value = '';
@@ -1128,7 +1128,7 @@ function addTrade() {
 
 function renderOrdersTable() {
     document.getElementById('ordersTable').innerHTML = state.orders.slice().reverse().map(function(o) {
-        return '<tr><td class="mono">'+o.id+'</td><td><b>'+o.customer+'</b></td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(o.qty*o.price)+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+o.due+'</td><td style="display:flex;gap:4px"><select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)"><option '+(o.status==='Pending'?'selected':'')+'>Pending</option><option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option><option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option></select><button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">\u2715;</button></td></tr>';
+        return '<tr><td class="mono">'+o.id+'</td><td><b>'+o.customer+'</b></td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(o.qty*o.price)+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+o.due+'</td><td style="display:flex;gap:4px"><select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)"><option '+(o.status==='Pending'?'selected':'')+'>Pending</option><option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option><option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option></select><button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">&#x2715;</button></td></tr>';
     }).join('');
 }
 function addOrder() {
@@ -1162,7 +1162,7 @@ function toggleChallanFields() {
 }
 function renderChallansTable() {
     document.getElementById('challansTable').innerHTML = state.challans.slice().reverse().map(function(c) {
-        return '<tr><td class="mono"><b>'+c.id+'</b></td><td>'+(c.type==='in'?'<span class="badge badge-teal">In</span>':'<span class="badge badge-green">Out</span>')+'</td><td class="mono">'+c.date+'</td><td>'+c.product+'</td><td class="mono">'+fmtN(c.vol)+'</td><td>'+(c.from||'-')+'</td><td>'+(c.to||'-')+'</td><td class="mono">'+c.vehicle+'</td><td style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="downloadChallanPDF(\''+c.id+'\')">PDF</button><button class="btn btn-green btn-sm" onclick="shareWhatsApp(\''+c.id+'\')">WA</button><button class="btn btn-danger btn-sm" onclick="deleteChallan(\''+c.id+'\')">\u2715;</button></td></tr>';
+        return '<tr><td class="mono"><b>'+c.id+'</b></td><td>'+(c.type==='in'?'<span class="badge badge-teal">In</span>':'<span class="badge badge-green">Out</span>')+'</td><td class="mono">'+c.date+'</td><td>'+c.product+'</td><td class="mono">'+fmtN(c.vol)+'</td><td>'+(c.from||'-')+'</td><td>'+(c.to||'-')+'</td><td class="mono">'+c.vehicle+'</td><td style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="downloadChallanPDF(\''+c.id+'\')">PDF</button><button class="btn btn-green btn-sm" onclick="shareWhatsApp(\''+c.id+'\')">WA</button><button class="btn btn-danger btn-sm" onclick="deleteChallan(\''+c.id+'\')">&#x2715;</button></td></tr>';
     }).join('');
 }
 function addChallan() {
@@ -1203,8 +1203,8 @@ function renderSuppliersTable() {
         
         return '<tr><td><b>'+escH(s.name)+'</b></td><td>'+typeBadge+'</td><td>'+escH(s.contact)+'</td><td class="mono">'+escH(s.phone)+'</td><td>'+escH(s.city)+'</td><td>'+bankInfo+'</td><td>' +
                '<div style="display:flex;gap:4px">' +
-                 '<button class="btn btn-primary btn-sm" onclick="editSupplier('+s.id+')">\u270F;</button>' +
-                 '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'suppliers\','+s.id+')">\u2715;</button>' +
+                 '<button class="btn btn-primary btn-sm" onclick="editSupplier('+s.id+')">&#x270F;</button>' +
+                 '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'suppliers\','+s.id+')">&#x2715;</button>' +
                '</div></td></tr>';
     }).join('');
 }
@@ -1240,7 +1240,7 @@ function editSupplier(id) {
     toggleSupIntlFields();
     
     var btn = document.getElementById('btn-add-supplier');
-    btn.innerHTML = '\u1F4BE; Update Supplier';
+    btn.innerHTML = '&#x1F4BE; Update Supplier';
     btn.classList.add('btn-blue');
     window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -1251,7 +1251,7 @@ function clearSupForm() {
     });
     toggleSupIntlFields();
     var btn = document.getElementById('btn-add-supplier');
-    btn.innerHTML = '\u1F3ED; Add Supplier';
+    btn.innerHTML = '&#x1F3ED; Add Supplier';
     btn.classList.remove('btn-blue');
 }
 function addSupplier() {
@@ -1290,8 +1290,8 @@ function renderBuyersTable() {
         var bankInfo = b.bankName ? '<div style="font-size:10px;color:var(--muted)">'+escH(b.bankName)+' - '+escH(b.bankAc)+'</div>' : '-';
         return '<tr><td><b>'+escH(b.name)+'</b></td><td>'+escH(b.contact)+'</td><td class="mono">'+escH(b.phone)+'</td><td>'+escH(b.city)+'</td><td>'+bankInfo+'</td><td>' +
                '<div style="display:flex;gap:4px">' +
-                 '<button class="btn btn-primary btn-sm" onclick="editBuyer('+b.id+')">\u270F;</button>' +
-                 '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'buyers\','+b.id+')">\u2715;</button>' +
+                 '<button class="btn btn-primary btn-sm" onclick="editBuyer('+b.id+')">&#x270F;</button>' +
+                 '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'buyers\','+b.id+')">&#x2715;</button>' +
                '</div></td></tr>';
     }).join('');
 }
@@ -1309,7 +1309,7 @@ function editBuyer(id) {
     document.getElementById('buy-bank-ifsc').value = b.bankIfsc || '';
     
     var btn = document.getElementById('btn-add-buyer');
-    btn.innerHTML = '\u1F4BE; Update Buyer';
+    btn.innerHTML = '&#x1F4BE; Update Buyer';
     btn.classList.add('btn-blue');
     window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -1317,7 +1317,7 @@ function clearBuyForm() {
     editingBuyId = null;
     ['buy-name','buy-contact','buy-phone','buy-city','buy-bank-name','buy-bank-ac','buy-bank-ifsc'].forEach(function(id){document.getElementById(id).value='';});
     var btn = document.getElementById('btn-add-buyer');
-    btn.innerHTML = '\u1F464; Add Buyer';
+    btn.innerHTML = '&#x1F464; Add Buyer';
     btn.classList.remove('btn-blue');
 }
 function addBuyer() {
@@ -1419,7 +1419,7 @@ function deleteChallan(id) {
 function deleteProduct(n) {
     customConfirm('Delete product "' + n + '"?').then(function(ok) {
         if (!ok) return;
-        state.products = state.products.filter(function(p){ return p.name !== n; });
+        state.products = state.products.filter(function(p){ return p !== n; });
         saveState(); populateSelects(); renderProductsList(); toast('Product removed');
     });
 }
@@ -1437,7 +1437,7 @@ function editProduct(n) {
     
     var btn = document.querySelector('.page.active button[onclick="addProductMaster()"]');
     if (btn) {
-        btn.innerHTML = '\u1F4BE; Update Product';
+        btn.innerHTML = '&#x1F4BE; Update Product';
         btn.classList.add('btn-blue');
     }
     toast('Editing: ' + n);
@@ -1462,7 +1462,7 @@ function addProductMaster() {
         editingProductName = null;
         var btn = document.querySelector('.page.active button[onclick="addProductMaster()"]');
         if (btn) {
-            btn.innerHTML = '\u2795; Add Product';
+            btn.innerHTML = '&#x2795; Add Product';
             btn.classList.remove('btn-blue');
         }
     } else {
@@ -1556,32 +1556,32 @@ function addExpenseRow(data) {
     
     row.innerHTML = `
         <td style="padding:8px;">
-            <select onchange="handleExpenseTypeChange('\${rowId}', this.value)" style="width:100%;">
-                \${types.map(t => \`<option \${finalType === t ? 'selected' : ''}>\${t}</option>\`).join('')}
+            <select onchange="handleExpenseTypeChange('${rowId}', this.value)" style="width:100%;">
+                ${types.map(t => `<option ${finalType === t ? 'selected' : ''}>${t}</option>`).join('')}
             </select>
-            <input type="text" class="exp-custom-type" value="\${isOther ? defaultType : ''}" 
-                   placeholder="Name..." style="display:\${isOther ? 'block' : 'none'}; margin-top:5px; border-bottom:1px solid var(--border) !important;">
+            <input type="text" class="exp-custom-type" value="${isOther ? defaultType : ''}" 
+                   placeholder="Name..." style="display:${isOther ? 'block' : 'none'}; margin-top:5px; border-bottom:1px solid var(--border) !important;">
         </td>
-        <td style="padding:8px;"><input type="number" value="\${defaultAmount}" placeholder="0.00" oninput="updateExpenseData('\${rowId}')"></td>
+        <td style="padding:8px;"><input type="number" value="${defaultAmount}" placeholder="0.00" oninput="updateExpenseData('${rowId}')"></td>
         <td style="padding:8px;">
-            <select onchange="updateExpenseData('\${rowId}')" style="width:auto;">
-                <option \${defaultStatus === 'Paid' ? 'selected' : ''}>Paid</option>
-                <option \${defaultStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+            <select onchange="updateExpenseData('${rowId}')" style="width:auto;">
+                <option ${defaultStatus === 'Paid' ? 'selected' : ''}>Paid</option>
+                <option ${defaultStatus === 'Pending' ? 'selected' : ''}>Pending</option>
             </select>
         </td>
         <td style="padding:8px;">
             <div style="display:flex; gap:5px; align-items:center;">
-                <input type="text" value="\${defaultRef}" placeholder="Ref No" style="flex:1" oninput="updateExpenseData('\${rowId}')">
-                <button class="btn btn-sm btn-ghost \${defaultDoc ? 'btn-teal' : ''}" onclick="uploadExpenseDoc('\${rowId}')" id="btn-upload-\${rowId}" title="Upload Bill">
+                <input type="text" value="${defaultRef}" placeholder="Ref No" style="flex:1" oninput="updateExpenseData('${rowId}')">
+                <button class="btn btn-sm btn-ghost ${defaultDoc ? 'btn-teal' : ''}" onclick="uploadExpenseDoc('${rowId}')" id="btn-upload-${rowId}" title="Upload Bill">
                     &#x1F4CE;
                 </button>
-                <button class="btn btn-sm btn-ghost" id="btn-view-\${rowId}" style="display:\${defaultDoc ? 'inline-block' : 'none'}" onclick="viewExpenseDoc('\${rowId}')" title="View Bill">
+                <button class="btn btn-sm btn-ghost" id="btn-view-${rowId}" style="display:${defaultDoc ? 'inline-block' : 'none'}" onclick="viewExpenseDoc('${rowId}')" title="View Bill">
                     &#x1F441;
                 </button>
             </div>
-            <input type="file" id="file-\${rowId}" style="display:none" onchange="handleExpenseFileUpload('\${rowId}', this)">
+            <input type="file" id="file-${rowId}" style="display:none" onchange="handleExpenseFileUpload('${rowId}', this)">
         </td>
-        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removeExpenseRow('\${rowId}')" style="color:var(--red)">\u2715;</button></td>
+        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removeExpenseRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
     `;
     
     tbody.appendChild(row);
@@ -1749,18 +1749,18 @@ function addPaymentRow(data) {
     const dRem = data ? data.remarks : '';
     
     row.innerHTML = `
-        <td style="padding:8px;"><input type="date" value="\${dDate}" oninput="updatePaymentSummary()"></td>
-        <td style="padding:8px;"><input type="number" value="\${dAmtInr}" placeholder="Amt INR" oninput="updatePaymentSummary()"></td>
-        <td style="padding:8px;"><input type="number" value="\${dEx}" step="0.01" placeholder="Rate" oninput="updatePaymentSummary()"></td>
-        <td style="padding:8px;"><input type="number" value="\${dBank}" placeholder="Charges" oninput="calcTradeTotals()"></td>
+        <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px;"><input type="number" value="${dAmtInr}" placeholder="Amt INR" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px;"><input type="number" value="${dEx}" step="0.01" placeholder="Rate" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px;"><input type="number" value="${dBank}" placeholder="Charges" oninput="calcTradeTotals()"></td>
         <td style="padding:8px;">
             <select onchange="updatePaymentSummary()">
-                <option \${dType==='Bank'?'selected':''}>Bank</option>
-                <option \${dType==='Yard'?'selected':''}>Yard</option>
+                <option ${dType==='Bank'?'selected':''}>Bank</option>
+                <option ${dType==='Yard'?'selected':''}>Yard</option>
             </select>
         </td>
-        <td style="padding:8px;"><input type="text" value="\${dRem}" placeholder="Ref/Remark" style="width:100%"></td>
-        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removePaymentRow('\${rowId}')" style="color:var(--red)">\u2715;</button></td>
+        <td style="padding:8px;"><input type="text" value="${dRem}" placeholder="Ref/Remark" style="width:100%"></td>
+        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removePaymentRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
     `;
     tbody.appendChild(row);
     updatePaymentSummary();
@@ -1801,10 +1801,10 @@ function updatePaymentSummary() {
     }
     
     document.getElementById('tr-pay-total-dual').innerHTML = `
-        <span style="color:var(--text)">USD \${totalUSD.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
-        <span style="color:var(--muted)">AED \${totalAED.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+        <span style="color:var(--text)">USD ${totalUSD.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+        <span style="color:var(--muted)">AED ${totalAED.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
     `;
-    document.getElementById('tr-pay-total-bank').textContent = '\u20B9 ' + totalBankINR.toLocaleString('en-IN');
+    document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBankINR.toLocaleString('en-IN');
     
     // Balance calculation
     const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
@@ -1823,8 +1823,8 @@ function updatePaymentSummary() {
     
     const balEl = document.getElementById('tr-pay-balance-dual');
     balEl.innerHTML = `
-        <span style="color:\${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD \${balUSD > 0 ? balUSD.toLocaleString('en-US',{minimumFractionDigits:2}) : '0.00'}</span>
-        <span style="color:var(--muted); font-size:9px;">Bal: AED \${balAED > 0 ? balAED.toLocaleString('en-US',{minimumFractionDigits:2}) : '0.00'}</span>
+        <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US',{minimumFractionDigits:2}) : '0.00'}</span>
+        <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US',{minimumFractionDigits:2}) : '0.00'}</span>
     `;
     
     if (balInMain <= 0.05 && totalDueInMain > 0) {
@@ -1839,7 +1839,7 @@ function getSupplierPayments() {
     const payments = [];
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        const selects = row.querySelectorAll('select');
+        const select = row.querySelector('select');
         payments.push({
             date: inputs[0].value,
             amount_inr: parseFloat(inputs[1].value) || 0,
@@ -1861,6 +1861,7 @@ function clearSupplierData() {
     });
     updatePaymentSummary();
 }
+
 
 function syncWeightToQty() {
     var netWeight = parseFloat(document.getElementById('tr-net-weight').value) || 0;
@@ -1905,10 +1906,10 @@ function renderHssPreviews() {
     const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
     const ex = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
     const profitPct = parseFloat(document.getElementById('hss-profit').value) || 2.0;
-    const product = document.getElementById('tr-product').value;
+    const product = document.getElementById('tr-prod').value;
     const seller = document.getElementById('tr-hs-seller').value;
-    const buyerId = document.getElementById('tr-party-select-wrap').style.display !== 'none' ? document.getElementById('tr-party-select').value : document.getElementById('tr-party').value;
-    const buyerObj = state.buyers.find(b => b.name === buyerId) || {name: buyerId, address: ''};
+    const buyerId = document.getElementById('tr-party').value;
+    const buyerObj = state.buyers.find(b => b.id === buyerId) || {name: buyerId, address: ''};
     const vessel = document.getElementById('tr-vessel').value;
     const blNo = document.getElementById('tr-bl-no').value;
     const curr = document.getElementById('tr-imp-curr').value;
@@ -1927,22 +1928,22 @@ function renderHssPreviews() {
             <table class="no-border">
                 <tr><td>1. NAME & ADDRESS OF IMPORTER</td><td>: MURJI RAVJI AND COMPANY</td></tr>
                 <tr><td>2. IMPORT EXPORT CODE NUMBER</td><td>: ABRFM5531E</td></tr>
-                <tr><td>3. NAME & ADDRESS OF PURCHASER</td><td>: \${buyerObj.name}</td></tr>
-                <tr><td>4. IMPORT EXPORT CODE NUMBER</td><td>: \${pIec}</td></tr>
-                <tr><td>5. DESCRIPTION OF GOODS SOLD</td><td>: \${product}</td></tr>
-                <tr><td>6. QUANTITY</td><td>: \${(qty/1000).toFixed(2)} MT</td></tr>
-                <tr><td>7. NAME & ADDRESS OF SUPPLIER</td><td>: \${seller}</td></tr>
-                <tr><td>8. INVOICE NO & DATE</td><td>: \${invNo} DT: \${today()}</td></tr>
-                <tr><td>9. NAME OF THE VESSEL</td><td>: \${vessel}</td></tr>
-                <tr><td>10. BILL OF LANDING NO. & DATE</td><td>: \${blNo}</td></tr>
-                <tr><td>11. VALUE OF CONSIGNMENT</td><td>: \${curr} \${cifValFor.toLocaleString()}</td></tr>
-                <tr><td>12. SALE CONSIDERATION</td><td>: INR \${saleConsideration.toLocaleString()} (CIF VALUE + \${profitPct}% PROFIT)</td></tr>
+                <tr><td>3. NAME & ADDRESS OF PURCHASER</td><td>: ${buyerObj.name}</td></tr>
+                <tr><td>4. IMPORT EXPORT CODE NUMBER</td><td>: ${pIec}</td></tr>
+                <tr><td>5. DESCRIPTION OF GOODS SOLD</td><td>: ${product}</td></tr>
+                <tr><td>6. QUANTITY</td><td>: ${(qty/1000).toFixed(2)} MT</td></tr>
+                <tr><td>7. NAME & ADDRESS OF SUPPLIER</td><td>: ${seller}</td></tr>
+                <tr><td>8. INVOICE NO & DATE</td><td>: ${invNo} DT: ${today()}</td></tr>
+                <tr><td>9. NAME OF THE VESSEL</td><td>: ${vessel}</td></tr>
+                <tr><td>10. BILL OF LANDING NO. & DATE</td><td>: ${blNo}</td></tr>
+                <tr><td>11. VALUE OF CONSIGNMENT</td><td>: ${curr} ${cifValFor.toLocaleString()}</td></tr>
+                <tr><td>12. SALE CONSIDERATION</td><td>: INR ${saleConsideration.toLocaleString()} (CIF VALUE + ${profitPct}% PROFIT)</td></tr>
             </table>
             <p style="margin-top:20px; font-size:11px;">13. PAYMENT: Payment should be made to the seller as per high seas sale debit note...</p>
             <p style="font-size:11px;">14. DELIVERY: All the right and the title of the goods will be transferred from sellers to the buyer...</p>
             <div class="signature-row">
                 <div>For, MURJI RAVJI AND COMPANY<br><br><br>Authorized Signatory</div>
-                <div>For, \${buyerObj.name}<br><br><br>Authorized Signatory</div>
+                <div>For, ${buyerObj.name}<br><br><br>Authorized Signatory</div>
             </div>
         </div>
 
@@ -1954,18 +1955,18 @@ function renderHssPreviews() {
             </div>
             <h2 style="text-decoration:none;">HIGH SEAS INVOICE</h2>
             <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:12px;">
-                <div><strong>Bill To:</strong><br>\${buyerObj.name}<br>\${buyerObj.city || ''}</div>
-                <div>Invoice No: \${invNo}<br>Date: \${today()}</div>
+                <div><strong>Bill To:</strong><br>${buyerObj.name}<br>${buyerObj.city || ''}</div>
+                <div>Invoice No: ${invNo}<br>Date: ${today()}</div>
             </div>
             <table>
                 <thead><tr style="background:#f4f4f4;"><th>Description of Goods</th><th>Quantity</th><th>Rate</th><th>Amount (INR)</th></tr></thead>
                 <tbody>
-                    <tr><td>\${product}<br><small>FOR INDUSTRIAL USE ONLY</small></td><td>\${qty.toLocaleString()} KG</td><td>\${(saleConsideration/qty).toFixed(2)}</td><td>\${saleConsideration.toLocaleString()}</td></tr>
+                    <tr><td>${product}<br><small>FOR INDUSTRIAL USE ONLY</small></td><td>${qty.toLocaleString()} KG</td><td>${(saleConsideration/qty).toFixed(2)}</td><td>${saleConsideration.toLocaleString()}</td></tr>
                     <tr style="font-weight:bold;"><td colspan="3" style="text-align:right;">High Seas Commission (Round Off)</td><td>INC.</td></tr>
-                    <tr style="font-weight:bold; background:#f4f4f4;"><td colspan="3" style="text-align:right;">Total Value</td><td>INR \${saleConsideration.toLocaleString()}</td></tr>
+                    <tr style="font-weight:bold; background:#f4f4f4;"><td colspan="3" style="text-align:right;">Total Value</td><td>INR ${saleConsideration.toLocaleString()}</td></tr>
                 </tbody>
             </table>
-            <p style="font-size:11px; margin-top:10px;">Amount in words: INR \${saleConsideration.toFixed(0)} Only</p>
+            <p style="font-size:11px; margin-top:10px;">Amount in words: INR ${saleConsideration.toFixed(0)} Only</p>
             <div class="signature-row" style="margin-top:40px;">
                 <div style="border:1px solid #ccc; padding:10px; width:200px; height:80px; font-size:10px;">Receiver's Signature</div>
                 <div style="text-align:right;">For, MURJI RAVJI AND COMPANY<br><br><br>Authorized Signatory</div>
@@ -1977,12 +1978,12 @@ function renderHssPreviews() {
                 <h3>MURJI RAVJI AND COMPANY</h3>
                 <p>Oil Trading & Logistics | Gandhidham, India</p>
             </div>
-            <div style="text-align:right; margin-bottom:20px;">DATE: \${today()}</div>
+            <div style="text-align:right; margin-bottom:20px;">DATE: ${today()}</div>
             <p>TO,<br>The Asstt. / Dy. Commissioner of Customs<br>Import Section<br>Mundra Port Mundra, India.</p>
             <p style="margin-top:20px;">Sub: <strong>HIGH SEAS PURCHASE LETTER</strong></p>
-            <p>Ref: Cargo Description: \${product}<br>NET WEIGHT: \${qty.toLocaleString()} KG<br>B/L NO: \${blNo}</p>
-            <p style="margin-top:20px;">Dear Sir,<br>With reference to the above subject, we wish to inform that we have purchased \${product} on high seas sales as per the High Seas Purchase Agreement enclosed.</p>
-            <p>The subject consignment is covered under Bill of Lading No: \${blNo}</p>
+            <p>Ref: Cargo Description: ${product}<br>NET WEIGHT: ${qty.toLocaleString()} KG<br>B/L NO: ${blNo}</p>
+            <p style="margin-top:20px;">Dear Sir,<br>With reference to the above subject, we wish to inform that we have purchased ${product} on high seas sales as per the High Seas Purchase Agreement enclosed.</p>
+            <p>The subject consignment is covered under Bill of Lading No: ${blNo}</p>
             <p>Kindly do the need full and oblige. Thanking you.</p>
             <div class="signature-row" style="margin-top:80px;">
                 <div>Yours faithfully,<br>For, MURJI RAVJI AND COMPANY<br><br><br>(Authorized Signatory)</div>
@@ -1992,46 +1993,22 @@ function renderHssPreviews() {
 }
 
 async function downloadAllHssDocs() {
-    printHssDocs();
-}
+    const container = document.getElementById('hss-print-container');
+    container.innerHTML = document.getElementById('hss-previews').innerHTML;
+    
+    const opt = {
+        margin: [10, 5],
+        filename: 'High_Seas_Docs_' + Date.now() + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
 
-function printHssDocs() {
-    const previews = document.getElementById('hss-previews').innerHTML;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        toast('Please allow pop-ups to preview the document', true);
-        return;
-    }
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>High Seas Documents - Murji Ravji</title>
-                <style>
-                    body { margin: 0; padding: 0; background: #f0f0f0; }
-                    .hss-print-page { 
-                        width: 210mm; min-height: 297mm; padding: 20mm; background: #fff; color: #000; 
-                        font-family: "Times New Roman", Times, serif; font-size: 14px; line-height: 1.5;
-                        box-sizing: border-box; position: relative; margin: 10mm auto; border: 1px solid #ccc;
-                        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-                        page-break-after: always;
-                    }
-                    h1, h2 { text-align: center; text-decoration: underline; margin-bottom: 25px; font-size: 18px; font-weight: bold; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                    td, th { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; }
-                    .no-border td { border: none; padding: 4px; }
-                    .signature-row { display: flex; justify-content: space-between; margin-top: 60px; }
-                    .letterhead { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px; }
-                    .letterhead h3 { margin: 0; font-size: 26px; color: #1e3a8a; }
-                    .letterhead p { margin: 2px 0; font-size: 12px; color: #444; }
-                    @media print {
-                        body { background: #fff; }
-                        .hss-print-page { border: none; margin: 0; box-shadow: none; width: 100%; }
-                        @page { size: A4; margin: 0; }
-                    }
-                </style>
-            </head>
-            <body onload="setTimeout(() => { window.print(); window.close(); }, 500);">\${previews}</body>
-        </html>
-    `);
-    printWindow.document.close();
+    toast('Generating PDFs... Please wait.');
+    setTimeout(() => {
+        html2pdf().set(opt).from(container).save().then(() => {
+            toast('High Seas Set Downloaded');
+        });
+    }, 500);
 }
