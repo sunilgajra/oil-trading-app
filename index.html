@@ -33,6 +33,26 @@
     @keyframes modalSlide { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
     
     .extracted-pulse { animation: pulseHighlight 2s ease infinite; border-color: var(--gold2) !important; box-shadow: 0 0 10px var(--gold); }
+  --green: #4ADE80;
+  --red: #F87171;
+  --teal: #2DD4BF;
+  --gold: #F59E0B;
+  --gold2: #FBBF24;
+  --border: rgba(255,255,255,0.08);
+  --shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.expense-row input, .expense-row select { 
+    background:transparent !important; 
+    border:none !important; 
+    padding:4px !important; 
+    color:var(--text) !important;
+    font-size:13px !important;
+    width:100%;
+}
+.expense-row:hover { background: rgba(255,255,255,0.02); }
+.status-pill { padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; cursor:pointer; }
+.status-paid { background:rgba(74,222,128,0.2); color:var(--green); }
+.status-pending { background:rgba(248,113,113,0.2); color:var(--red); }
     @keyframes pulseHighlight { 0% { box-shadow: 0 0 0px var(--gold); } 50% { box-shadow: 0 0 15px var(--gold); } 100% { box-shadow: 0 0 0px var(--gold); } }
   </style>
 </head>
@@ -155,6 +175,37 @@
         <div class="form-group"><label>Invoice No.</label><input id="tr-inv-no" placeholder="INV/001"></div>
         <div class="form-group"><label>GST No.</label><input id="tr-gst" placeholder="27XXXXX"></div>
         <div class="form-group"><label>Vehicle No.</label><input id="tr-veh" placeholder="MH 12 ..."></div>
+      </div>
+      
+      <!-- Logistics & Expenses Section -->
+      <div id="tr-expenses-section" class="form-group full" style="margin-top:10px; border-top:1px solid var(--border); padding-top:20px;">
+        <label style="color:var(--gold2); display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
+            <span><i class="fas fa-shippping-fast"></i> Logistics & Trade Expenses</span>
+            <button class="btn btn-sm btn-ghost" onclick="addExpenseRow()">+ Add Expense</button>
+        </label>
+        <div class="table-wrap" style="background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border); font-size:12px; color:var(--muted);">
+                        <th style="padding:10px; text-align:left;">Expense Type</th>
+                        <th style="padding:10px; text-align:left;">Amount (&#x20B9;)</th>
+                        <th style="padding:10px; text-align:left;">Status</th>
+                        <th style="padding:10px; text-align:left;">Ref / Bill</th>
+                        <th style="padding:10px; text-align:center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tr-expenses-body">
+                    <!-- Rows added dynamically -->
+                </tbody>
+                <tfoot>
+                    <tr style="background:rgba(0,0,0,0.2); font-weight:bold;">
+                        <td style="padding:10px; text-align:right;">Total Logistics Cost:</td>
+                        <td id="tr-total-expenses" style="padding:10px; color:var(--teal);">&#x20B9; 0.00</td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
       </div>
 
       <div class="form-group full"><label>Payment Terms</label>

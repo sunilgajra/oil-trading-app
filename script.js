@@ -419,7 +419,17 @@ function calcTradeTotals() {
     }
 
     // Total INR is always Raw Quantity in box * Price per that unit
-    var totalInr = rawQty * price;
+    var basicInr = rawQty * price;
+    
+    // Add Logistics Expenses
+    var logRows = document.querySelectorAll('#tr-expenses-body tr');
+    var logTotal = 0;
+    logRows.forEach(row => {
+        const amt = parseFloat(row.querySelectorAll('input')[1].value) || 0;
+        logTotal += amt;
+    });
+    
+    var totalInr = basicInr + logTotal;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
 }
 function toggleTradeModeField() {
@@ -942,15 +952,19 @@ function editTrade(id) {
         document.getElementById('tr-hs-code').value = t.hs_code || '';
         document.getElementById('tr-containers').value = t.containers || '';
         calcImportTotal();
-    } else if (t.mode === 'local') {
-        document.getElementById('tr-price-local').value = t.price;
-        document.getElementById('tr-inv-no').value = t.inv_no || '';
-        document.getElementById('tr-gst').value = t.gst || '';
-        document.getElementById('tr-veh').value = t.veh || '';
-    } else if (t.mode === 'hs_sale') {
+    } else if (mode === 'hs_sale') {
         document.getElementById('tr-link-purchase').value = t.link_purchase_id || '';
         document.getElementById('tr-imp-rate').value = t.price;
     }
+
+    // Load Expenses
+    clearExpenses();
+    if (t.expenses && Array.isArray(t.expenses)) {
+        t.expenses.forEach(function(exp) {
+            addExpenseRow(exp);
+        });
+    }
+
     calcTradeTotals();
     var btn = document.querySelector('button[onclick="addTrade()"]');
     if (btn) { btn.innerHTML = '&#x1F4BE; Update Trade'; btn.classList.add('btn-blue'); }
@@ -985,7 +999,8 @@ function addTrade() {
         type: type, mode: mode, product: product, party: party,
         vol: volInL, price: price, raw_qty: rawQty, unit: unit,
         date: document.getElementById('tr-date').value || today(),
-        terms: termsVal, density: den, docs: currentTradeDocs
+        terms: termsVal, density: den, docs: currentTradeDocs,
+        expenses: getTradeExpenses()
     };
     if (type === 'Sell' && mode === 'hs_sale') trade.link_purchase_id = document.getElementById('tr-link-purchase').value;
     if (type === 'Buy') {
@@ -1030,6 +1045,7 @@ function addTrade() {
     });
     document.getElementById('tr-party-select').value = '';
     document.getElementById('tr-is-hs').checked = false;
+    clearExpenses();
     toggleTradeDetailFields();
 }
 
@@ -1439,10 +1455,83 @@ renderInventoryTable();
 renderTradesTable();
 renderOrdersTable();
 renderChallansTable();
-renderSuppliersTable();
-renderBuyersTable();
-toggleChallanFields();
-toggleTradeModeField();
+// --- LOGISTICS & EXPENSES LOGIC ---
+var currentTradeExpenses = [];
+
+function addExpenseRow(data) {
+    const tbody = document.getElementById('tr-expenses-body');
+    const rowId = 'exp_' + Date.now() + Math.random().toString(36).substr(2, 5);
+    
+    const row = document.createElement('tr');
+    row.id = rowId;
+    row.className = 'expense-row';
+    row.style.borderBottom = '1px solid var(--border)';
+    
+    const defaultType = data ? data.type : 'Line Charges';
+    const defaultAmount = data ? data.amount : 0;
+    const defaultStatus = data ? data.status : 'Pending';
+    const defaultRef = data ? data.ref : '';
+    
+    row.innerHTML = `
+        <td style="padding:8px;"><input type="text" value="${defaultType}" placeholder="e.g. CFS Charges" oninput="updateExpenseData('${rowId}')"></td>
+        <td style="padding:8px;"><input type="number" value="${defaultAmount}" placeholder="0.00" oninput="updateExpenseData('${rowId}')"></td>
+        <td style="padding:8px;">
+            <select onchange="updateExpenseData('${rowId}')" style="width:auto;">
+                <option ${defaultStatus === 'Paid' ? 'selected' : ''}>Paid</option>
+                <option ${defaultStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+            </select>
+        </td>
+        <td style="padding:8px;"><input type="text" value="${defaultRef}" placeholder="Ref No / Bill Link" oninput="updateExpenseData('${rowId}')"></td>
+        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removeExpenseRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
+    `;
+    
+    tbody.appendChild(row);
+    updateExpenseData(rowId);
+}
+
+function removeExpenseRow(id) {
+    const row = document.getElementById(id);
+    if (row) row.remove();
+    updateTotalExpenses();
+}
+
+function updateExpenseData(rowId) {
+    updateTotalExpenses();
+}
+
+function updateTotalExpenses() {
+    const rows = document.querySelectorAll('#tr-expenses-body tr');
+    let total = 0;
+    rows.forEach(row => {
+        const amt = parseFloat(row.querySelectorAll('input')[1].value) || 0;
+        total += amt;
+    });
+    document.getElementById('tr-total-expenses').innerHTML = '&#x20B9; ' + total.toLocaleString('en-IN', {minimumFractionDigits:2});
+    
+    // Also trigger the main trade total update to show Landed Cost
+    calcTradeTotals();
+}
+
+function getTradeExpenses() {
+    const rows = document.querySelectorAll('#tr-expenses-body tr');
+    const expenses = [];
+    rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        const select = row.querySelector('select');
+        expenses.push({
+            type: inputs[0].value,
+            amount: parseFloat(inputs[1].value) || 0,
+            status: select.value,
+            ref: inputs[2].value
+        });
+    });
+    return expenses;
+}
+
+function clearExpenses() {
+    document.getElementById('tr-expenses-body').innerHTML = '';
+    updateTotalExpenses();
+}
 
 function syncWeightToQty() {
     var netWeight = parseFloat(document.getElementById('tr-net-weight').value) || 0;
