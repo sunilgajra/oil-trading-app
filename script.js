@@ -861,7 +861,10 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
             if (ai.port_dis) document.getElementById('tr-port-dis').value = ai.port_dis;
             if (ai.dest_agent) document.getElementById('tr-dest-agent').value = ai.dest_agent;
             if (ai.hs_code) document.getElementById('tr-hs-code').value = ai.hs_code;
-            if (ai.net_weight) document.getElementById('tr-net-weight').value = ai.net_weight;
+            if (ai.net_weight) {
+                document.getElementById('tr-net-weight').value = ai.net_weight;
+                syncWeightToQty(); // Sync to main quantity field
+            }
             if (ai.containers) document.getElementById('tr-containers').value = Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers;
             
             toast('&#x2728; Gemini AI Scan Perfected!');
@@ -1440,3 +1443,26 @@ renderSuppliersTable();
 renderBuyersTable();
 toggleChallanFields();
 toggleTradeModeField();
+
+function syncWeightToQty() {
+    var netWeight = parseFloat(document.getElementById('tr-net-weight').value) || 0;
+    var density = parseFloat(document.getElementById('tr-density').value) || 0.850;
+    var unit = document.getElementById('tr-unit').value;
+    var qtyInput = document.getElementById('tr-vol');
+    
+    if (netWeight === 0) return;
+
+    if (unit === 'KG') {
+        qtyInput.value = netWeight.toFixed(2);
+    } else if (unit === 'LITRE') {
+        if (density > 0) {
+            qtyInput.value = (netWeight / density).toFixed(0);
+        }
+    } else if (unit === 'MTON') {
+        qtyInput.value = (netWeight / 1000).toFixed(3);
+    }
+    
+    // Trigger total calculations
+    if (typeof calcTradeTotals === 'function') calcTradeTotals();
+    if (typeof calcImportTotal === 'function') calcImportTotal();
+}
