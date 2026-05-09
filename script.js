@@ -55,7 +55,10 @@ function loadState(){
   if (!state.buyers) state.buyers = [];
   if (!state.nextBuyId) state.nextBuyId = 1;
   if (!state.apiKey) state.apiKey = '';
+  if (!state.apiModel) state.apiModel = 'gemini-1.5-flash';
+  
   document.getElementById('api-key').value = state.apiKey;
+  document.getElementById('api-model').value = state.apiModel;
   
   // 3. Ensure suppliers have all required fields
   if (state.suppliers) {
@@ -848,7 +851,9 @@ async function refineWithCloudAI(rawText) {
     btn.innerHTML = '&#x2601; Gemini AI Processing...';
     
     try {
-        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + state.apiKey, {
+        const model = state.apiModel || 'gemini-1.5-flash';
+        // Try v1 first (more stable for gemini-1.5-flash)
+        const response = await fetch('https://generativelanguage.googleapis.com/v1/models/' + model + ':generateContent?key=' + state.apiKey, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -857,16 +862,23 @@ async function refineWithCloudAI(rawText) {
                         text: "Extract Bill of Lading data from this OCR text. Return ONLY JSON: {bl_no, vessel, port_load, port_dis, dest_agent, hs_code, net_weight, containers:[]}. Fix errors like 'roveeresro' -> 'HCKU5703110'. Format weights properly (e.g. 589830.00). Text: " + rawText
                     }]
                 }],
-                generationConfig: { responseMimeType: "application/json" }
+                generationConfig: { 
+                    responseMimeType: "application/json" 
+                }
             })
         });
 
         if (!response.ok) {
-            if (response.status === 403) {
-                throw new Error("403 Forbidden: Your Gemini API Key is not authorized. Please ensure you have enabled 'Generative Language API' in Google Cloud or use a fresh key from AI Studio.");
+            const errData = await response.json().catch(() => ({}));
+            const msg = errData.error ? errData.error.message : await response.text();
+            
+            if (response.status === 404) {
+                throw new Error("Gemini Model Not Found (404). This usually means the model ID or API version is incorrect. Message: " + msg);
             }
-            const errText = await response.text();
-            throw new Error("Gemini API Error (" + response.status + "): " + errText.substring(0, 100));
+            if (response.status === 403) {
+                throw new Error("403 Forbidden: API Key invalid or restricted. Message: " + msg);
+            }
+            throw new Error("Gemini API Error (" + response.status + "): " + msg.substring(0, 150));
         }
 
         const data = await response.json();
@@ -899,6 +911,7 @@ async function refineWithCloudAI(rawText) {
 
 function saveApiKey() {
     state.apiKey = document.getElementById('api-key').value;
+    state.apiModel = document.getElementById('api-model').value;
     saveState();
     toast('AI Configuration Saved');
 }
