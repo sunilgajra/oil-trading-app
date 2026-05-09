@@ -429,8 +429,19 @@ function calcTradeTotals() {
         logTotal += amt;
     });
     
-    var totalInr = basicInr + logTotal;
+    // Add Bank Charges from Payments
+    var payRows = document.querySelectorAll('#tr-payments-body tr');
+    var bankTotal = 0;
+    payRows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        bankTotal += parseFloat(inputs[2].value) || 0;
+    });
+    
+    var totalInr = basicInr + logTotal + bankTotal;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
+    
+    // Update Payment Summary
+    updatePaymentSummary();
     
     // Dual Landed Cost calculation
     if (totalInr > 0) {
@@ -481,15 +492,18 @@ function toggleTradeDetailFields() {
         if (mode === 'import') {
             imp.style.display = 'grid';
             loc.style.display = 'none';
+            document.getElementById('tr-payments-section').style.display = 'block';
             calcImportTotal();
         } else {
             imp.style.display = 'none';
             loc.style.display = 'grid';
+            document.getElementById('tr-payments-section').style.display = 'none';
         }
     } else {
         // Sell
         imp.style.display = 'none';
         loc.style.display = 'none';
+        document.getElementById('tr-payments-section').style.display = 'none';
         if (mode === 'hs_sale') {
             linkGrp.style.display = 'flex';
             populatePurchaseLinks();
@@ -983,6 +997,25 @@ function editTrade(id) {
     }
 
     calcTradeTotals();
+    
+    // Load Ship Docs
+    clearSupplierData();
+    if (t.ship_docs) {
+        currentShipDocs = JSON.parse(JSON.stringify(t.ship_docs));
+        Object.keys(currentShipDocs).forEach(type => {
+            const item = document.querySelector(`.ship-doc-item[data-type="${type}"]`);
+            if (item) {
+                item.classList.add('active');
+                item.querySelector('button[onclick*="viewShipDoc"]').style.display = 'inline-block';
+            }
+        });
+    }
+    
+    // Load Payments
+    if (t.payments) {
+        t.payments.forEach(p => addPaymentRow(p));
+    }
+    
     var btn = document.querySelector('button[onclick="addTrade()"]');
     if (btn) { btn.innerHTML = '&#x1F4BE; Update Trade'; btn.classList.add('btn-blue'); }
     window.scrollTo({top:0, behavior:'smooth'});
@@ -1017,7 +1050,9 @@ function addTrade() {
         vol: volInL, price: price, raw_qty: rawQty, unit: unit,
         date: document.getElementById('tr-date').value || today(),
         terms: termsVal, density: den, docs: currentTradeDocs,
-        expenses: getTradeExpenses()
+        expenses: getTradeExpenses(),
+        ship_docs: currentShipDocs,
+        payments: getSupplierPayments()
     };
     if (type === 'Sell' && mode === 'hs_sale') trade.link_purchase_id = document.getElementById('tr-link-purchase').value;
     if (type === 'Buy') {
@@ -1063,6 +1098,7 @@ function addTrade() {
     document.getElementById('tr-party-select').value = '';
     document.getElementById('tr-is-hs').checked = false;
     clearExpenses();
+    clearSupplierData();
     toggleTradeDetailFields();
 }
 
@@ -1618,10 +1654,136 @@ function updateTotalExpenses() {
     if (typeof calcTradeTotals === 'function') calcTradeTotals();
 }
 
-function clearExpenses() {
-    const body = document.getElementById('tr-expenses-body');
-    if (body) body.innerHTML = '';
-    updateTotalExpenses();
+// --- SHIPPING DOCUMENTS & PAYMENTS ---
+var currentShipDocs = {};
+var activeShipDocItem = null;
+
+function uploadShipDoc(btn) {
+    activeShipDocItem = btn.closest('.ship-doc-item');
+    document.getElementById('tr-ship-doc-upload').click();
+}
+
+function handleShipDocUpload(input) {
+    if (!input.files[0] || !activeShipDocItem) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const type = activeShipDocItem.dataset.type;
+        currentShipDocs[type] = e.target.result;
+        activeShipDocItem.classList.add('active');
+        activeShipDocItem.querySelector('button[onclick*="viewShipDoc"]').style.display = 'inline-block';
+        toast(type + ' Uploaded');
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+function viewShipDoc(btn) {
+    const item = btn.closest('.ship-doc-item');
+    const data = currentShipDocs[item.dataset.type];
+    if (!data) return;
+    const win = window.open();
+    if (data.startsWith('data:application/pdf')) {
+        win.document.write('<iframe src="' + data + '" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>');
+    } else {
+        win.document.write('<img src="' + data + '" style="max-width:100%; height:auto;">');
+    }
+}
+
+function addPaymentRow(data) {
+    const tbody = document.getElementById('tr-payments-body');
+    const rowId = 'pay_' + Date.now() + Math.random().toString(36).substr(2, 5);
+    const row = document.createElement('tr');
+    row.id = rowId;
+    row.className = 'payment-row';
+    row.style.borderBottom = '1px solid var(--border)';
+    
+    const dDate = data ? data.date : today();
+    const dAmt = data ? data.amount : 0;
+    const dEx = data ? data.ex_rate : (parseFloat(document.getElementById('tr-ex-rate').value) || 83.5);
+    const dBank = data ? data.bank_chg : 0;
+    const dType = data ? data.type : 'Bank';
+    
+    row.innerHTML = `
+        <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px;"><input type="number" value="${dAmt}" placeholder="0.00" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px;"><input type="number" value="${dEx}" step="0.01" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px;"><input type="number" value="${dBank}" placeholder="0" oninput="calcTradeTotals()"></td>
+        <td style="padding:8px;">
+            <select onchange="updatePaymentSummary()">
+                <option ${dType==='Bank'?'selected':''}>Bank</option>
+                <option ${dType==='Yard'?'selected':''}>Yard</option>
+            </select>
+        </td>
+        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removePaymentRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
+    `;
+    tbody.appendChild(row);
+    updatePaymentSummary();
+}
+
+function removePaymentRow(id) {
+    const row = document.getElementById(id);
+    if (row) row.remove();
+    updatePaymentSummary();
+    calcTradeTotals();
+}
+
+function updatePaymentSummary() {
+    const rows = document.querySelectorAll('#tr-payments-body tr');
+    let totalFor = 0;
+    let totalBank = 0;
+    
+    rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        totalFor += parseFloat(inputs[1].value) || 0;
+        totalBank += parseFloat(inputs[3].value) || 0;
+    });
+    
+    const curr = document.getElementById('tr-imp-curr').value;
+    document.getElementById('tr-pay-total-for').textContent = curr + ' ' + totalFor.toLocaleString('en-US', {minimumFractionDigits:2});
+    document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBank.toLocaleString('en-IN');
+    
+    // Balance calculation
+    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
+    const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+    const totalDue = qty * rate;
+    const balance = totalDue - totalFor;
+    
+    const balEl = document.getElementById('tr-pay-balance');
+    balEl.textContent = curr + ' ' + balance.toLocaleString('en-US', {minimumFractionDigits:2});
+    
+    if (balance <= 0 && totalDue > 0) {
+        balEl.style.color = 'var(--green)';
+        document.getElementById('tr-payment-status').style.display = 'block';
+    } else {
+        balEl.style.color = 'var(--red)';
+        document.getElementById('tr-payment-status').style.display = 'none';
+    }
+}
+
+function getSupplierPayments() {
+    const rows = document.querySelectorAll('#tr-payments-body tr');
+    const payments = [];
+    rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        const select = row.querySelector('select');
+        payments.push({
+            date: inputs[0].value,
+            amount: parseFloat(inputs[1].value) || 0,
+            ex_rate: parseFloat(inputs[2].value) || 0,
+            bank_chg: parseFloat(inputs[3].value) || 0,
+            type: select.value
+        });
+    });
+    return payments;
+}
+
+function clearSupplierData() {
+    document.getElementById('tr-payments-body').innerHTML = '';
+    currentShipDocs = {};
+    document.querySelectorAll('.ship-doc-item').forEach(i => {
+        i.classList.remove('active');
+        i.querySelector('button[onclick*="viewShipDoc"]').style.display = 'none';
+    });
+    updatePaymentSummary();
 }
 
 

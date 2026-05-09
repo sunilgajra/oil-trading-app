@@ -172,6 +172,54 @@
         <div class="form-group"><label>Net Weight (KG)</label><input id="tr-net-weight" type="number" step="0.01" placeholder="0.00" oninput="syncWeightToQty()"></div>
         <div class="form-group"><label>HS Code</label><input id="tr-hs-code" placeholder="27101980"></div>
         <div class="form-group full"><label>Container Numbers</label><textarea id="tr-containers" placeholder="HCKU5703110, HLXU1663342, ..." style="min-height:40px"></textarea></div>
+        
+        <!-- Shipping Documents Checklist -->
+        <div class="form-group full" style="border-top:1px solid var(--border); padding-top:15px; margin-top:10px;">
+            <label style="color:var(--gold2); font-size:12px; margin-bottom:10px; display:block;">Shipping Documents Checklist</label>
+            <div id="tr-ship-docs-list" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
+                <!-- PI, CI, PL, COA, CO, Other -->
+                <div class="ship-doc-item" data-type="Proforma Invoice"><span>Proforma Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Commercial Invoice"><span>Commercial Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Packing List"><span>Packing List</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Certificate of Origin"><span>CO (Origin)</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="COA"><span>COA (Quality)</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Other"><span>Other</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
+            </div>
+            <input type="file" id="tr-ship-doc-upload" style="display:none" onchange="handleShipDocUpload(this)">
+        </div>
+      </div>
+      
+      <!-- Supplier Payments Section -->
+      <div id="tr-payments-section" class="form-group full" style="margin-top:10px; border-top:1px solid var(--border); padding-top:20px; display:none;">
+        <label style="color:var(--gold2); display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
+            <span><i class="fas fa-money-bill-wave"></i> Supplier Payment Tracker</span>
+            <button class="btn btn-sm btn-ghost" onclick="addPaymentRow()">+ Add Payment</button>
+        </label>
+        <div class="table-wrap" style="background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border); font-size:11px; color:var(--muted);">
+                        <th style="padding:10px; text-align:left;">Date</th>
+                        <th style="padding:10px; text-align:left;">Amount (For.)</th>
+                        <th style="padding:10px; text-align:left;">Ex. Rate</th>
+                        <th style="padding:10px; text-align:left;">Bank Chg (₹)</th>
+                        <th style="padding:10px; text-align:left;">Type</th>
+                        <th style="padding:10px; text-align:center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tr-payments-body"></tbody>
+                <tfoot>
+                    <tr style="background:rgba(0,0,0,0.2); font-weight:bold; font-size:12px;">
+                        <td colspan="3" style="padding:10px; text-align:right; color:var(--muted);">Total Paid: <span id="tr-pay-total-for" style="color:var(--text); margin-left:5px;">0.00</span></td>
+                        <td colspan="1" style="padding:10px; color:var(--gold);">Bank: <span id="tr-pay-total-bank">₹ 0</span></td>
+                        <td colspan="2" style="padding:10px; text-align:right;">Balance: <span id="tr-pay-balance" style="color:var(--red);">0.00</span></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div id="tr-payment-status" style="margin-top:10px; text-align:right; font-weight:bold; font-size:13px; display:none;">
+            <span class="badge badge-green" style="padding:5px 15px;">FULL PAYMENT DONE</span>
+        </div>
       </div>
 
       <!-- Local Specific -->
