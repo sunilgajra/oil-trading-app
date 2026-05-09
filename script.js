@@ -1728,43 +1728,60 @@ function removePaymentRow(id) {
 function updatePaymentSummary() {
     const rows = document.querySelectorAll('#tr-payments-body tr');
     const mainCurr = document.getElementById('tr-imp-curr').value;
+    const univRate = parseFloat(document.getElementById('tr-pay-univ-rate').value) || 3.6725;
     
     let totalInMainCurr = 0;
     let totalBankINR = 0;
-    let totalPaidINR = 0;
     
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
         const amtInr = parseFloat(inputs[1].value) || 0;
         const exRate = parseFloat(inputs[2].value) || 1;
         const bank = parseFloat(inputs[3].value) || 0;
-        
-        totalPaidINR += amtInr;
         totalBankINR += bank;
-        
-        // Convert INR to Main Trade Currency (USD/AED)
-        if (exRate > 0) {
-            totalInMainCurr += (amtInr / exRate);
-        }
+        if (exRate > 0) totalInMainCurr += (amtInr / exRate);
     });
     
-    document.getElementById('tr-pay-total-for').textContent = mainCurr + ' ' + totalInMainCurr.toLocaleString('en-US', {minimumFractionDigits:2});
+    // Calculate Dual Totals
+    let totalUSD = 0, totalAED = 0;
+    if (mainCurr === 'USD') {
+        totalUSD = totalInMainCurr;
+        totalAED = totalUSD * univRate;
+    } else {
+        totalAED = totalInMainCurr;
+        totalUSD = totalAED / univRate;
+    }
+    
+    document.getElementById('tr-pay-total-dual').innerHTML = `
+        <span style="color:var(--text)">USD ${totalUSD.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+        <span style="color:var(--muted)">AED ${totalAED.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+    `;
     document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBankINR.toLocaleString('en-IN');
     
     // Balance calculation
     const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
     const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-    const totalDue = qty * rate; // Total Due in USD/AED
-    const balance = totalDue - totalInMainCurr;
+    const totalDueInMain = qty * rate;
+    const balInMain = totalDueInMain - totalInMainCurr;
     
-    const balEl = document.getElementById('tr-pay-balance');
-    balEl.textContent = mainCurr + ' ' + (balance > 0 ? balance : 0).toLocaleString('en-US', {minimumFractionDigits:2});
+    let balUSD = 0, balAED = 0;
+    if (mainCurr === 'USD') {
+        balUSD = balInMain;
+        balAED = balUSD * univRate;
+    } else {
+        balAED = balInMain;
+        balUSD = balAED / univRate;
+    }
     
-    if (balance <= 0.05 && totalDue > 0) {
-        balEl.style.color = 'var(--green)';
+    const balEl = document.getElementById('tr-pay-balance-dual');
+    balEl.innerHTML = `
+        <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US',{minimumFractionDigits:2}) : '0.00'}</span>
+        <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US',{minimumFractionDigits:2}) : '0.00'}</span>
+    `;
+    
+    if (balInMain <= 0.05 && totalDueInMain > 0) {
         document.getElementById('tr-payment-status').style.display = 'block';
     } else {
-        balEl.style.color = 'var(--red)';
         document.getElementById('tr-payment-status').style.display = 'none';
     }
 }
