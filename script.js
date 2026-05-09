@@ -872,6 +872,7 @@ async function refineWithCloudAI(rawText) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
+                    parts: [{
                         text: `DOMAIN: International Oil Shipping & Logistics.
 TASK: Extract structured data from the following OCR of a Bill of Lading (BL).
 
@@ -898,10 +899,11 @@ Return ONLY the JSON object. Do not explain.
 
 OCR TEXT TO PARSE:
 ${rawText}`
-
+                    }]
                 }]
             })
         });
+
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
