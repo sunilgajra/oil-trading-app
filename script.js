@@ -432,12 +432,20 @@ function calcTradeTotals() {
     var totalInr = basicInr + logTotal;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
     
-    // Landed Cost Per Unit calculation
-    if (rawQty > 0) {
-        var landedPerUnit = totalInr / rawQty;
-        document.getElementById('tr-landed-unit').value = fmt(landedPerUnit) + ' / ' + unit;
+    // Dual Landed Cost calculation
+    if (totalInr > 0) {
+        var volL = 0;
+        if (unit === 'LITRE') volL = rawQty;
+        else if (unit === 'KG') volL = rawQty / den;
+        else if (unit === 'MTON') volL = (rawQty * 1000) / den;
+        
+        var volKG = volL * den;
+        
+        if (volL > 0) document.getElementById('tr-landed-l').value = (totalInr / volL).toFixed(2);
+        if (volKG > 0) document.getElementById('tr-landed-kg').value = (totalInr / volKG).toFixed(2);
     } else {
-        document.getElementById('tr-landed-unit').value = '0.00';
+        document.getElementById('tr-landed-l').value = '';
+        document.getElementById('tr-landed-kg').value = '';
     }
 }
 
