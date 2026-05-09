@@ -55,7 +55,9 @@ function loadState(){
   if (!state.buyers) state.buyers = [];
   if (!state.nextBuyId) state.nextBuyId = 1;
   if (!state.apiKey) state.apiKey = '';
-  if (!state.apiModel) state.apiModel = 'gemini-1.5-flash';
+  if (!state.apiModel || state.apiModel.includes('1.5') || state.apiModel === 'gemini-pro') {
+    state.apiModel = 'gemini-3.1-flash-lite';
+  }
   
   document.getElementById('api-key').value = state.apiKey;
   document.getElementById('api-model').value = state.apiModel;
@@ -857,7 +859,7 @@ async function refineWithCloudAI(rawText) {
     btn.innerHTML = '&#x2601; Gemini AI Processing...';
     
     try {
-        const model = state.apiModel || 'gemini-1.5-flash';
+        const model = state.apiModel || 'gemini-3.1-flash-lite';
         const response = await fetch('https://generativelanguage.googleapis.com/v1/models/' + model + ':generateContent?key=' + state.apiKey, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
