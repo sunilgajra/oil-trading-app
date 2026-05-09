@@ -1512,8 +1512,11 @@ function addExpenseRow(data) {
         <td style="padding:8px;">
             <div style="display:flex; gap:5px; align-items:center;">
                 <input type="text" value="${defaultRef}" placeholder="Ref No" style="flex:1" oninput="updateExpenseData('${rowId}')">
-                <button class="btn btn-sm btn-ghost ${defaultDoc ? 'btn-teal' : ''}" onclick="uploadExpenseDoc('${rowId}')" id="btn-doc-${rowId}" title="Upload Bill">
-                    ${defaultDoc ? '&#x2705;' : '&#x1F4CE;'}
+                <button class="btn btn-sm btn-ghost ${defaultDoc ? 'btn-teal' : ''}" onclick="uploadExpenseDoc('${rowId}')" id="btn-upload-${rowId}" title="Upload Bill">
+                    &#x1F4CE;
+                </button>
+                <button class="btn btn-sm btn-ghost" id="btn-view-${rowId}" style="display:${defaultDoc ? 'inline-block' : 'none'}" onclick="viewExpenseDoc('${rowId}')" title="View Bill">
+                    &#x1F441;
                 </button>
             </div>
             <input type="file" id="file-${rowId}" style="display:none" onchange="handleExpenseFileUpload('${rowId}', this)">
@@ -1545,12 +1548,29 @@ function handleExpenseFileUpload(rowId, input) {
     reader.onload = function(e) {
         const row = document.getElementById(rowId);
         row.dataset.doc = e.target.result; // Store base64
-        const btn = document.getElementById('btn-doc-' + rowId);
-        btn.innerHTML = '&#x2705;';
-        btn.classList.add('btn-teal');
-        toast('Bill uploaded for expense');
+        
+        const uploadBtn = document.getElementById('btn-upload-' + rowId);
+        uploadBtn.classList.add('btn-teal');
+        
+        const viewBtn = document.getElementById('btn-view-' + rowId);
+        viewBtn.style.display = 'inline-block';
+        
+        toast('Bill uploaded successfully');
     };
     reader.readAsDataURL(file);
+}
+
+function viewExpenseDoc(rowId) {
+    const row = document.getElementById(rowId);
+    const data = row.dataset.doc;
+    if (!data) return toast('No document found', true);
+    
+    const win = window.open();
+    if (data.startsWith('data:application/pdf')) {
+        win.document.write('<iframe src="' + data + '" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>');
+    } else {
+        win.document.write('<img src="' + data + '" style="max-width:100%; height:auto;">');
+    }
 }
 
 function getTradeExpenses() {
