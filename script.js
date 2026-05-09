@@ -440,6 +440,13 @@ function calcTradeTotals() {
     var totalInr = basicInr + logTotal + bankTotal;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
     
+    // Update Foreign Total
+    if (mode === 'import' || mode === 'hs_sale') {
+        var qtyFor = parseFloat(document.getElementById('tr-vol').value) || 0;
+        var rateFor = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+        document.getElementById('tr-total-for').value = (qtyFor * rateFor).toLocaleString('en-US', {minimumFractionDigits:2});
+    }
+    
     // Toggle High Seas Purchase fields
     var isHS = document.getElementById('tr-is-hs').checked;
     var hsFields = document.getElementById('tr-hs-purchase-fields');
@@ -905,14 +912,15 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
             if (ai.vessel) document.getElementById('tr-vessel').value = ai.vessel;
             if (ai.port_load) document.getElementById('tr-port-load').value = ai.port_load;
             if (ai.port_dis) document.getElementById('tr-port-dis').value = ai.port_dis;
-            if (ai.dest_agent) document.getElementById('tr-dest-agent').value = ai.dest_agent;
+            if (ai.dest_agent) document.getElementById('tr-agent').value = ai.dest_agent;
             if (ai.hs_code) document.getElementById('tr-hs-code').value = ai.hs_code;
             if (ai.net_weight) {
                 document.getElementById('tr-net-weight').value = ai.net_weight;
-                syncWeightToQty(); // Sync to main quantity field
+                syncWeightToQty();
             }
             if (ai.containers) document.getElementById('tr-containers').value = Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers;
             
+            calcTradeTotals();
             toast('&#x2728; Gemini AI Scan Perfected!');
         } else {
             throw new Error("Gemini API returned an unexpected data structure. Please try again.");
@@ -1003,6 +1011,10 @@ function editTrade(id) {
 
     document.getElementById('tr-is-hs').checked = !!t.is_hs;
     document.getElementById('tr-hs-seller').value = t.hs_seller || '';
+    
+    // Load Trade Docs (Base64 attachments)
+    currentTradeDocs = t.docs || [];
+    renderTradeDocs();
     
     calcTradeTotals();
     
