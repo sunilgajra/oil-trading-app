@@ -721,188 +721,114 @@ async function scanTradeDocWithAI() {
     if (currentTradeDocs.length === 0) return;
     var btn = document.getElementById('btn-scan-ai');
     var oldBtnHtml = btn.innerHTML;
-    btn.innerHTML = '&#x2728; OCR Scanning...';
     btn.disabled = true;
 
     try {
         var doc = currentTradeDocs[0];
-        var text = "";
-
-        if (doc.type === 'application/pdf') {
-            btn.innerHTML = '&#x2728; Opening PDF...';
-            var pdf = await pdfjsLib.getDocument(doc.data).promise;
-            var numPages = pdf.numPages;
-            
-            for (var p = 1; p <= numPages; p++) {
-                btn.innerHTML = '&#x2728; Scanning Page ' + p + ' of ' + numPages;
-                var page = await pdf.getPage(p);
-                var viewport = page.getViewport({ scale: 2 });
-                var canvas = document.createElement('canvas');
-                var context = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
-                var pageImg = canvas.toDataURL('image/png');
-                
-                const result = await Tesseract.recognize(pageImg, 'eng');
-                text += "\n" + result.data.text;
-            }
-        } else {
-            btn.innerHTML = '&#x2728; Reading Image...';
-            const result = await Tesseract.recognize(doc.data, 'eng', {
-                logger: m => { if(m.status === 'recognizing') btn.innerHTML = '&#x2728; Reading: ' + Math.round(m.progress * 100) + '%'; }
-            });
-            text = result.data.text;
-        }
-        
-        console.log("Full OCR Result:", text);
-        
-        // --- UNIVERSAL TEXT CLEANING (For Future Stability) ---
-        // Remove noise that confuses AI (pipes, brackets, etc.)
-        var cleanText = text
-            .replace(/[\[\]\|]/g, ' ') // Remove brackets and pipes
-            .replace(/\s+/g, ' ')       // Normalize spaces
-            .replace(/0O/g, '00').replace(/O0/g, '00') // Common digit/letter swaps
-            .trim();
-            
-        console.log("Cleaned Text for AI:", cleanText);
-
-        var extracted = [];
         document.getElementById('tr-mode').value = 'import';
         toggleTradeDetailFields();
-        
-        // 1. BL Number Search (Flexible with spaces and dots)
-        var blMatch = cleanText.match(/BILL\s*OF\s*LADING\s*NO\.?[:\s]+([A-Z0-9.\s]+)/i) || cleanText.match(/TKU[\.\s][A-Z0-9\.\s]+/i);
-        var blNo = blMatch ? (blMatch[1] || blMatch[0]).trim() : '';
-        // Normalize: replace spaces with dots in BL number if it starts with TKU
-        if (blNo.startsWith('TKU')) blNo = blNo.replace(/\s+/g, '.');
-        
-        if (blNo) {
-            document.getElementById('tr-bl-no').value = blNo;
-            extracted.push('BL: ' + blNo);
-            highlightField('tr-bl-no');
-        }
 
-        // 2. KNOWN DOCUMENT AUTO-CORRECT (Demo mode)
-        if (blNo.includes('0002') || blNo.includes('0004')) {
-             runDemoScan();
-             return;
-        }
-
-        // 3. Vessel Search
-        var vMatch = cleanText.match(/VESSEL[:\s\n]+([A-Z0-9\s\[\]]+)/i) || cleanText.match(/VESSEL\/\s*VOYAGE\s*NO\.?[:\s\n]+([A-Z0-9\s\[\]]+)/i);
-        if (vMatch) {
-            var vName = vMatch[1].trim().split('\n')[0].replace(/[^A-Z0-9\s]/g, '').trim();
-            // Fallback for common OCR misreads of "ZULFA 2"
-            if (vName.toLowerCase().includes('zura') || vName.toLowerCase().includes('zulr') || vName.toLowerCase().includes('zulla')) {
-                vName = 'ZULFA 2';
-            }
-            document.getElementById('tr-vessel').value = vName;
-            extracted.push('Vessel: ' + vName);
-            highlightField('tr-vessel');
-        }
-
-        // 4. Port Search
-        if (cleanText.includes('BENGHAZI')) document.getElementById('tr-port-load').value = 'BENGHAZI SEAPORT, LIBYA';
-        if (cleanText.includes('MUNDRA')) document.getElementById('tr-port-dis').value = 'MUNDRA, INDIA';
-
-        // 5. Agent Search
-        if (cleanText.match(/ez\s*Lnrs\s*LLP/i) || cleanText.match(/ez\s*Liners/i) || cleanText.match(/EZ\s*LINERS/i)) {
-            document.getElementById('tr-dest-agent').value = 'EZ LINERS LLP';
-            extracted.push('Agent Found');
-            highlightField('tr-dest-agent');
-        }
-
-        // 6. Weight Search
-        var weightMatch = cleanText.match(/(?:GROSS|NET)\s*WEIGHT\s*[:\s]*([0-9\.\s,]+)/i) || cleanText.match(/([0-9]{4,8})\s*(?:KGS|KG)/i);
-        if (weightMatch) {
-            var rawW = weightMatch[1].replace(/[\s,]/g, '');
-            if (rawW.length > 3) {
-                document.getElementById('tr-net-weight').value = rawW;
-                extracted.push('Weight Found');
-                highlightField('tr-net-weight');
-            }
-        }
-
-        // 7. Container Search (Improved regex for 4 letters + 7 digits)
-        var containerMatches = cleanText.match(/[A-Z]{4}\s*[0-9]{7}/g) || cleanText.match(/[A-Z0-9]{10,12}/g);
-        if (containerMatches) {
-            var uniqueC = [...new Set(containerMatches)]
-                .map(c => c.replace(/\s+/g, ''))
-                .filter(c => /[A-Z]{3,4}/.test(c) && /[0-9]{6,7}/.test(c));
-            if (uniqueC.length > 0) {
-                document.getElementById('tr-containers').value = uniqueC.slice(0, 22).join(', ');
-                extracted.push(uniqueC.length + ' Containers');
-                highlightField('tr-containers');
-            }
-        }
-
-        btn.innerHTML = oldBtnHtml;
-        btn.disabled = false;
-        
-        if (extracted.length > 0) {
-            toast('Local OCR Scan Complete. Refining with Cloud AI...');
-            if (state.apiKey) {
-                await refineWithCloudAI(cleanText);
-            } else {
-                toast('Local OCR Complete. (Add API Key in Settings for 100% Cloud Accuracy)');
-                if (doc.name.toLowerCase().includes('0002')) runDemoScan();
-            }
+        if (state.apiKey) {
+            // DIRECT AI SCAN (Best accuracy, skips local OCR)
+            btn.innerHTML = '&#x2601; AI Vision Scanning...';
+            await refineWithCloudAI(doc);
+            btn.innerHTML = oldBtnHtml;
+            btn.disabled = false;
         } else {
-            toast('OCR completed but no matching fields found', true);
-            if (doc.name.toLowerCase().includes('0002')) runDemoScan();
+            // LOCAL OCR FALLBACK
+            btn.innerHTML = '&#x2728; Local OCR Scanning...';
+            var text = "";
+
+            if (doc.type === 'application/pdf') {
+                var pdf = await pdfjsLib.getDocument(doc.data).promise;
+                for (var p = 1; p <= pdf.numPages; p++) {
+                    var page = await pdf.getPage(p);
+                    var viewport = page.getViewport({ scale: 2 });
+                    var canvas = document.createElement('canvas');
+                    var context = canvas.getContext('2d');
+                    canvas.height = viewport.height; canvas.width = viewport.width;
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    const result = await Tesseract.recognize(canvas.toDataURL('image/png'), 'eng');
+                    text += "\n" + result.data.text;
+                }
+            } else {
+                const result = await Tesseract.recognize(doc.data, 'eng');
+                text = result.data.text;
+            }
+            
+            var cleanText = text.replace(/[\[\]\|]/g, ' ').replace(/\s+/g, ' ').trim();
+            // Local Regex extraction... (keeping for users without API key)
+            runLocalExtract(cleanText); 
+            
+            toast('Local OCR Complete. Add API Key for 100% accuracy.');
+            btn.innerHTML = oldBtnHtml;
+            btn.disabled = false;
         }
     } catch (err) {
-        console.error("OCR Error:", err);
+        console.error("Scan Error:", err);
         toast("Scan Error: " + err.message, true);
         btn.innerHTML = oldBtnHtml;
         btn.disabled = false;
     }
 }
 
-async function refineWithCloudAI(rawText) {
+function runLocalExtract(cleanText) {
+    var blMatch = cleanText.match(/BILL\s*OF\s*LADING\s*NO\.?[:\s]+([A-Z0-9.\s]+)/i) || cleanText.match(/TKU[\.\s][A-Z0-9\.\s]+/i);
+    if (blMatch) document.getElementById('tr-bl-no').value = (blMatch[1]||blMatch[0]).trim().replace(/\s+/g, '.');
+    
+    var vMatch = cleanText.match(/VESSEL[:\s\n]+([A-Z0-9\s\[\]]+)/i);
+    if (vMatch) document.getElementById('tr-vessel').value = vMatch[1].trim().split('\n')[0].replace(/[^A-Z0-9\s]/g, '');
+
+    var weightMatch = cleanText.match(/(?:GROSS|NET)\s*WEIGHT\s*[:\s]*([0-9\.\s,]+)/i);
+    if (weightMatch) document.getElementById('tr-net-weight').value = weightMatch[1].replace(/[\s,]/g, '');
+
+    var containerMatches = cleanText.match(/[A-Z]{4}\s*[0-9]{7}/g) || cleanText.match(/[A-Z0-9]{10,12}/g);
+    if (containerMatches) {
+        var uniqueC = [...new Set(containerMatches)].map(c => c.replace(/\s+/g, '')).filter(c => /[A-Z]{3,4}/.test(c) && /[0-9]{6,7}/.test(c));
+        document.getElementById('tr-containers').value = uniqueC.slice(0, 22).join(', ');
+    }
+}
+
+async function refineWithCloudAI(docOrText) {
     if (!state.apiKey) return;
     var btn = document.getElementById('btn-scan-ai');
-    btn.innerHTML = '&#x2601; Gemini AI Processing...';
     
     try {
         const model = state.apiModel || 'gemini-3.1-flash-lite';
+        let payload;
+
+        if (typeof docOrText === 'object') {
+            // MULTIMODAL DIRECT SCAN (Image/PDF)
+            const base64Data = docOrText.data.split(',')[1];
+            payload = {
+                contents: [{
+                    parts: [
+                        { text: `DOMAIN: International Oil Shipping. 
+TASK: Extract Bill of Lading data from this document.
+RULES: 
+1. Fix all OCR errors. Reconstruct the full list of container numbers (4 letters + 7 digits).
+2. Format weights as 0.00. 
+3. Identify Vessel, Ports, Agent, and HS Code.
+Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "net_weight": "", "containers": [] }` },
+                        { inlineData: { mimeType: docOrText.type, data: base64Data } }
+                    ]
+                }]
+            };
+        } else {
+            // TEXT-ONLY REFINEMENT
+            payload = {
+                contents: [{
+                    parts: [{ text: `DOMAIN: Oil Shipping. Extract JSON from this OCR: ${docOrText}` }]
+                }]
+            };
+        }
+
         const response = await fetch('https://generativelanguage.googleapis.com/v1/models/' + model + ':generateContent?key=' + state.apiKey, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: `DOMAIN: International Oil Shipping & Logistics.
-TASK: Extract structured data from the following OCR of a Bill of Lading (BL).
-
-HEURISTICS FOR ACCURACY:
-- BL NUMBER: Usually starts with 'TKU', 'MAEU', 'MSC', etc. Follows pattern: 3-4 letters + dots/spaces + digits.
-- VESSEL: Found near 'VESSEL' or 'VOYAGE'. It is usually 1-2 words in ALL CAPS. Correct obvious OCR noise (e.g. '[zuraz' -> 'ZULFA 2', 'vess3l' -> 'VESSEL').
-- WEIGHTS: Usually an 8-digit or large number. Oil BLs typically have weights in the range of 100,000 to 1,000,000 KG. Format as 0.00.
-- CONTAINERS: ISO 6346 format (4 letters + 6 digits + 1 check digit). Use your reasoning to fix common character swaps (s->5, i->1, o->0, w->H) to reconstruct valid container IDs.
-- AGENT: Usually listed under 'AGENT AT DESTINATION' or 'NOTIFY PARTY'.
-
-JSON OUTPUT FORMAT:
-{
-  "bl_no": "...",
-  "vessel": "...",
-  "port_load": "...",
-  "port_dis": "...",
-  "dest_agent": "...",
-  "hs_code": "...",
-  "net_weight": "0.00",
-  "containers": ["...", "..."]
-}
-
-Return ONLY the JSON object. Do not explain.
-
-OCR TEXT TO PARSE:
-${rawText}`
-                    }]
-                }]
-            })
+            body: JSON.stringify(payload)
         });
+
 
 
         if (!response.ok) {
