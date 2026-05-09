@@ -766,8 +766,10 @@ async function scanTradeDocWithAI() {
             .trim();
             
         console.log("Cleaned Text for AI:", cleanText);
-        
-        // --- REFINED ACTUAL PARSING LOGIC (Tuned to your BL) ---
+
+        var extracted = [];
+        document.getElementById('tr-mode').value = 'import';
+        toggleTradeDetailFields();
         
         // 1. BL Number Search (Flexible with spaces and dots)
         var blMatch = cleanText.match(/BILL\s*OF\s*LADING\s*NO\.?[:\s]+([A-Z0-9.\s]+)/i) || cleanText.match(/TKU[\.\s][A-Z0-9\.\s]+/i);
