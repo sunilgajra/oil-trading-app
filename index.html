@@ -186,12 +186,12 @@
         <div class="form-group full" style="border-top:1px solid var(--border); padding-top:15px; margin-top:10px;">
             <label style="color:var(--gold2); font-size:12px; margin-bottom:10px; display:block;">Shipping Documents Checklist</label>
             <div id="tr-ship-docs-list" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
-                <div class="ship-doc-item" data-type="Proforma Invoice"><span>Proforma Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="Commercial Invoice"><span>Commercial Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="Packing List"><span>Packing List</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="Certificate of Origin"><span>CO (Origin)</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="COA"><span>COA (Quality)</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="Other"><span>Other</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Proforma Invoice"><span>Proforma Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
+                <div class="ship-doc-item" data-type="Commercial Invoice"><span>Commercial Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
+                <div class="ship-doc-item" data-type="Packing List"><span>Packing List</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
+                <div class="ship-doc-item" data-type="Certificate of Origin"><span>CO (Origin)</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
+                <div class="ship-doc-item" data-type="COA"><span>COA (Quality)</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
+                <div class="ship-doc-item" data-type="Other"><span>Other</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload/Edit">&#x270F;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button><button onclick="deleteShipDoc(this)" title="Delete">&#x2715;</button></div></div>
             </div>
             <input type="file" id="tr-ship-doc-upload" style="display:none" onchange="handleShipDocUpload(this)">
         </div>
@@ -208,10 +208,11 @@
                 <thead>
                     <tr style="border-bottom:1px solid var(--border); font-size:11px; color:var(--muted);">
                         <th style="padding:10px; text-align:left;">Date</th>
-                        <th style="padding:10px; text-align:left;">Amount (For.)</th>
+                        <th style="padding:10px; text-align:left;">Amount (INR)</th>
                         <th style="padding:10px; text-align:left;">Ex. Rate</th>
                         <th style="padding:10px; text-align:left;">Bank Chg (₹)</th>
                         <th style="padding:10px; text-align:left;">Type</th>
+                        <th style="padding:10px; text-align:left;">Remarks / Ref</th>
                         <th style="padding:10px; text-align:center;">Action</th>
                     </tr>
                 </thead>

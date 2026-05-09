@@ -1687,6 +1687,14 @@ function viewShipDoc(btn) {
     }
 }
 
+function deleteShipDoc(btn) {
+    const item = btn.closest('.ship-doc-item');
+    const type = item.dataset.type;
+    delete currentShipDocs[type];
+    item.classList.remove('active');
+    toast(type + ' Removed');
+}
+
 function addPaymentRow(data) {
     const tbody = document.getElementById('tr-payments-body');
     const rowId = 'pay_' + Date.now() + Math.random().toString(36).substr(2, 5);
@@ -1700,6 +1708,7 @@ function addPaymentRow(data) {
     const dEx = data ? data.ex_rate : (parseFloat(document.getElementById('tr-ex-rate').value) || 83.5);
     const dBank = data ? data.bank_chg : 0;
     const dType = data ? data.type : 'Bank';
+    const dRem = data ? data.remarks : '';
     
     row.innerHTML = `
         <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updatePaymentSummary()"></td>
@@ -1712,6 +1721,7 @@ function addPaymentRow(data) {
                 <option ${dType==='Yard'?'selected':''}>Yard</option>
             </select>
         </td>
+        <td style="padding:8px;"><input type="text" value="${dRem}" placeholder="Ref/Remark" style="width:100%"></td>
         <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removePaymentRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
     `;
     tbody.appendChild(row);
@@ -1797,7 +1807,8 @@ function getSupplierPayments() {
             amount_inr: parseFloat(inputs[1].value) || 0,
             ex_rate: parseFloat(inputs[2].value) || 0,
             bank_chg: parseFloat(inputs[3].value) || 0,
-            type: select.value
+            type: selects[0].value,
+            remarks: inputs[4].value
         });
     });
     return payments;
