@@ -32,15 +32,15 @@
     .modal-content { position:relative; animation: modalSlide 0.3s ease; }
     @keyframes modalSlide { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
     
-    .extracted-pulse { animation: pulseHighlight 2s ease infinite; border-color: var(--gold2) !important; box-shadow: 0 0 10px var(--gold); }
-  --green: #4ADE80;
-  --red: #F87171;
-  --teal: #2DD4BF;
-  --gold: #F59E0B;
-  --gold2: #FBBF24;
-  --border: rgba(255,255,255,0.08);
-  --shadow: 0 4px 20px rgba(0,0,0,0.4);
-}
+    :root {
+      --green: #4ADE80;
+      --red: #F87171;
+      --teal: #2DD4BF;
+      --gold: #F59E0B;
+      --gold2: #FBBF24;
+      --border: rgba(255,255,255,0.08);
+      --shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
 .expense-row input, .expense-row select { 
     background:transparent !important; 
     border:none !important; 
@@ -49,10 +49,19 @@
     font-size:13px !important;
     width:100%;
 }
-.expense-row:hover { background: rgba(255,255,255,0.02); }
-.status-pill { padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; cursor:pointer; }
-.status-paid { background:rgba(74,222,128,0.2); color:var(--green); }
-.status-pending { background:rgba(248,113,113,0.2); color:var(--red); }
+    .expense-row:hover { background: rgba(255,255,255,0.02); }
+    .status-pill { padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; cursor:pointer; }
+    .status-paid { background:rgba(74,222,128,0.2); color:var(--green); }
+    .status-pending { background:rgba(248,113,113,0.2); color:var(--red); }
+    .ship-doc-item { background: var(--surface2); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+    .ship-doc-item .btns { display: flex; gap: 5px; }
+    .ship-doc-item button { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 5px; border-radius: 4px; }
+    .ship-doc-item button:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+    .ship-doc-item.active { border-color: var(--teal); background: rgba(45, 212, 191, 0.05); }
+    .ship-doc-item.active span { color: var(--teal); font-weight: 600; }
+    .ship-doc-item.active .view-btn { display: inline-block !important; color: var(--teal) !important; }
+    .view-btn { display: none !important; }
+    .pay-curr-label { font-size: 10px; color: var(--muted); margin-right: 4px; font-weight: bold; }
     @keyframes pulseHighlight { 0% { box-shadow: 0 0 0px var(--gold); } 50% { box-shadow: 0 0 15px var(--gold); } 100% { box-shadow: 0 0 0px var(--gold); } }
   </style>
 </head>
@@ -177,13 +186,12 @@
         <div class="form-group full" style="border-top:1px solid var(--border); padding-top:15px; margin-top:10px;">
             <label style="color:var(--gold2); font-size:12px; margin-bottom:10px; display:block;">Shipping Documents Checklist</label>
             <div id="tr-ship-docs-list" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
-                <!-- PI, CI, PL, COA, CO, Other -->
-                <div class="ship-doc-item" data-type="Proforma Invoice"><span>Proforma Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="Commercial Invoice"><span>Commercial Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="Packing List"><span>Packing List</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="Certificate of Origin"><span>CO (Origin)</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="COA"><span>COA (Quality)</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
-                <div class="ship-doc-item" data-type="Other"><span>Other</span> <div class="btns"><button onclick="uploadShipDoc(this)">&#x1F4CE;</button><button style="display:none" onclick="viewShipDoc(this)">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Proforma Invoice"><span>Proforma Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Commercial Invoice"><span>Commercial Invoice</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Packing List"><span>Packing List</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Certificate of Origin"><span>CO (Origin)</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="COA"><span>COA (Quality)</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
+                <div class="ship-doc-item" data-type="Other"><span>Other</span> <div class="btns"><button onclick="uploadShipDoc(this)" title="Upload">&#x1F4CE;</button><button class="view-btn" onclick="viewShipDoc(this)" title="View">&#x1F441;</button></div></div>
             </div>
             <input type="file" id="tr-ship-doc-upload" style="display:none" onchange="handleShipDocUpload(this)">
         </div>

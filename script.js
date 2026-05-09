@@ -1670,7 +1670,6 @@ function handleShipDocUpload(input) {
         const type = activeShipDocItem.dataset.type;
         currentShipDocs[type] = e.target.result;
         activeShipDocItem.classList.add('active');
-        activeShipDocItem.querySelector('button[onclick*="viewShipDoc"]').style.display = 'inline-block';
         toast(type + ' Uploaded');
     };
     reader.readAsDataURL(input.files[0]);
@@ -1701,10 +1700,11 @@ function addPaymentRow(data) {
     const dEx = data ? data.ex_rate : (parseFloat(document.getElementById('tr-ex-rate').value) || 83.5);
     const dBank = data ? data.bank_chg : 0;
     const dType = data ? data.type : 'Bank';
+    const curr = document.getElementById('tr-imp-curr').value;
     
     row.innerHTML = `
         <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updatePaymentSummary()"></td>
-        <td style="padding:8px;"><input type="number" value="${dAmt}" placeholder="0.00" oninput="updatePaymentSummary()"></td>
+        <td style="padding:8px; display:flex; align-items:center;"><span class="pay-curr-label">${curr}</span><input type="number" value="${dAmt}" placeholder="0.00" oninput="updatePaymentSummary()"></td>
         <td style="padding:8px;"><input type="number" value="${dEx}" step="0.01" oninput="updatePaymentSummary()"></td>
         <td style="padding:8px;"><input type="number" value="${dBank}" placeholder="0" oninput="calcTradeTotals()"></td>
         <td style="padding:8px;">
