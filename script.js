@@ -1927,89 +1927,65 @@ function renderHssPreviews() {
             <table class="no-border">
                 <tr><td>1. NAME & ADDRESS OF IMPORTER</td><td>: MURJI RAVJI AND COMPANY</td></tr>
                 <tr><td>2. IMPORT EXPORT CODE NUMBER</td><td>: ABRFM5531E</td></tr>
-                <tr><td>3. NAME & ADDRESS OF PURCHASER</td><td>: ${buyerObj.name}</td></tr>
-                <tr><td>4. IMPORT EXPORT CODE NUMBER</td><td>: ${pIec}</td></tr>
-                <tr><td>5. DESCRIPTION OF GOODS SOLD</td><td>: ${product}</td></tr>
-                <tr><td>6. QUANTITY</td><td>: ${(qty/1000).toFixed(2)} MT</td></tr>
-                <tr><td>7. NAME & ADDRESS OF SUPPLIER</td><td>: ${seller}</td></tr>
-                <tr><td>8. INVOICE NO & DATE</td><td>: ${invNo} DT: ${today()}</td></tr>
-                <tr><td>9. NAME OF THE VESSEL</td><td>: ${vessel}</td></tr>
-                <tr><td>10. BILL OF LANDING NO. & DATE</td><td>: ${blNo}</td></tr>
-                <tr><td>11. VALUE OF CONSIGNMENT</td><td>: ${curr} ${cifValFor.toLocaleString()}</td></tr>
-                <tr><td>12. SALE CONSIDERATION</td><td>: INR ${saleConsideration.toLocaleString()} (CIF VALUE + ${profitPct}% PROFIT)</td></tr>
+                <tr><td>3. NAME & ADDRESS OF PURCHASER</td><td>: \${buyerObj.name}</td></tr>
+                <tr><td>4. IMPORT EXPORT CODE NUMBER</td><td>: \${pIec}</td></tr>
+                <tr><td>5. DESCRIPTION OF GOODS SOLD</td><td>: \${product}</td></tr>
+                <tr><td>6. QUANTITY</td><td>: \${(qty/1000).toFixed(2)} MT</td></tr>
+                <tr><td>7. NAME & ADDRESS OF SUPPLIER</td><td>: \${seller}</td></tr>
+                <tr><td>8. INVOICE NO & DATE</td><td>: \${invNo} DT: \${today()}</td></tr>
+                <tr><td>9. NAME OF THE VESSEL</td><td>: \${vessel}</td></tr>
+                <tr><td>10. BILL OF LANDING NO. & DATE</td><td>: \${blNo}</td></tr>
+                <tr><td>11. VALUE OF CONSIGNMENT</td><td>: \${curr} \${cifValFor.toLocaleString()}</td></tr>
+                <tr><td>12. SALE CONSIDERATION</td><td>: INR \${saleConsideration.toLocaleString()} (CIF VALUE + \${profitPct}% PROFIT)</td></tr>
             </table>
             <p style="margin-top:20px; font-size:11px;">13. PAYMENT: Payment should be made to the seller as per high seas sale debit note...</p>
             <p style="font-size:11px;">14. DELIVERY: All the right and the title of the goods will be transferred from sellers to the buyer...</p>
             <div class="signature-row">
                 <div>For, MURJI RAVJI AND COMPANY<br><br><br>Authorized Signatory</div>
-                <div>For, ${buyerObj.name}<br><br><br>Authorized Signatory</div>
+                <div>For, \${buyerObj.name}<br><br><br>Authorized Signatory</div>
             </div>
         </div>
 
         <div class="hss-print-page" id="hss-p2">
             <div class="letterhead">
-                <h3 style="color:#1e40af; font-size:28px; margin:0;">MURJI RAVJI AND COMPANY</h3>
-                <p style="margin:5px 0; font-size:12px;">Shop No. 410, Plot No. DHH, Sector 12, Prime Mall, Kutch, Gandhidham, Gujarat 370201</p>
-                <p style="margin:5px 0; font-size:12px; font-weight:bold;">GSTIN: 27ABRFM5531F1ZJ | IEC: ABRFM5531E</p>
-                <div style="border-bottom:2px solid #1e40af; margin-top:10px;"></div>
+                <h3>MURJI RAVJI AND COMPANY</h3>
+                <p>Shop No. 410, Plot No. DHH, Sector 12, Prime Mall, Kutch, Gandhidham, Gujarat 370201</p>
+                <p>GSTIN: 27ABRFM5531F1ZJ | IEC: ABRFM5531E</p>
             </div>
-            <h2 style="text-align:center; text-decoration:none; margin:20px 0; font-size:20px;">HIGH SEAS INVOICE</h2>
-            <div style="display:flex; justify-content:space-between; margin-bottom:20px; font-size:14px;">
-                <div><strong>Bill To:</strong><br>${buyerObj.name}<br>${buyerObj.city || ''}</div>
-                <div style="text-align:right;">Invoice No: ${invNo}<br>Date: ${today()}</div>
+            <h2 style="text-decoration:none;">HIGH SEAS INVOICE</h2>
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:12px;">
+                <div><strong>Bill To:</strong><br>\${buyerObj.name}<br>\${buyerObj.city || ''}</div>
+                <div>Invoice No: \${invNo}<br>Date: \${today()}</div>
             </div>
             <table>
-                <thead><tr style="background:#f8fafc;"><th>DESCRIPTION OF GOODS</th><th>QUANTITY</th><th>RATE</th><th>AMOUNT (INR)</th></tr></thead>
+                <thead><tr style="background:#f4f4f4;"><th>Description of Goods</th><th>Quantity</th><th>Rate</th><th>Amount (INR)</th></tr></thead>
                 <tbody>
-                    <tr style="height:150px;">
-                        <td>${product}<br><small>FOR INDUSTRIAL USE ONLY</small></td>
-                        <td>${qty.toLocaleString()} KG</td>
-                        <td>${(saleConsideration/qty).toFixed(2)}</td>
-                        <td>${saleConsideration.toLocaleString()}</td>
-                    </tr>
-                    <tr style="font-weight:bold;">
-                        <td colspan="3" style="text-align:right;">High Seas Commission (Round Off)</td>
-                        <td>INC.</td>
-                    </tr>
-                    <tr style="font-weight:bold; background:#f8fafc;">
-                        <td colspan="3" style="text-align:right;">Total Value</td>
-                        <td>INR ${saleConsideration.toLocaleString()}</td>
-                    </tr>
+                    <tr><td>\${product}<br><small>FOR INDUSTRIAL USE ONLY</small></td><td>\${qty.toLocaleString()} KG</td><td>\${(saleConsideration/qty).toFixed(2)}</td><td>\${saleConsideration.toLocaleString()}</td></tr>
+                    <tr style="font-weight:bold;"><td colspan="3" style="text-align:right;">High Seas Commission (Round Off)</td><td>INC.</td></tr>
+                    <tr style="font-weight:bold; background:#f4f4f4;"><td colspan="3" style="text-align:right;">Total Value</td><td>INR \${saleConsideration.toLocaleString()}</td></tr>
                 </tbody>
             </table>
-            <p style="font-size:13px; margin-top:15px;"><strong>Amount in words:</strong> INR ${saleConsideration.toFixed(0)} Only</p>
-            <div class="signature-row" style="margin-top:60px;">
-                <div style="border:1px solid #cbd5e1; padding:10px; width:200px; height:100px; font-size:11px; color:#64748b;">Receiver's Signature</div>
-                <div style="text-align:right;">
-                    <p style="margin-bottom:60px;">For, <strong>MURJI RAVJI AND COMPANY</strong></p>
-                    <p>Authorized Signatory</p>
-                </div>
+            <p style="font-size:11px; margin-top:10px;">Amount in words: INR \${saleConsideration.toFixed(0)} Only</p>
+            <div class="signature-row" style="margin-top:40px;">
+                <div style="border:1px solid #ccc; padding:10px; width:200px; height:80px; font-size:10px;">Receiver's Signature</div>
+                <div style="text-align:right;">For, MURJI RAVJI AND COMPANY<br><br><br>Authorized Signatory</div>
             </div>
         </div>
 
         <div class="hss-print-page" id="hss-p3">
-            <div class="letterhead" style="border-bottom:none; margin-bottom:10px;">
-                <h3 style="color:#1e40af; font-size:28px; margin:0;">MURJI RAVJI AND COMPANY</h3>
-                <p style="margin:5px 0; font-size:14px; font-weight:500;">Oil Trading & Logistics | Gandhidham, India</p>
-                <div style="border-bottom:2px solid #000; margin-top:5px;"></div>
+            <div class="letterhead">
+                <h3>MURJI RAVJI AND COMPANY</h3>
+                <p>Oil Trading & Logistics | Gandhidham, India</p>
             </div>
-            <div style="text-align:right; margin:20px 0;">DATE: ${today()}</div>
-            <div style="margin-bottom:30px; line-height:1.6;">
-                <p>TO,<br>The Asstt. / Dy. Commissioner of Customs<br>Import Section<br>Mundra Port Mundra, India.</p>
-            </div>
-            <p style="margin-bottom:20px;">Sub: <strong>HIGH SEAS PURCHASE LETTER</strong></p>
-            <div style="margin-bottom:20px; line-height:1.6;">
-                <p>Ref: Cargo Description: ${product}<br>NET WEIGHT: ${qty.toLocaleString()} KG<br>B/L NO: ${blNo}</p>
-            </div>
-            <div style="line-height:1.6; text-align:justify;">
-                <p>Dear Sir,</p>
-                <p>With reference to the above subject, we wish to inform that we have purchased ${product} on high seas sales as per the High Seas Purchase Agreement enclosed.</p>
-                <p>The subject consignment is covered under Bill of Lading No: ${blNo}</p>
-                <p>Kindly do the need full and oblige. Thanking you.</p>
-            </div>
-            <div style="margin-top:80px;">
-                <p>Yours faithfully,<br>For, <strong>MURJI RAVJI AND COMPANY</strong></p>
-                <p style="margin-top:60px;">(Authorized Signatory)</p>
+            <div style="text-align:right; margin-bottom:20px;">DATE: \${today()}</div>
+            <p>TO,<br>The Asstt. / Dy. Commissioner of Customs<br>Import Section<br>Mundra Port Mundra, India.</p>
+            <p style="margin-top:20px;">Sub: <strong>HIGH SEAS PURCHASE LETTER</strong></p>
+            <p>Ref: Cargo Description: \${product}<br>NET WEIGHT: \${qty.toLocaleString()} KG<br>B/L NO: \${blNo}</p>
+            <p style="margin-top:20px;">Dear Sir,<br>With reference to the above subject, we wish to inform that we have purchased \${product} on high seas sales as per the High Seas Purchase Agreement enclosed.</p>
+            <p>The subject consignment is covered under Bill of Lading No: \${blNo}</p>
+            <p>Kindly do the need full and oblige. Thanking you.</p>
+            <div class="signature-row" style="margin-top:80px;">
+                <div>Yours faithfully,<br>For, MURJI RAVJI AND COMPANY<br><br><br>(Authorized Signatory)</div>
             </div>
         </div>
     `;
@@ -2054,7 +2030,7 @@ function printHssDocs() {
                     }
                 </style>
             </head>
-            <body onload="setTimeout(() => { window.print(); window.close(); }, 500);">${previews}</body>
+            <body onload="setTimeout(() => { window.print(); window.close(); }, 500);">\${previews}</body>
         </html>
     `);
     printWindow.document.close();
