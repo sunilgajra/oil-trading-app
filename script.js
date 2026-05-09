@@ -1467,13 +1467,24 @@ function addExpenseRow(data) {
     row.className = 'expense-row';
     row.style.borderBottom = '1px solid var(--border)';
     
+    const types = ['Line Charges', 'CFS Charges', 'LOLO Charges', 'Customs Duty', 'THC Fees', 'Agency Fees', 'Transportation', 'Insurance', 'Survey', 'Other'];
     const defaultType = data ? data.type : 'Line Charges';
+    const isOther = !types.includes(defaultType) && defaultType !== 'Other';
+    const finalType = isOther ? 'Other' : defaultType;
+    
     const defaultAmount = data ? data.amount : 0;
     const defaultStatus = data ? data.status : 'Pending';
     const defaultRef = data ? data.ref : '';
+    const defaultDoc = data ? data.doc : null;
     
     row.innerHTML = `
-        <td style="padding:8px;"><input type="text" value="${defaultType}" placeholder="e.g. CFS Charges" oninput="updateExpenseData('${rowId}')"></td>
+        <td style="padding:8px;">
+            <select onchange="handleExpenseTypeChange('${rowId}', this.value)" style="width:100%;">
+                ${types.map(t => `<option ${finalType === t ? 'selected' : ''}>${t}</option>`).join('')}
+            </select>
+            <input type="text" class="exp-custom-type" value="${isOther ? defaultType : ''}" 
+                   placeholder="Name..." style="display:${isOther ? 'block' : 'none'}; margin-top:5px; border-bottom:1px solid var(--border) !important;">
+        </td>
         <td style="padding:8px;"><input type="number" value="${defaultAmount}" placeholder="0.00" oninput="updateExpenseData('${rowId}')"></td>
         <td style="padding:8px;">
             <select onchange="updateExpenseData('${rowId}')" style="width:auto;">
@@ -1481,12 +1492,70 @@ function addExpenseRow(data) {
                 <option ${defaultStatus === 'Pending' ? 'selected' : ''}>Pending</option>
             </select>
         </td>
-        <td style="padding:8px;"><input type="text" value="${defaultRef}" placeholder="Ref No / Bill Link" oninput="updateExpenseData('${rowId}')"></td>
+        <td style="padding:8px;">
+            <div style="display:flex; gap:5px; align-items:center;">
+                <input type="text" value="${defaultRef}" placeholder="Ref No" style="flex:1" oninput="updateExpenseData('${rowId}')">
+                <button class="btn btn-sm btn-ghost ${defaultDoc ? 'btn-teal' : ''}" onclick="uploadExpenseDoc('${rowId}')" id="btn-doc-${rowId}" title="Upload Bill">
+                    ${defaultDoc ? '&#x2705;' : '&#x1F4CE;'}
+                </button>
+            </div>
+            <input type="file" id="file-${rowId}" style="display:none" onchange="handleExpenseFileUpload('${rowId}', this)">
+        </td>
         <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removeExpenseRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
     `;
     
     tbody.appendChild(row);
+    row.dataset.doc = defaultDoc || '';
     updateExpenseData(rowId);
+}
+
+function handleExpenseTypeChange(rowId, val) {
+    const row = document.getElementById(rowId);
+    const customInput = row.querySelector('.exp-custom-type');
+    customInput.style.display = (val === 'Other') ? 'block' : 'none';
+    updateExpenseData(rowId);
+}
+
+function uploadExpenseDoc(rowId) {
+    document.getElementById('file-' + rowId).click();
+}
+
+function handleExpenseFileUpload(rowId, input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const row = document.getElementById(rowId);
+        row.dataset.doc = e.target.result; // Store base64
+        const btn = document.getElementById('btn-doc-' + rowId);
+        btn.innerHTML = '&#x2705;';
+        btn.classList.add('btn-teal');
+        toast('Bill uploaded for expense');
+    };
+    reader.readAsDataURL(file);
+}
+
+function getTradeExpenses() {
+    const rows = document.querySelectorAll('#tr-expenses-body tr');
+    const expenses = [];
+    rows.forEach(row => {
+        const selects = row.querySelectorAll('select');
+        const inputs = row.querySelectorAll('input');
+        const customType = row.querySelector('.exp-custom-type');
+        
+        let type = selects[0].value;
+        if (type === 'Other') type = customType.value || 'Other Expense';
+        
+        expenses.push({
+            type: type,
+            amount: parseFloat(inputs[1].value) || 0,
+            status: selects[1].value,
+            ref: inputs[2].value,
+            doc: row.dataset.doc || null
+        });
+    });
+    return expenses;
 }
 
 function removeExpenseRow(id) {
@@ -1509,29 +1578,15 @@ function updateTotalExpenses() {
     document.getElementById('tr-total-expenses').innerHTML = '&#x20B9; ' + total.toLocaleString('en-IN', {minimumFractionDigits:2});
     
     // Also trigger the main trade total update to show Landed Cost
-    calcTradeTotals();
-}
-
-function getTradeExpenses() {
-    const rows = document.querySelectorAll('#tr-expenses-body tr');
-    const expenses = [];
-    rows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
-        const select = row.querySelector('select');
-        expenses.push({
-            type: inputs[0].value,
-            amount: parseFloat(inputs[1].value) || 0,
-            status: select.value,
-            ref: inputs[2].value
-        });
-    });
-    return expenses;
+    if (typeof calcTradeTotals === 'function') calcTradeTotals();
 }
 
 function clearExpenses() {
-    document.getElementById('tr-expenses-body').innerHTML = '';
+    const body = document.getElementById('tr-expenses-body');
+    if (body) body.innerHTML = '';
     updateTotalExpenses();
 }
+
 
 function syncWeightToQty() {
     var netWeight = parseFloat(document.getElementById('tr-net-weight').value) || 0;
