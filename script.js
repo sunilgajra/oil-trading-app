@@ -945,7 +945,7 @@ function runDemoScan() {
     document.getElementById('tr-vessel').value = 'ZULFA 2';
     document.getElementById('tr-port-load').value = 'JEBEL ALI SEAPORT, DUBAI';
     document.getElementById('tr-port-dis').value = 'MUNDRA, INDIA';
-    document.getElementById('tr-dest-agent').value = 'EZ LINERS LLP';
+    document.getElementById('tr-agent').value = 'EZ LINERS LLP';
     document.getElementById('tr-hs-code').value = '38190090';
     document.getElementById('tr-net-weight').value = '589830.00';
     var cList = ['HCKU5703110', 'HLXU1663342', 'HMCU4118744', 'HMCU4171531', 'HMCU4171535', 'SSMU2202785', 'TCUU4141473', 'TCUU4478150', 'TCUU4481117', 'TCUU4481318', 'TCUU4534341', 'TCUU5234348', 'TCUU5534222', 'TGHU0903345', 'TGHU0941313', 'TRHU0492223', 'TRHU1703717', 'TRHU1712260', 'TRHU4532265', 'TRHU4622233', 'TXGU5133612', 'TXGU5443724'];
@@ -991,7 +991,7 @@ function editTrade(id) {
         document.getElementById('tr-ex-rate').value = t.ex_rate || '';
         document.getElementById('tr-imp-rate').value = t.imp_rate || '';
         document.getElementById('tr-imp-curr').value = t.currency || 'USD';
-        document.getElementById('tr-dest-agent').value = t.dest_agent || '';
+        document.getElementById('tr-agent').value = t.dest_agent || '';
         document.getElementById('tr-net-weight').value = t.net_weight || '';
         document.getElementById('tr-hs-code').value = t.hs_code || '';
         document.getElementById('tr-containers').value = t.containers || '';
@@ -1092,7 +1092,7 @@ function addTrade() {
             trade.imp_unit = document.getElementById('tr-unit').value;
             trade.total_for = document.getElementById('tr-total-for').value;
             trade.total_inr = document.getElementById('tr-total-inr-shared').value;
-            trade.dest_agent = document.getElementById('tr-dest-agent').value;
+            trade.dest_agent = document.getElementById('tr-agent').value;
             trade.net_weight = document.getElementById('tr-net-weight').value;
             trade.hs_code = document.getElementById('tr-hs-code').value;
             trade.containers = document.getElementById('tr-containers').value;
@@ -1116,7 +1116,7 @@ function addTrade() {
     document.getElementById('btn-scan-ai').style.display = 'none';
     var btn = document.querySelector('button[onclick="addTrade()"]');
     if (btn) { btn.innerHTML = '&#x1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
-    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-dest-agent','tr-net-weight','tr-hs-code','tr-containers'].forEach(function(id){
+    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-agent','tr-net-weight','tr-hs-code','tr-containers'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
     });
     document.getElementById('tr-party-select').value = '';
@@ -1845,7 +1845,7 @@ function getSupplierPayments() {
             amount_inr: parseFloat(inputs[1].value) || 0,
             ex_rate: parseFloat(inputs[2].value) || 0,
             bank_chg: parseFloat(inputs[3].value) || 0,
-            type: selects[0].value,
+            type: select.value,
             remarks: inputs[4].value
         });
     });
