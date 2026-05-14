@@ -135,8 +135,15 @@ async function saveState(){
                     updated_at: new Date() 
                 }, { onConflict: 'user_id' });
             
-            if (error) throw error;
-            console.log("Synced to Cloud");
+            if (error) {
+                if (error.code === 'PGRST116' || error.status === 404) {
+                    console.warn("Table 'murji_state' missing in Supabase. Please run the SQL setup.");
+                } else {
+                    throw error;
+                }
+            } else {
+                console.log("Synced to Cloud");
+            }
         }
     } catch(e) {
         console.error('Cloud Sync Error:', e);
@@ -753,6 +760,7 @@ function renderActiveOrders() {
 }
 
 function populateSelects() {
+    if (!state || !state.products) return;
     ['inv-product','tr-product','ord-product','ch-product'].forEach(function(id) {
         var el = document.getElementById(id);
         if (!el) return;
@@ -1642,17 +1650,7 @@ function renderTicker() {
 document.getElementById('tr-date').value = today();
 document.getElementById('ord-date').value = today();
 document.getElementById('ch-date').value = today();
-populateSelects();
-renderProductsList();
-renderTicker();
-renderDashboardKpis();
-renderInvLevels();
-renderRecentTrades();
-renderActiveOrders();
-renderInventoryTable();
-renderTradesTable();
-renderOrdersTable();
-renderChallansTable();
+// rendering is now handled by loadState() -> initApp()
 // --- LOGISTICS & EXPENSES LOGIC ---
 var currentTradeExpenses = [];
 
