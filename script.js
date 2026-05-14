@@ -2065,7 +2065,8 @@ function clearExpenses() {
 }
 
 // --- SHIPPING DOCUMENTS & PAYMENTS ---
-var currentShipDocs = {};
+var currentShipDocs = [];
+var currentTradeDocs = [];
 var activeShipDocItem = null;
 
 function uploadShipDoc(btn) {
@@ -2073,23 +2074,21 @@ function uploadShipDoc(btn) {
     document.getElementById('tr-ship-doc-upload').click();
 }
 
-function handleShipDocUpload(input) {
-    if (!input.files[0] || !activeShipDocItem) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const type = activeShipDocItem.dataset.type;
-        let finalType = type;
-        if (type === 'Bill of Lading') {
-            finalType = document.getElementById('tr-bl-type').value;
+async function handleShipDocUpload(input) {
+    const files = input.files;
+    if (!files || files.length === 0) return;
+    
+    toast("Uploading Shipping Docs...");
+    for (let f of files) {
+        try {
+            const url = await uploadFileToSupabase(f, 'shipping');
+            const type = activeShipDocItem ? activeShipDocItem.dataset.type : 'Other';
+            currentShipDocs.push({ name: f.name, url: url, type: type, date: today() });
+        } catch (e) {
+            toast("Failed to upload " + f.name, true);
         }
-        currentShipDocs[type] = {
-            data: e.target.result,
-            subType: finalType
-        };
-        activeShipDocItem.classList.add('active');
-        toast(finalType + ' Uploaded');
-    };
-    reader.readAsDataURL(input.files[0]);
+    }
+    renderShipDocs();
 }
 
 function updateShipDocType(select) {
@@ -2101,13 +2100,12 @@ function updateShipDocType(select) {
 function renderShipDocs() {
     const list = document.getElementById('tr-ship-docs-list');
     if (!list) return;
-    list.innerHTML = Object.keys(currentShipDocs).map(type => {
-        const doc = currentShipDocs[type];
+    list.innerHTML = currentShipDocs.map((doc, idx) => {
         return `
             <div class="ship-doc-badge">
-                <span>${type}</span>
-                <button onclick="openDocPreview('${doc.data || doc.url}', '${type} Preview')">&#x1F441;</button>
-                <button onclick="deleteShipDoc(this)" data-type="${type}" style="color:var(--red)">&#x2715;</button>
+                <span>${doc.type}: ${doc.name}</span>
+                <button onclick="openDocPreview('${doc.data || doc.url}', '${doc.name} Preview')">&#x1F441;</button>
+                <button onclick="currentShipDocs.splice(${idx},1); renderShipDocs()" style="color:var(--red)">&#x2715;</button>
             </div>
         `;
     }).join('');
@@ -2116,7 +2114,7 @@ function renderShipDocs() {
 function viewShipDoc(btn) {
     const item = btn.closest('.ship-doc-item');
     const type = item.dataset.type;
-    const docObj = currentShipDocs[type];
+    const docObj = currentShipDocs.find(d => d.type === type);
     if (!docObj) return;
     openDocPreview(docObj.data || docObj.url, type + ' Preview');
 }
@@ -2329,11 +2327,13 @@ function getSupplierPayments() {
 
 function clearSupplierData() {
     document.getElementById('tr-payments-body').innerHTML = '';
-    currentShipDocs = {};
+    currentShipDocs = [];
+    currentTradeDocs = [];
     document.querySelectorAll('.ship-doc-item').forEach(i => {
         i.classList.remove('active');
-        i.querySelector('button[onclick*="viewShipDoc"]').style.display = 'none';
     });
+    renderShipDocs();
+    renderTradeDocs();
     updatePaymentSummary();
 }
 
