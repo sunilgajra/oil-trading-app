@@ -1033,7 +1033,8 @@ function renderTradesTable() {
         var modeInfo = ' <small>(' + modeLabel + ')</small>';
         var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
         var unitSuffix = t.unit ? ' ' + t.unit : ' L';
-        var hasDocs = (t.docs && t.docs.length > 0) || (t.ship_docs && Object.keys(t.ship_docs).length > 0);
+        var hasShipDocs = t.ship_docs ? (Array.isArray(t.ship_docs) ? t.ship_docs.length > 0 : Object.keys(t.ship_docs).length > 0) : false;
+        var hasDocs = (t.docs && t.docs.length > 0) || hasShipDocs;
         var docBadge = hasDocs ? ' <span title="Documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
 
         return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
@@ -1345,19 +1346,18 @@ function editTrade(id) {
     // Load Ship Docs
     clearSupplierData();
     if (t.ship_docs) {
-        currentShipDocs = JSON.parse(JSON.stringify(t.ship_docs));
-        Object.keys(currentShipDocs).forEach(type => {
-            const item = document.querySelector(`.ship-doc-item[data-type="${type}"]`);
-            if (item) {
-                item.classList.add('active');
-                const vBtn = item.querySelector('.view-btn');
-                if (vBtn) vBtn.style.display = 'inline-block';
-                
-                if (type === 'Bill of Lading') {
-                    document.getElementById('tr-bl-type').value = currentShipDocs[type].subType;
-                }
-            }
-        });
+        if (Array.isArray(t.ship_docs)) {
+            currentShipDocs = JSON.parse(JSON.stringify(t.ship_docs));
+        } else {
+            // Convert legacy object to new array format
+            currentShipDocs = Object.keys(t.ship_docs).map(type => ({
+                type: type,
+                url: t.ship_docs[type].data || t.ship_docs[type].url,
+                name: type,
+                date: today()
+            }));
+        }
+        renderShipDocs();
     }
     
     // Load Payments
