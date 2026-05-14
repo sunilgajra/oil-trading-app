@@ -78,7 +78,19 @@ function loadState(){
   // 4. Clean up legacy densities map if it exists
   delete state.densities;
 }
-function saveState(){try{localStorage.setItem('murji_oil_v12',JSON.stringify(state));}catch(e){}}
+function saveState(){
+    try {
+        const json = JSON.stringify(state);
+        localStorage.setItem('murji_oil_v12', json);
+    } catch(e) {
+        console.error('SAVE ERROR:', e);
+        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+            alert('CRITICAL: Storage Limit Exceeded!\n\nYour uploaded documents are too large for the browser to save (Max 5MB). \n\nPlease use smaller PDF/Image files or remove old trades with large attachments to ensure your data is saved.');
+        } else {
+            toast('Failed to save data to browser storage', true);
+        }
+    }
+}
 loadState();
 
 var fmt=function(n){return'\u20B9'+Number(n).toLocaleString('en-IN',{maximumFractionDigits:2});};
@@ -699,7 +711,8 @@ function renderTradesTable() {
         var modeInfo = ' <small>(' + modeLabel + ')</small>';
         var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
         var unitSuffix = t.unit ? ' ' + t.unit : ' L';
-        var docBadge = (t.docs && t.docs.length > 0) ? ' <span title="'+t.docs.length+' documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
+        var hasDocs = (t.docs && t.docs.length > 0) || (t.ship_docs && Object.keys(t.ship_docs).length > 0);
+        var docBadge = hasDocs ? ' <span title="Documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
 
         return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
     }).join('');
@@ -1015,6 +1028,9 @@ function editTrade(id) {
             const item = document.querySelector(`.ship-doc-item[data-type="${type}"]`);
             if (item) {
                 item.classList.add('active');
+                const vBtn = item.querySelector('.view-btn');
+                if (vBtn) vBtn.style.display = 'inline-block';
+                
                 if (type === 'Bill of Lading') {
                     document.getElementById('tr-bl-type').value = currentShipDocs[type].subType;
                 }
