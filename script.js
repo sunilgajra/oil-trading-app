@@ -2695,9 +2695,20 @@ async function initializeStorage(isManual = false) {
             fileSizeLimit: 5242880, // 5MB
             allowedMimeTypes: ['image/jpeg', 'image/png', 'application/pdf']
         });
+        
+        if (error) {
+            console.warn("Storage Init Note:", error.message);
+            if (isManual && !error.message.includes('already exists')) {
+                toast("Note: Storage bucket must be created in Supabase Dashboard if auto-init fails.", true);
+            } else if (isManual && error.message.includes('already exists')) {
+                toast("Storage Already Active");
+            }
+            return;
+        }
+        if (isManual) toast("Cloud Storage Ready!");
     } catch (e) {
-        console.warn("Storage Init Error:", e.message);
-        toast("Note: Storage bucket must be created in Supabase Dashboard if auto-init fails.", true);
+        console.error("Storage Init Error:", e.message);
+        if (isManual) toast("Note: Storage bucket must be created in Supabase Dashboard if auto-init fails.", true);
     }
 }
 
