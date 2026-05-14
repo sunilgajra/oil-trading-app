@@ -504,6 +504,7 @@
             
             <button class="btn btn-gold" onclick="saveApiKey()" style="width:100%; margin-top:10px; font-weight:bold;">SAVE CONFIGURATION</button>
             <button class="btn btn-sm btn-ghost" onclick="forceCloudResync()" style="width:100%; margin-top:15px; color:var(--red); border:1px solid var(--red); font-size:11px;">⚠️ FORCE CLOUD RESYNC (FIX MISSING DATA)</button>
+            <button class="btn btn-sm btn-ghost" onclick="inspectCloudData()" style="width:100%; margin-top:5px; color:var(--teal); border:1px solid var(--teal); font-size:11px;">🔍 INSPECT CLOUD DATA (DIAGNOSTIC)</button>
         </div>
 
         <div class="card" style="padding:30px; background:var(--surface); border:1px solid var(--border); margin-top:30px;">
@@ -518,8 +519,9 @@
                 <h4 style="margin:0 0 10px 0; font-size:14px;">Add New Storage Unit</h4>
                 <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:10px;">
                     <div class="form-group"><label>Unit Name</label><input id="new-tank-name" placeholder="e.g. Tank 4"></div>
-                    <div class="form-group"><label>Capacity (L)</label><input id="new-tank-cap" type="number" placeholder="50000"></div>
-                    <div class="form-group" style="grid-column: span 2;"><label>Location / Yard</label><input id="new-tank-loc" placeholder="e.g. Yard C"></div>
+                    <div class="form-group"><label>Location / Yard</label><input id="new-tank-loc" placeholder="e.g. Yard C"></div>
+                    <div class="form-group"><label>Cap (Liters)</label><input id="new-tank-cap" type="number" placeholder="50000"></div>
+                    <div class="form-group"><label>Cap (MT)</label><input id="new-tank-cap-mt" type="number" placeholder="42.5"></div>
                 </div>
                 <button class="btn btn-sm btn-gold" onclick="addTank()" style="width:100%; margin-top:15px;">+ Create Unit</button>
             </div>

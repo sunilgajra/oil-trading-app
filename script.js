@@ -50,8 +50,13 @@ async function loadState(){
         .maybeSingle();
       
       if (data && data.state_data) {
-        state = data.state_data;
-        console.log("Loaded from Cloud");
+        // Only accept cloud state if it actually contains data
+        if (data.state_data.trades && data.state_data.trades.length > 0) {
+            state = data.state_data;
+            console.log("Loaded from Cloud (" + state.trades.length + " trades)");
+        } else {
+            console.warn("Cloud data empty or invalid, keeping local.");
+        }
       }
     }
   } catch (e) {
@@ -122,6 +127,14 @@ async function saveState(force = false){
 
     // Save to Local (Immediate Cache)
     try {
+        // SAFETY LOCK: Do not save if state is empty/default while a user is potentially logged in
+        if (!state.trades || state.trades.length === 0) {
+            const { data: auth } = await supabaseClient.auth.getSession();
+            if (auth && auth.session) {
+                console.warn("Safety Lock: Refusing to save empty state over cloud data.");
+                return;
+            }
+        }
         localStorage.setItem('murji_oil_v12', JSON.stringify(state));
     } catch(e) {
         const { data: auth } = await supabaseClient.auth.getSession();
@@ -2410,18 +2423,22 @@ async function downloadAllHssDocs() {
 function renderTankManager() {
     const list = document.getElementById('tank-manager-list');
     if (!list || !state) return;
-    list.innerHTML = (state.tanks || []).map(t => `
-        <div class="product-tag" style="padding:12px; display:flex; justify-content:space-between; align-items:center; background:var(--surface2); border:1px solid var(--border); border-radius:8px; margin-bottom:10px;">
-            <div style="flex:1">
-                <input type="text" value="${t.name}" onchange="updateTankField('${t.id}', 'name', this.value)" style="background:transparent; border:none; color:var(--gold2); font-weight:bold; font-size:14px; width:100%; margin-bottom:4px;">
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <div style="font-size:11px; color:var(--muted);">Cap (L): <input type="number" value="${t.capacity}" onchange="updateTankField('${t.id}', 'capacity', this.value)" style="width:70px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;"></div>
-                    <div style="font-size:11px; color:var(--muted);">Loc: <input type="text" value="${t.location}" onchange="updateTankField('${t.id}', 'location', this.value)" style="width:80px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;"></div>
+    list.innerHTML = (state.tanks || []).map(t => {
+        // Estimate MT for display (using 0.850 if empty)
+        const estMT = (t.capacity * 0.850) / 1000;
+        return `
+            <div class="product-tag" style="padding:12px; display:flex; justify-content:space-between; align-items:center; background:var(--surface2); border:1px solid var(--border); border-radius:8px; margin-bottom:10px;">
+                <div style="flex:1">
+                    <input type="text" value="${t.name}" onchange="updateTankField('${t.id}', 'name', this.value)" style="background:transparent; border:none; color:var(--gold2); font-weight:bold; font-size:14px; width:100%; margin-bottom:4px;">
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <div style="font-size:11px; color:var(--muted);">Cap: <b>${fmtN(t.capacity)} L</b> / <b>${estMT.toFixed(1)} MT</b></div>
+                        <div style="font-size:11px; color:var(--muted);">Loc: <input type="text" value="${t.location}" onchange="updateTankField('${t.id}', 'location', this.value)" style="width:80px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;"></div>
+                    </div>
                 </div>
+                <button class="btn btn-sm btn-danger" onclick="deleteTank('${t.id}')">&#x2715;</button>
             </div>
-            <button class="btn btn-sm btn-danger" onclick="deleteTank('${t.id}')">&#x2715;</button>
-        </div>
-    `).join('');
+        `;
+    }).join('');
     
     // Update dropdowns elsewhere
     const locSelect = document.getElementById('tr-storage-loc');
@@ -2448,16 +2465,23 @@ function updateTankField(id, field, value) {
 function addTank() {
     if (!state.tanks) state.tanks = [];
     const name = document.getElementById('new-tank-name').value;
-    const cap = parseFloat(document.getElementById('new-tank-cap').value);
+    let cap = parseFloat(document.getElementById('new-tank-cap').value);
+    const capMT = parseFloat(document.getElementById('new-tank-cap-mt').value);
     const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
     
-    if (!name || !cap) return toast('Enter name and capacity', true);
+    // If user entered MT, convert to L (using standard 0.850 for storage estimation)
+    if (capMT && !cap) {
+        cap = (capMT * 1000) / 0.850;
+    }
+
+    if (!name || !cap) return toast('Enter name and capacity (L or MT)', true);
     
     const id = 'T' + (state.tanks.length + 1);
     state.tanks.push({ id, name, capacity: cap, type: 'Static', location: loc });
     
     document.getElementById('new-tank-name').value = '';
     document.getElementById('new-tank-cap').value = '';
+    document.getElementById('new-tank-cap-mt').value = '';
     
     saveState();
     renderTankManager();
