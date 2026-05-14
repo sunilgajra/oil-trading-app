@@ -985,7 +985,7 @@ function editTrade(id) {
         document.getElementById('tr-hs-code').value = t.hs_code || '';
         document.getElementById('tr-containers').value = t.containers || '';
         calcImportTotal();
-    } else if (mode === 'hs_sale') {
+    } else if (t.mode === 'hs_sale') {
         document.getElementById('tr-link-purchase').value = t.link_purchase_id || '';
         document.getElementById('tr-imp-rate').value = t.price;
     }
@@ -1662,6 +1662,12 @@ function updateTotalExpenses() {
     if (typeof calcTradeTotals === 'function') calcTradeTotals();
 }
 
+function clearExpenses() {
+    const tbody = document.getElementById('tr-expenses-body');
+    if (tbody) tbody.innerHTML = '';
+    updateTotalExpenses();
+}
+
 // --- SHIPPING DOCUMENTS & PAYMENTS ---
 var currentShipDocs = {};
 var activeShipDocItem = null;
@@ -1725,10 +1731,32 @@ function openDocPreview(data, title) {
     }
     
     titleEl.textContent = title || 'Document Preview';
+    
+    // Revoke any existing blob URL to free memory
+    if (container.dataset.previewUrl) {
+        URL.revokeObjectURL(container.dataset.previewUrl);
+        delete container.dataset.previewUrl;
+    }
+    
     container.innerHTML = '';
     
     if (data.startsWith('data:application/pdf')) {
-        container.innerHTML = `<iframe src="${data}" frameborder="0" style="width:100%; height:100%; border:none;"></iframe>`;
+        try {
+            // Use Blob URL instead of Data URI for better compatibility and performance
+            const blob = dataUriToBlob(data);
+            const url = URL.createObjectURL(blob);
+            container.dataset.previewUrl = url;
+            
+            const iframe = document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.src = url;
+            container.appendChild(iframe);
+        } catch (e) {
+            console.error("PDF Preview Error:", e);
+            container.innerHTML = '<div style="padding:20px; color:var(--red);">Failed to render PDF. Please try downloading it instead.</div>';
+        }
     } else {
         container.innerHTML = `<div style="width:100%; height:100%; overflow:auto; display:flex; justify-content:center; align-items:center; background:#111;">
             <img src="${data}" style="max-width:100%; max-height:100%; object-fit:contain; box-shadow:0 0 20px rgba(0,0,0,0.5);">
@@ -1738,12 +1766,29 @@ function openDocPreview(data, title) {
     modal.classList.add('show');
 }
 
+function dataUriToBlob(dataURI) {
+    const byteString = atob(dataURI.split(',')[1]);
+    const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], {type: mimeString});
+}
+
 function closeDocPreview() {
     const modal = document.getElementById('docPreviewModal');
     if (modal) modal.classList.remove('show');
+    
+    const container = document.getElementById('docPreviewContainer');
     // Clear container to stop any playing media/iframes
     setTimeout(() => {
-        document.getElementById('docPreviewContainer').innerHTML = '';
+        if (container.dataset.previewUrl) {
+            URL.revokeObjectURL(container.dataset.previewUrl);
+            delete container.dataset.previewUrl;
+        }
+        container.innerHTML = '';
     }, 300);
 }
 
