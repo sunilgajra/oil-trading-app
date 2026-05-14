@@ -102,7 +102,17 @@ function runMigrations() {
     });
   }
 
-  // 4. Clean up legacy densities map if it exists
+  // 4. Ensure Tank & Yard structures exist for legacy users
+  if (!state.tanks) {
+    state.tanks = [
+      {id:'T1', name:'Main Tank 1', capacity: 100000, type: 'Static', location: 'Yard A'},
+      {id:'T2', name:'Main Tank 2', capacity: 100000, type: 'Static', location: 'Yard A'},
+      {id:'T3', name:'Service Tank', capacity: 20000, type: 'Static', location: 'Yard B'}
+    ];
+  }
+  if (!state.inventory) state.inventory = [];
+
+  // 5. Clean up legacy densities map if it exists
   delete state.densities;
 }
 
@@ -189,11 +199,14 @@ function initApp() {
 
 function renderYardDashboard() {
     const yardGrid = document.getElementById('yard-grid');
-    if (!yardGrid) return;
+    if (!yardGrid || !state) return;
     
     let html = '';
-    state.tanks.forEach(tank => {
-        const batches = state.inventory.filter(i => i.location === tank.id);
+    const tanks = state.tanks || [];
+    const inventory = state.inventory || [];
+
+    tanks.forEach(tank => {
+        const batches = inventory.filter(i => i.location === tank.id);
         const totalVol = batches.reduce((sum, b) => sum + b.vol, 0);
         const totalKg = batches.reduce((sum, b) => sum + b.weight_kg, 0);
         const p = Math.min(100, (totalVol / tank.capacity) * 100);
@@ -225,7 +238,7 @@ function renderYardDashboard() {
     });
 
     // Add Containers Currently in Yard
-    const yardContainers = state.inventory.filter(i => !state.tanks.find(t => t.id === i.location));
+    const yardContainers = inventory.filter(i => !tanks.find(t => t.id === i.location));
     yardContainers.forEach(cont => {
          html += `
             <div class="tank-card" style="background:rgba(20, 184, 166, 0.05); border:1px solid var(--teal); padding:15px; border-radius:12px; border-style:dashed;">
