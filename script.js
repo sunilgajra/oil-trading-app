@@ -2125,50 +2125,30 @@ function openDocPreview(data, title) {
     const titleEl = document.getElementById('previewDocTitle');
     
     if (!modal || !container) {
-        // Fallback if modal elements missing
-        const win = window.open();
-        if (data.startsWith('data:application/pdf')) {
-            win.document.write('<html><body style="margin:0"><iframe src="' + data + '" frameborder="0" style="border:0; width:100%; height:100%;"></iframe></body></html>');
-        } else {
-            win.document.write('<html><body style="margin:0"><img src="' + data + '" style="max-width:100%; height:auto;"></body></html>');
-        }
-        win.document.close();
+        window.open(data, "_blank");
         return;
     }
     
     titleEl.textContent = title || 'Document Preview';
-    
-    // Revoke any existing blob URL to free memory
-    if (container.dataset.previewUrl) {
-        URL.revokeObjectURL(container.dataset.previewUrl);
-        delete container.dataset.previewUrl;
-    }
-    
+    if (container.dataset.previewUrl) URL.revokeObjectURL(container.dataset.previewUrl);
     container.innerHTML = '';
     
-    if (data.startsWith('data:application/pdf')) {
-        try {
-            // Use Blob URL instead of Data URI for better compatibility and performance
+    const isPdf = data.startsWith('data:application/pdf') || (typeof data === 'string' && data.toLowerCase().endsWith('.pdf'));
+    const isUrl = typeof data === 'string' && data.startsWith('http');
+
+    if (isPdf) {
+        let url = data;
+        if (data.startsWith('data:')) {
             const blob = dataUriToBlob(data);
-            const url = URL.createObjectURL(blob);
+            url = URL.createObjectURL(blob);
             container.dataset.previewUrl = url;
-            
-            const iframe = document.createElement('iframe');
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
-            iframe.style.border = 'none';
-            iframe.src = url;
-            container.appendChild(iframe);
-        } catch (e) {
-            console.error("PDF Preview Error:", e);
-            container.innerHTML = '<div style="padding:20px; color:var(--red);">Failed to render PDF. Please try downloading it instead.</div>';
         }
+        container.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none;"></iframe>`;
     } else {
         container.innerHTML = `<div style="width:100%; height:100%; overflow:auto; display:flex; justify-content:center; align-items:center; background:#111;">
-            <img src="${data}" style="max-width:100%; max-height:100%; object-fit:contain; box-shadow:0 0 20px rgba(0,0,0,0.5);">
+            <img src="${data}" style="max-width:100%; max-height:100%; object-fit:contain;">
         </div>`;
     }
-    
     modal.classList.add('show');
 }
 
