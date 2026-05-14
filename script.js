@@ -2568,12 +2568,3 @@ async function deepRecoveryScan() {
         alert("Deep Scan Complete: No additional backups found in this browser. Please ensure you are logged into the correct Cloud account.");
     }
 }
-}
-nt = data.state_data.tanks ? data.state_data.tanks.length : 0;
-        
-        alert(`CLOUD DATABASE CHECK:\n\n✅ Data Found!\n- Total Trades: ${tradeCount}\n- Storage Tanks: ${tankCount}\n- Products: ${data.state_data.products.length}\n\nIf you see your trades here, your data is SAFE. Click 'FORCE CLOUD RESYNC' to restore them to your screen.`);
-    } catch (e) {
-        console.error(e);
-        alert("Error connecting to cloud: " + e.message);
-    }
-}
