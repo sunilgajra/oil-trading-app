@@ -2534,3 +2534,46 @@ async function inspectCloudData() {
         alert("Error connecting to cloud: " + e.message);
     }
 }
+
+async function deepRecoveryScan() {
+    toast("Starting Deep Recovery Scan...");
+    const keys = Object.keys(localStorage);
+    let foundData = null;
+    let foundKey = null;
+
+    // Search for any key that looks like our data
+    for (let key of keys) {
+        try {
+            const val = localStorage.getItem(key);
+            if (val && (val.includes('"trades"') || val.includes('"products"'))) {
+                const parsed = JSON.parse(val);
+                if (parsed.trades && parsed.trades.length > 0) {
+                    if (!foundData || parsed.trades.length > foundData.trades.length) {
+                        foundData = parsed;
+                        foundKey = key;
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    if (foundData) {
+        if (confirm(`SUCCESS! Found ${foundData.trades.length} trades in backup key: [${foundKey}].\n\nWould you like to RESTORE this data now?`)) {
+            state = foundData;
+            saveState(true);
+            initApp();
+            toast("Data Restored Successfully!");
+        }
+    } else {
+        alert("Deep Scan Complete: No additional backups found in this browser. Please ensure you are logged into the correct Cloud account.");
+    }
+}
+}
+nt = data.state_data.tanks ? data.state_data.tanks.length : 0;
+        
+        alert(`CLOUD DATABASE CHECK:\n\n✅ Data Found!\n- Total Trades: ${tradeCount}\n- Storage Tanks: ${tankCount}\n- Products: ${data.state_data.products.length}\n\nIf you see your trades here, your data is SAFE. Click 'FORCE CLOUD RESYNC' to restore them to your screen.`);
+    } catch (e) {
+        console.error(e);
+        alert("Error connecting to cloud: " + e.message);
+    }
+}
