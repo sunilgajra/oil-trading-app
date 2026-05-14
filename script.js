@@ -111,12 +111,19 @@ function runMigrations() {
   delete state.densities;
 }
 
+var isTableMissing = false;
 async function saveState(){
+    if (isTableMissing) return;
+    const syncBadge = document.getElementById('sync-status-badge');
+    if (syncBadge) {
+        syncBadge.textContent = 'SYNCING...';
+        syncBadge.style.color = 'var(--gold2)';
+    }
+
     // Save to Local (Immediate Cache)
     try {
         localStorage.setItem('murji_oil_v12', JSON.stringify(state));
     } catch(e) {
-        // Only alert if NOT logged in, because Cloud Sync handles the storage limit
         const { data: auth } = await supabaseClient.auth.getSession();
         if (!auth.session && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
             alert('CRITICAL: Storage Limit Exceeded!\n\nYour uploaded documents are too large for the browser to save (Max 5MB).\n\nPlease LOGIN to Cloud to use unlimited storage.');
@@ -136,17 +143,34 @@ async function saveState(){
                 }, { onConflict: 'user_id' });
             
             if (error) {
-                if (error.code === 'PGRST116' || error.status === 404) {
-                    console.warn("Table 'murji_state' missing in Supabase. Please run the SQL setup.");
+                if (error.code === 'PGRST116' || error.code === 'PGRST205' || error.status === 404) {
+                    console.warn("Table 'murji_state' missing. Cloud sync disabled.");
+                    isTableMissing = true;
+                    if (syncBadge) {
+                        syncBadge.textContent = 'DB SETUP REQUIRED';
+                        syncBadge.parentElement.style.borderColor = 'var(--red)';
+                        syncBadge.style.color = 'var(--red)';
+                    }
                 } else {
+                    toast('Cloud Sync Failed: ' + error.message, true);
+                    if (syncBadge) syncBadge.textContent = 'SYNC ERROR';
                     throw error;
                 }
             } else {
                 console.log("Synced to Cloud");
+                isTableMissing = false;
+                if (syncBadge) {
+                    syncBadge.textContent = 'CLOUD SYNCED';
+                    syncBadge.style.color = 'var(--teal)';
+                    syncBadge.parentElement.style.borderColor = 'var(--teal)';
+                }
             }
+        } else {
+            if (syncBadge) syncBadge.textContent = 'LOCAL ONLY';
         }
     } catch(e) {
         console.error('Cloud Sync Error:', e);
+        if (syncBadge) syncBadge.textContent = 'SYNC ERROR';
     }
 }
 
