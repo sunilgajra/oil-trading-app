@@ -184,6 +184,7 @@ function initApp() {
     renderOrdersTable();
     renderChallansTable();
     renderYardDashboard();
+    renderTankManager();
 }
 
 function renderYardDashboard() {
