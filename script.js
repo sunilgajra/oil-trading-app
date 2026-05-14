@@ -1985,24 +1985,28 @@ function uploadExpenseDoc(rowId) {
     document.getElementById('file-' + rowId).click();
 }
 
-function handleExpenseFileUpload(rowId, input) {
+async function handleExpenseFileUpload(rowId, input) {
     const file = input.files[0];
     if (!file) return;
     
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const row = document.getElementById(rowId);
-        row.dataset.doc = e.target.result; // Store base64
-        
+    try {
         const uploadBtn = document.getElementById('btn-upload-' + rowId);
+        uploadBtn.innerHTML = '...';
+        
+        const url = await uploadFileToSupabase(file, 'expenses');
+        const row = document.getElementById(rowId);
+        row.dataset.doc = url;
+        
+        uploadBtn.innerHTML = '&#x1F4CE;';
         uploadBtn.classList.add('btn-teal');
         
         const viewBtn = document.getElementById('btn-view-' + rowId);
         viewBtn.style.display = 'inline-block';
         
-        toast('Bill uploaded successfully');
-    };
-    reader.readAsDataURL(file);
+        toast('Bill uploaded to Cloud');
+    } catch (e) {
+        toast("Upload Failed: " + e.message, true);
+    }
 }
 
 function viewExpenseDoc(rowId) {
