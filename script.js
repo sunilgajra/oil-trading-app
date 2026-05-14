@@ -112,7 +112,8 @@ function runMigrations() {
 }
 
 var isTableMissing = false;
-async function saveState(){
+async function saveState(force = false){
+    if (force) isTableMissing = false;
     if (isTableMissing) return;
     const syncBadge = document.getElementById('sync-status-badge');
     if (syncBadge) {
