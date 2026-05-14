@@ -506,6 +506,12 @@
             <button class="btn btn-sm btn-ghost" onclick="forceCloudResync()" style="width:100%; margin-top:15px; color:var(--red); border:1px solid var(--red); font-size:11px;">⚠️ FORCE CLOUD RESYNC (FIX MISSING DATA)</button>
             <button class="btn btn-sm btn-ghost" onclick="inspectCloudData()" style="width:100%; margin-top:5px; color:var(--teal); border:1px solid var(--teal); font-size:11px;">🔍 INSPECT CLOUD DATA (DIAGNOSTIC)</button>
             <button class="btn btn-sm btn-ghost" onclick="deepRecoveryScan()" style="width:100%; margin-top:5px; background:rgba(234, 179, 8, 0.1); color:var(--gold2); border:1px solid var(--gold2); font-size:11px;">🚀 DEEP RECOVERY SCAN (SEARCH BROWSER BACKUPS)</button>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px;">
+                <button class="btn btn-sm btn-primary" onclick="exportStateToFile()" style="font-size:10px;">📥 EXPORT BACKUP</button>
+                <button class="btn btn-sm btn-ghost" onclick="document.getElementById('import-file').click()" style="font-size:10px; border:1px solid var(--border);">📤 IMPORT BACKUP</button>
+            </div>
+            <button class="btn btn-sm btn-gold" onclick="initializeStorage()" style="width:100%; margin-top:10px; font-weight:bold; font-size:11px;">🛠️ INITIALIZE CLOUD STORAGE</button>
+            <input type="file" id="import-file" style="display:none" onchange="importStateFromFile(this)">
         </div>
 
         <div class="card" style="padding:30px; background:var(--surface); border:1px solid var(--border); margin-top:30px;">

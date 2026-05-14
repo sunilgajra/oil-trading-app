@@ -34,7 +34,15 @@ async function loadState(){
   // Initialize state with default or local first
   try {
     var s = localStorage.getItem('murji_oil_v12');
-    state = s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEF_S));
+    var backup = localStorage.getItem('murji_oil_backup_mirror');
+    
+    state = s ? JSON.parse(s) : (backup ? JSON.parse(backup) : JSON.parse(JSON.stringify(DEF_S)));
+    
+    // If primary was empty but backup exists, recover automatically
+    if (s && JSON.parse(s).trades.length === 0 && backup && JSON.parse(backup).trades.length > 0) {
+        state = JSON.parse(backup);
+        console.log("RECOVERY: Restored from Safety Mirror.");
+    }
   } catch(e) {
     state = JSON.parse(JSON.stringify(DEF_S));
   }
@@ -127,18 +135,15 @@ async function saveState(force = false){
         syncBadge.textContent = 'SYNCING...';
         syncBadge.style.color = 'var(--gold2)';
     }
-
-    // Save to Local (Immediate Cache)
     try {
-        // SAFETY LOCK: Do not save if state is empty/default while a user is potentially logged in
-        if (!state.trades || state.trades.length === 0) {
-            const { data: auth } = await supabaseClient.auth.getSession();
-            if (auth && auth.session) {
-                console.warn("Safety Lock: Refusing to save empty state over cloud data.");
-                return;
-            }
-        }
+        // 1. Save to Primary Local (Immediate Cache)
         localStorage.setItem('murji_oil_v12', JSON.stringify(state));
+        
+        // 2. SAFETY MIRROR: Save to a secondary key as a hard backup
+        // Only mirror if we actually have data to protect
+        if (state.trades && state.trades.length > 5) {
+            localStorage.setItem('murji_oil_backup_mirror', JSON.stringify(state));
+        }
     } catch(e) {
         const { data: auth } = await supabaseClient.auth.getSession();
         if (!auth.session && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
@@ -150,6 +155,13 @@ async function saveState(force = false){
     try {
         const { data: auth } = await supabaseClient.auth.getSession();
         if (auth && auth.session) {
+            // SYNC GUARD: Check data size (Supabase limit is ~6MB per row)
+            const stateSize = JSON.stringify(state).length;
+            if (stateSize > 5000000) { // 5MB Warning
+                console.error("DATA TOO LARGE: " + (stateSize/1024/1024).toFixed(2) + "MB. Cloud sync might fail.");
+                toast("⚠️ DATA TOO LARGE! Remove old document photos to ensure cloud safety.", true);
+            }
+
             const { error } = await supabaseClient
                 .from('murji_state')
                 .upsert({ 
@@ -347,6 +359,7 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
     updateAuthState(session);
     if (event === 'SIGNED_IN') {
         loadState();
+        initializeStorage();
     } else if (event === 'SIGNED_OUT') {
         state = JSON.parse(JSON.stringify(DEF_S));
         initApp();
@@ -597,15 +610,50 @@ function shareWhatsApp(id) {
 }
 
 /* ═══════ CORE UI LOGIC ═══════ */
-function handlePhotoUpload(input, pid) {
+async function handlePhotoUpload(input, pid) {
     var f = input.files[0];
     if (!f) return;
-    var r = new FileReader();
-    r.onload = function(e) {
-        input.dataset.base64 = e.target.result;
-        document.getElementById(pid).innerHTML = '<img src="' + e.target.result + '" class="photo-thumb" onclick="showImage(this.src)" alt="Slip">';
-    };
-    r.readAsDataURL(f);
+    try {
+        document.getElementById(pid).innerHTML = '<small style="color:var(--gold2)">Uploading...</small>';
+        const url = await uploadFileToSupabase(f, 'slips');
+        input.dataset.url = url;
+        document.getElementById(pid).innerHTML = '<img src="' + url + '" class="photo-thumb" onclick="showImage(this.src)" alt="Slip">';
+    } catch (e) {
+        toast("Upload Failed: " + e.message, true);
+        document.getElementById(pid).innerHTML = '<small style="color:var(--red)">Failed</small>';
+    }
+}
+
+async function handleShipDocUpload(input) {
+    const files = input.files;
+    if (!files || files.length === 0) return;
+    
+    toast("Uploading Shipping Docs...");
+    for (let f of files) {
+        try {
+            const url = await uploadFileToSupabase(f, 'shipping');
+            currentShipDocs.push({ name: f.name, url: url, date: today() });
+        } catch (e) {
+            toast("Failed to upload " + f.name, true);
+        }
+    }
+    renderShipDocs();
+}
+
+async function uploadTradeDoc(input) {
+    const files = input.files;
+    if (!files || files.length === 0) return;
+    
+    toast("Uploading Trade Docs...");
+    for (let f of files) {
+        try {
+            const url = await uploadFileToSupabase(f, 'trades');
+            currentTradeDocs.push({ name: f.name, url: url, date: today() });
+        } catch (e) {
+            toast("Failed to upload " + f.name, true);
+        }
+    }
+    renderTradeDocs();
 }
 function showImage(src) {
     document.getElementById('lightboxImg').src = src;
@@ -1462,6 +1510,16 @@ function addTrade() {
     clearSupplierData();
     toggleTradeDetailFields();
 }
+function renderTradeDocs() {
+    const list = document.getElementById('tr-docs-list');
+    if (!list) return;
+    list.innerHTML = currentTradeDocs.map((doc, idx) => `
+        <div class="doc-badge">
+            <span onclick="openDocPreview('${doc.data || doc.url}', '${doc.name}')">${doc.name}</span>
+            <button onclick="currentTradeDocs.splice(${idx},1); renderTradeDocs()">&#x2715;</button>
+        </div>
+    `).join('');
+}
 
 function renderOrdersTable() {
     document.getElementById('ordersTable').innerHTML = state.orders.slice().reverse().map(function(o) {
@@ -2040,15 +2098,27 @@ function updateShipDocType(select) {
     }
 }
 
+function renderShipDocs() {
+    const list = document.getElementById('tr-ship-docs-list');
+    if (!list) return;
+    list.innerHTML = Object.keys(currentShipDocs).map(type => {
+        const doc = currentShipDocs[type];
+        return `
+            <div class="ship-doc-badge">
+                <span>${type}</span>
+                <button onclick="openDocPreview('${doc.data || doc.url}', '${type} Preview')">&#x1F441;</button>
+                <button onclick="deleteShipDoc(this)" data-type="${type}" style="color:var(--red)">&#x2715;</button>
+            </div>
+        `;
+    }).join('');
+}
+
 function viewShipDoc(btn) {
     const item = btn.closest('.ship-doc-item');
-    const docObj = currentShipDocs[item.dataset.type];
-    if (!docObj) return;
-    const data = docObj.data;
     const type = item.dataset.type;
-    const finalType = docObj.subType || type;
-    
-    openDocPreview(data, finalType + ' Preview');
+    const docObj = currentShipDocs[type];
+    if (!docObj) return;
+    openDocPreview(docObj.data || docObj.url, type + ' Preview');
 }
 
 function openDocPreview(data, title) {
@@ -2612,4 +2682,80 @@ async function deepRecoveryScan() {
     } else {
         alert("Deep Scan Complete: No additional backups found in this browser. Please ensure you are logged into the correct Cloud account.");
     }
+}
+
+/* ═══════ STORAGE & BACKUP ═══════ */
+async function initializeStorage() {
+    try {
+        toast("Initializing Cloud Storage...");
+        const { data, error } = await supabaseClient.storage.createBucket('murji_docs', {
+            public: true,
+            fileSizeLimit: 5242880, // 5MB
+            allowedMimeTypes: ['image/jpeg', 'image/png', 'application/pdf']
+        });
+        if (error) {
+            if (error.message.includes('already exists')) toast("Storage already active");
+            else throw error;
+        } else {
+            toast("Cloud Storage Bucket Created!");
+        }
+    } catch (e) {
+        console.warn("Storage Init Error:", e.message);
+        toast("Note: Storage bucket must be created in Supabase Dashboard if auto-init fails.", true);
+    }
+}
+
+async function uploadFileToSupabase(file, path) {
+    const { data: auth } = await supabaseClient.auth.getSession();
+    if (!auth.session) throw new Error("Please Login to upload documents.");
+    
+    const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+    const fullPath = `${auth.session.user.id}/${path}/${fileName}`;
+    
+    const { data, error } = await supabaseClient.storage
+        .from('murji_docs')
+        .upload(fullPath, file);
+        
+    if (error) throw error;
+    
+    const { data: urlData } = supabaseClient.storage
+        .from('murji_docs')
+        .getPublicUrl(fullPath);
+        
+    return urlData.publicUrl;
+}
+
+function exportStateToFile() {
+    const dataStr = JSON.stringify(state, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Murji_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast("Database Exported to Downloads");
+}
+
+function importStateFromFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const imported = JSON.parse(e.target.result);
+            if (!imported.trades) throw new Error("Invalid backup file format.");
+            if (confirm(`Restore ${imported.trades.length} trades from backup? This will overwrite current data.`)) {
+                state = imported;
+                saveState(true);
+                initApp();
+                toast("Database Restored Successfully!");
+            }
+        } catch (err) {
+            alert("Error importing file: " + err.message);
+        }
+    };
+    reader.readAsText(file);
 }
