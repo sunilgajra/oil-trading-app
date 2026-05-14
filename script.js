@@ -199,10 +199,29 @@ async function handleLogin() {
     if (!email || !password) return toast('Enter credentials', true);
     
     try {
-        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) {
+            if (error.message.includes("Email not confirmed")) {
+                return toast('Please confirm your email or turn off "Confirm Email" in Supabase settings.', true);
+            }
+            throw error;
+        }
         closeLoginModal();
         toast('Logged in successfully');
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+async function handleSignUp() {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return toast('Enter email & password to sign up', true);
+    
+    try {
+        const { error } = await supabaseClient.auth.signUp({ email, password });
+        if (error) throw error;
+        toast('Sign up successful! Check your email if confirmation is required.');
     } catch (e) {
         toast(e.message, true);
     }
