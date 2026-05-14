@@ -1103,6 +1103,8 @@ async function scanTradeDocWithAI() {
 
     try {
         var doc = currentTradeDocs[0];
+        if (!doc) return toast("No document found to scan", true);
+        
         document.getElementById('tr-mode').value = 'import';
         toggleTradeDetailFields();
 
