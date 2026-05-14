@@ -745,18 +745,7 @@ function renameTradeDoc(idx, newName) {
 }
 function previewDoc(idx) {
     var d = currentTradeDocs[idx];
-    document.getElementById('previewDocTitle').textContent = 'Preview: ' + d.name;
-    var container = document.getElementById('docPreviewContainer');
-    if (d.type === 'application/pdf') {
-        container.innerHTML = '<iframe src="'+d.data+'" style="width:100%; height:100%; border:none; background:#fff;"></iframe>';
-    } else {
-        container.innerHTML = '<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#f0f0f0;"><img src="'+d.data+'" style="max-width:100%; max-height:100%; shadow:0 4px 20px rgba(0,0,0,0.3);"></div>';
-    }
-    document.getElementById('docPreviewModal').classList.add('show');
-}
-function closeDocPreview() {
-    document.getElementById('docPreviewModal').classList.remove('show');
-    document.getElementById('docPreviewContainer').innerHTML = '';
+    openDocPreview(d.data, 'Preview: ' + d.name);
 }
 function removeTradeDoc(idx) {
     currentTradeDocs.splice(idx, 1);
@@ -1625,12 +1614,7 @@ function viewExpenseDoc(rowId) {
     const data = row.dataset.doc;
     if (!data) return toast('No document found', true);
     
-    const win = window.open();
-    if (data.startsWith('data:application/pdf')) {
-        win.document.write('<iframe src="' + data + '" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>');
-    } else {
-        win.document.write('<img src="' + data + '" style="max-width:100%; height:auto;">');
-    }
+    openDocPreview(data, 'Expense Receipt Preview');
 }
 
 function getTradeExpenses() {
@@ -1717,12 +1701,50 @@ function viewShipDoc(btn) {
     const docObj = currentShipDocs[item.dataset.type];
     if (!docObj) return;
     const data = docObj.data;
-    const win = window.open();
-    if (data.startsWith('data:application/pdf')) {
-        win.document.write('<iframe src="' + data + '" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>');
-    } else {
-        win.document.write('<img src="' + data + '" style="max-width:100%; height:auto;">');
+    const type = item.dataset.type;
+    const finalType = docObj.subType || type;
+    
+    openDocPreview(data, finalType + ' Preview');
+}
+
+function openDocPreview(data, title) {
+    const modal = document.getElementById('docPreviewModal');
+    const container = document.getElementById('docPreviewContainer');
+    const titleEl = document.getElementById('previewDocTitle');
+    
+    if (!modal || !container) {
+        // Fallback if modal elements missing
+        const win = window.open();
+        if (data.startsWith('data:application/pdf')) {
+            win.document.write('<html><body style="margin:0"><iframe src="' + data + '" frameborder="0" style="border:0; width:100%; height:100%;"></iframe></body></html>');
+        } else {
+            win.document.write('<html><body style="margin:0"><img src="' + data + '" style="max-width:100%; height:auto;"></body></html>');
+        }
+        win.document.close();
+        return;
     }
+    
+    titleEl.textContent = title || 'Document Preview';
+    container.innerHTML = '';
+    
+    if (data.startsWith('data:application/pdf')) {
+        container.innerHTML = `<iframe src="${data}" frameborder="0" style="width:100%; height:100%; border:none;"></iframe>`;
+    } else {
+        container.innerHTML = `<div style="width:100%; height:100%; overflow:auto; display:flex; justify-content:center; align-items:center; background:#111;">
+            <img src="${data}" style="max-width:100%; max-height:100%; object-fit:contain; box-shadow:0 0 20px rgba(0,0,0,0.5);">
+        </div>`;
+    }
+    
+    modal.classList.add('show');
+}
+
+function closeDocPreview() {
+    const modal = document.getElementById('docPreviewModal');
+    if (modal) modal.classList.remove('show');
+    // Clear container to stop any playing media/iframes
+    setTimeout(() => {
+        document.getElementById('docPreviewContainer').innerHTML = '';
+    }, 300);
 }
 
 function deleteShipDoc(btn) {
