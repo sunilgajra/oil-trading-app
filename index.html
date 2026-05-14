@@ -91,7 +91,11 @@
         <div id="user-info" style="display:none; align-items:center; gap:8px;">
             <span id="user-email" style="font-size:11px; color:var(--muted);"></span>
             <button class="btn btn-sm btn-ghost" onclick="handleLogout()" style="color:var(--red); padding:2px 5px;">Logout</button>
-            <div class="live-badge" style="background:rgba(45, 212, 191, 0.1); color:var(--teal); border-color:var(--teal);"><div class="live-dot" style="background:var(--teal);"></div>CLOUD SYNC</div>
+            <button class="btn btn-sm btn-ghost" onclick="saveState()" style="color:var(--teal); padding:2px 5px; border:1px solid var(--teal); font-size:10px;">SYNC NOW</button>
+            <div class="live-badge" style="background:rgba(45, 212, 191, 0.1); color:var(--teal); border-color:var(--teal);">
+                <div class="live-dot" style="background:var(--teal);"></div>
+                <span id="sync-status-badge">CLOUD SYNCED</span>
+            </div>
         </div>
     </div>
     <div class="date-badge" id="clockEl"></div>
