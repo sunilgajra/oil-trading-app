@@ -359,7 +359,6 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
     updateAuthState(session);
     if (event === 'SIGNED_IN') {
         loadState();
-        initializeStorage();
     } else if (event === 'SIGNED_OUT') {
         state = JSON.parse(JSON.stringify(DEF_S));
         initApp();
@@ -1178,7 +1177,22 @@ async function refineWithCloudAI(docOrText) {
 
         if (typeof docOrText === 'object') {
             // MULTIMODAL DIRECT SCAN (Image/PDF)
-            const base64Data = docOrText.data.split(',')[1];
+            let base64Data;
+            if (docOrText.data) {
+                base64Data = docOrText.data.split(',')[1];
+            } else if (docOrText.url) {
+                // Fetch from cloud URL and convert to base64 for Gemini
+                const response = await fetch(docOrText.url);
+                const blob = await response.blob();
+                base64Data = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.readAsDataURL(blob);
+                });
+            }
+            
+            if (!base64Data) throw new Error("Document data not found for AI scan.");
+
             payload = {
                 contents: [{
                     parts: [
@@ -1189,7 +1203,7 @@ RULES:
 2. Format weights as 0.00. 
 3. Identify Vessel, Ports, Agent, and HS Code.
 Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "net_weight": "", "containers": [] }` },
-                        { inlineData: { mimeType: docOrText.type, data: base64Data } }
+                        { inlineData: { mimeType: docOrText.type || "application/pdf", data: base64Data } }
                     ]
                 }]
             };
@@ -2673,20 +2687,14 @@ async function deepRecoveryScan() {
 }
 
 /* ═══════ STORAGE & BACKUP ═══════ */
-async function initializeStorage() {
+async function initializeStorage(isManual = false) {
     try {
-        toast("Initializing Cloud Storage...");
+        if (isManual) toast("Initializing Cloud Storage...");
         const { data, error } = await supabaseClient.storage.createBucket('murji_docs', {
             public: true,
             fileSizeLimit: 5242880, // 5MB
             allowedMimeTypes: ['image/jpeg', 'image/png', 'application/pdf']
         });
-        if (error) {
-            if (error.message.includes('already exists')) toast("Storage already active");
-            else throw error;
-        } else {
-            toast("Cloud Storage Bucket Created!");
-        }
     } catch (e) {
         console.warn("Storage Init Error:", e.message);
         toast("Note: Storage bucket must be created in Supabase Dashboard if auto-init fails.", true);
