@@ -31,40 +31,34 @@ var DEF_S = {
 
 var state;
 async function loadState(){
-  // Try Cloud first
+  // Initialize state with default or local first
   try {
-    const { data: session } = await supabaseClient.auth.getSession();
-    if (session && session.session) {
+    var s = localStorage.getItem('murji_oil_v12');
+    state = s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEF_S));
+  } catch(e) {
+    state = JSON.parse(JSON.stringify(DEF_S));
+  }
+
+  // Try Cloud Sync (Highest Priority)
+  try {
+    const { data: auth } = await supabaseClient.auth.getSession();
+    if (auth && auth.session) {
       const { data, error } = await supabaseClient
         .from('murji_state')
         .select('state_data')
-        .eq('user_id', session.session.user.id)
+        .eq('user_id', auth.session.user.id)
         .maybeSingle();
       
       if (data && data.state_data) {
         state = data.state_data;
         console.log("Loaded from Cloud");
-        initApp();
-        return;
       }
     }
   } catch (e) {
     console.error("Cloud Load Error:", e);
   }
-
-  // Fallback to Local
-  try {
-    var s = localStorage.getItem('murji_oil_v12');
-    if(s){
-      state = JSON.parse(s);
-    } else {
-      state = JSON.parse(JSON.stringify(DEF_S));
-    }
-  } catch(e) {
-    state = JSON.parse(JSON.stringify(DEF_S));
-  }
   
-  // --- MIGRATIONS (Must run for everyone) ---
+  // ALWAYS run migrations before showing UI
   runMigrations();
   initApp();
 }
@@ -193,8 +187,14 @@ function initApp() {
     renderTradesTable();
     renderOrdersTable();
     renderChallansTable();
-    renderYardDashboard();
-    renderTankManager();
+    
+    // Yard features with error safety
+    try {
+        if (typeof renderYardDashboard === 'function') renderYardDashboard();
+        if (typeof renderTankManager === 'function') renderTankManager();
+    } catch (e) {
+        console.warn("Yard Render Error:", e);
+    }
 }
 
 function renderYardDashboard() {
@@ -2398,4 +2398,58 @@ async function downloadAllHssDocs() {
             toast('High Seas Set Downloaded');
         });
     }, 500);
+}
+
+/* ═══════ YARD & TANK MANAGEMENT ═══════ */
+function renderTankManager() {
+    const list = document.getElementById('tank-manager-list');
+    if (!list || !state) return;
+    list.innerHTML = (state.tanks || []).map(t => `
+        <div class="product-tag" style="padding:12px; display:flex; justify-content:space-between; align-items:center; background:var(--surface2); border:1px solid var(--border); border-radius:8px; margin-bottom:10px;">
+            <div>
+                <b style="color:var(--gold2);">${t.name}</b> (${t.id})<br>
+                <small style="color:var(--muted);">Cap: ${fmtN(t.capacity)}L | Loc: ${t.location}</small>
+            </div>
+            <button class="btn btn-sm btn-danger" onclick="deleteTank('${t.id}')">&#x2715;</button>
+        </div>
+    `).join('');
+    
+    // Update dropdowns elsewhere
+    const locSelect = document.getElementById('tr-storage-loc');
+    if (locSelect) {
+        let html = '<option value="">-- Direct Sale / Other --</option>';
+        (state.tanks || []).forEach(t => {
+            html += `<option value="${t.id}">${t.name} (${fmtN(t.capacity)} L)</option>`;
+        });
+        html += '<optgroup label="Import Containers"><option value="NEW_CONTAINER">Assign to Container ID (Auto)</option></optgroup>';
+        locSelect.innerHTML = html;
+    }
+}
+
+function addTank() {
+    if (!state.tanks) state.tanks = [];
+    const name = document.getElementById('new-tank-name').value;
+    const cap = parseFloat(document.getElementById('new-tank-cap').value);
+    const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
+    
+    if (!name || !cap) return toast('Enter name and capacity', true);
+    
+    const id = 'T' + (state.tanks.length + 1);
+    state.tanks.push({ id, name, capacity: cap, type: 'Static', location: loc });
+    
+    document.getElementById('new-tank-name').value = '';
+    document.getElementById('new-tank-cap').value = '';
+    
+    saveState();
+    renderTankManager();
+    renderYardDashboard();
+    toast('New Tank Added');
+}
+
+function deleteTank(id) {
+    if (!confirm('Are you sure you want to remove this tank? Batches inside will remain but location will be unlinked.')) return;
+    state.tanks = state.tanks.filter(t => t.id !== id);
+    saveState();
+    renderTankManager();
+    renderYardDashboard();
 }
