@@ -50,12 +50,15 @@ async function loadState(){
         .maybeSingle();
       
       if (data && data.state_data) {
-        // Only accept cloud state if it actually contains data
-        if (data.state_data.trades && data.state_data.trades.length > 0) {
+        // Accept cloud state if it has products OR trades (more inclusive)
+        const hasData = (data.state_data.trades && data.state_data.trades.length > 0) || 
+                        (data.state_data.products && data.state_data.products.length > 0);
+        
+        if (hasData) {
             state = data.state_data;
-            console.log("Loaded from Cloud (" + state.trades.length + " trades)");
+            console.log("Cloud Data Accepted: " + (state.trades ? state.trades.length : 0) + " trades found.");
         } else {
-            console.warn("Cloud data empty or invalid, keeping local.");
+            console.warn("Cloud record found but appears empty.");
         }
       }
     }
