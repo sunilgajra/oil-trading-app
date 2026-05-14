@@ -1041,34 +1041,35 @@ function renderTradesTable() {
     }).join('');
 }
 var currentTradeDocs = [];
-function handleTradeDocUpload(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(e) {
-        currentTradeDocs.push({
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            data: e.target.result
-        });
-        renderTradeDocs();
-        document.getElementById('btn-scan-ai').style.display = 'inline-block';
-        toast('Document attached');
-    };
-    reader.readAsDataURL(file);
+async function handleTradeDocUpload(input) {
+    const files = input.files;
+    if (!files || files.length === 0) return;
+    
+    toast("Uploading Documents...");
+    for (let f of files) {
+        try {
+            const url = await uploadFileToSupabase(f, 'trades');
+            currentTradeDocs.push({ name: f.name, url: url, size: f.size, date: today() });
+        } catch (e) {
+            toast("Failed to upload " + f.name, true);
+        }
+    }
+    renderTradeDocs();
+    if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
 }
 function renderTradeDocs() {
     var list = document.getElementById('tr-docs-list');
+    if (!list) return;
     list.innerHTML = currentTradeDocs.map(function(d, idx) {
+        const docUrl = d.url || d.data;
         return '<div class="doc-item">' +
                  '<div style="flex:1; display:flex; flex-direction:column;">' +
                     '<input class="doc-name-input" value="'+escH(d.name)+'" onchange="renameTradeDoc('+idx+', this.value)">' +
-                    '<small>' + (d.size/1024).toFixed(1) + ' KB | ' + d.type.split('/')[1].toUpperCase() + '</small>' +
+                    '<small>' + (d.size ? (d.size/1024).toFixed(1) + ' KB' : 'Cloud File') + '</small>' +
                  '</div>' +
                  '<div style="display:flex; gap:5px">' +
-                    '<button class="btn btn-sm btn-blue" onclick="previewDoc('+idx+')">&#x1F441;</button>' +
-                    '<button class="btn btn-sm btn-gray" onclick="downloadDoc('+idx+')">&#x2913;</button>' +
+                    '<button class="btn btn-sm btn-blue" onclick="openDocPreview(\''+docUrl+'\', \''+escH(d.name)+'\')">&#x1F441;</button>' +
+                    '<button class="btn btn-sm btn-gray" onclick="window.open(\''+docUrl+'\',\'_blank\')">&#x2913;</button>' +
                     '<button class="btn btn-sm btn-danger" onclick="removeTradeDoc('+idx+')">&#x2715;</button>' +
                  '</div>' +
                '</div>';
