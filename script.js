@@ -1304,10 +1304,7 @@ function editTrade(id) {
     document.getElementById('tr-density').value = t.density;
     document.getElementById('tr-date').value = t.date;
     document.getElementById('tr-terms').value = t.terms || 'Immediate';
-    currentTradeDocs = t.docs ? JSON.parse(JSON.stringify(t.docs)) : [];
-    renderTradeDocs();
-    if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
-    else document.getElementById('btn-scan-ai').style.display = 'none';
+    // Trade Docs handled below in specific section
     if (t.mode === 'import') {
         document.getElementById('tr-is-hs').checked = !!t.is_hs;
         document.getElementById('tr-bl-no').value = t.bl_no || '';
@@ -1338,9 +1335,15 @@ function editTrade(id) {
     document.getElementById('tr-is-hs').checked = !!t.is_hs;
     document.getElementById('tr-hs-seller').value = t.hs_seller || '';
     
-    // Load Trade Docs (Base64 attachments)
-    currentTradeDocs = t.docs || [];
+    // Load Trade Docs (Cloud attachments)
+    if (t.docs && Array.isArray(t.docs)) {
+        currentTradeDocs = JSON.parse(JSON.stringify(t.docs));
+    } else {
+        currentTradeDocs = [];
+    }
     renderTradeDocs();
+    if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
+    else document.getElementById('btn-scan-ai').style.display = 'none';
     
     calcTradeTotals();
     
