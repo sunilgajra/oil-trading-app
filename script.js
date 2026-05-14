@@ -13,25 +13,20 @@ var DEF_P = [
 ];
 var DEF_S = {
   products: JSON.parse(JSON.stringify(DEF_P)),
-  inventory:[
-    {id:1,product:'Diesel',grade:'EN590',tank:'Tank A',vol:85000,cost:92.5,threshold:10000,density:0.832,slip:null},
-    {id:2,product:'Petrol',grade:'91 RON',tank:'Tank B',vol:62000,cost:104.2,threshold:8000,density:0.740,slip:null},
+  tanks: [
+    {id:'T1', name:'Main Tank 1', capacity: 100000, type: 'Static', location: 'Yard A'},
+    {id:'T2', name:'Main Tank 2', capacity: 100000, type: 'Static', location: 'Yard A'},
+    {id:'T3', name:'Service Tank', capacity: 20000, type: 'Static', location: 'Yard B'}
   ],
+  inventory:[], // Now stores "Batches" assigned to Tanks/Containers
   trades:[
-    {id:1,type:'Buy',product:'Diesel',party:'IndianOil Corp',vol:50000,price:91.0,date:'2025-06-20',terms:'Net 30',density:0.832},
-    {id:2,type:'Sell',product:'Diesel',party:'Metro Transports',vol:20000,price:98.5,date:'2025-06-22',terms:'Net 15',density:0.832},
+    {id:1,type:'Buy',product:'Diesel',party:'IndianOil Corp',vol:50000,price:91.0,date:'2025-06-20',terms:'Net 30',density:0.832, location: 'T1'},
   ],
-  orders:[
-    {id:'ORD-001',customer:'Metro Transports',product:'Diesel',qty:20000,price:98.5,date:'2025-06-22',due:'2025-07-10',addr:'Mumbai Depot',priority:'Normal',status:'Dispatched',density:0.832,terms:'Net 15'},
-  ],
-  challans:[
-    {id:'CH-001',type:'out',date:'2025-06-22',product:'Diesel',vol:20000,density:0.832,weight:16640,from:'Mumbai Depot',to:'Metro Transports',vehicle:'MH 12 AB 1234',driver:'Ramesh',driverPh:'+91 98765 43210'},
-  ],
-  suppliers:[
-    {id:1,name:'IndianOil Corp',contact:'Rajesh Sharma',phone:'+91 98201 11111',city:'Mumbai',type:'local',bankName:'SBI',bankAc:'123456789',bankIfsc:'SBIN001'},
-  ],
+  orders:[],
+  challans:[],
+  suppliers:[],
   buyers:[],
-  nextInvId:3, nextTradeId:3, nextOrderNum:2, nextSupId:2, nextBuyId:1, nextChNum:2
+  nextInvId:1, nextTradeId:2, nextOrderNum:1, nextSupId:1, nextBuyId:1, nextChNum:1
 };
 
 var state;
@@ -188,6 +183,70 @@ function initApp() {
     renderTradesTable();
     renderOrdersTable();
     renderChallansTable();
+    renderYardDashboard();
+}
+
+function renderYardDashboard() {
+    const yardGrid = document.getElementById('yard-grid');
+    if (!yardGrid) return;
+    
+    let html = '';
+    state.tanks.forEach(tank => {
+        const batches = state.inventory.filter(i => i.location === tank.id);
+        const totalVol = batches.reduce((sum, b) => sum + b.vol, 0);
+        const totalKg = batches.reduce((sum, b) => sum + b.weight_kg, 0);
+        const p = Math.min(100, (totalVol / tank.capacity) * 100);
+        const color = p > 90 ? 'var(--red)' : p > 70 ? 'var(--gold2)' : 'var(--teal)';
+        const prodNames = [...new Set(batches.map(b => b.product))].join(', ') || 'EMPTY';
+        
+        html += `
+            <div class="tank-card" style="background:var(--surface2); border:1px solid var(--border); padding:15px; border-radius:12px; position:relative; overflow:hidden;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                    <div>
+                        <h4 style="margin:0; color:var(--gold2);">${tank.name}</h4>
+                        <small style="color:var(--muted);">${tank.id} | ${tank.location}</small>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:14px; font-weight:bold; color:var(--text);">${fmtN(totalVol)} L</div>
+                        <div style="font-size:11px; color:var(--muted);">${fmtKG(totalKg)} KG</div>
+                    </div>
+                </div>
+                <div style="background:rgba(0,0,0,0.3); height:8px; border-radius:4px; margin-bottom:10px;">
+                    <div style="width:${p}%; height:100%; background:${color}; border-radius:4px; transition:width 0.5s;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:11px;">
+                    <span style="color:var(--muted);">Product: <b style="color:var(--text);">${prodNames}</b></span>
+                    <span style="color:var(--muted);">Cap: ${fmtN(tank.capacity)}L</span>
+                </div>
+                <div style="position:absolute; right:-10px; bottom:-10px; font-size:40px; opacity:0.05; transform:rotate(-15deg);"><i class="fas fa-oil-can"></i></div>
+            </div>
+        `;
+    });
+
+    // Add Containers Currently in Yard
+    const yardContainers = state.inventory.filter(i => !state.tanks.find(t => t.id === i.location));
+    yardContainers.forEach(cont => {
+         html += `
+            <div class="tank-card" style="background:rgba(20, 184, 166, 0.05); border:1px solid var(--teal); padding:15px; border-radius:12px; border-style:dashed;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                    <div>
+                        <h4 style="margin:0; color:var(--teal);"><i class="fas fa-box"></i> Container Storage</h4>
+                        <small style="color:var(--muted);">${cont.location}</small>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:14px; font-weight:bold; color:var(--text);">${fmtN(cont.vol)} L</div>
+                        <div style="font-size:11px; color:var(--muted);">${fmtKG(cont.weight_kg)} KG</div>
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:15px;">
+                    <span style="color:var(--muted);">Product: <b style="color:var(--text);">${cont.product}</b></span>
+                    <span style="color:var(--muted);">Date: ${cont.date}</span>
+                </div>
+            </div>
+        `;
+    });
+
+    yardGrid.innerHTML = html;
 }
 
 function openLoginModal() { document.getElementById('loginModal').classList.add('show'); }
@@ -1223,9 +1282,12 @@ function addTrade() {
     var rawQty = parseFloat(document.getElementById('tr-vol').value);
     var den = parseFloat(document.getElementById('tr-density').value) || getDensity(product);
     var unit = document.getElementById('tr-unit').value;
+    var storageLoc = document.getElementById('tr-storage-loc').value;
+    
     var volInL = rawQty;
     if (unit === 'KG') volInL = rawQty / den;
     if (unit === 'MTON') volInL = (rawQty * 1000) / den;
+    
     var price = 0;
     if (mode === 'import') {
         var rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
@@ -1237,9 +1299,12 @@ function addTrade() {
     } else {
         price = parseFloat(document.getElementById('tr-price-local').value) || 0;
     }
+    
     if (!party || !rawQty || !price) return toast('Please fill all required fields', true);
+    
     var termsVal = document.getElementById('tr-terms').value;
     if (termsVal === '__custom__') termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
+    
     var trade = {
         type: type, mode: mode, product: product, party: party,
         vol: volInL, price: price, raw_qty: rawQty, unit: unit,
@@ -1249,9 +1314,12 @@ function addTrade() {
         ship_docs: currentShipDocs,
         payments: getSupplierPayments(),
         is_hs: document.getElementById('tr-is-hs').checked,
-        hs_seller: document.getElementById('tr-hs-seller').value
+        hs_seller: document.getElementById('tr-hs-seller').value,
+        location: storageLoc
     };
+    
     if (type === 'Sell' && mode === 'hs_sale') trade.link_purchase_id = document.getElementById('tr-link-purchase').value;
+    
     if (type === 'Buy') {
         if (mode === 'import') {
             trade.is_hs = document.getElementById('tr-is-hs').checked;
@@ -1274,7 +1342,23 @@ function addTrade() {
             trade.gst = document.getElementById('tr-gst').value;
             trade.veh = document.getElementById('tr-veh').value;
         }
+
+        // AUTO-UPDATE YARD INVENTORY
+        if (storageLoc && !trade.is_hs) {
+            state.inventory.push({
+                id: state.nextInvId++,
+                trade_id: trade.id,
+                product: product,
+                vol: volInL,
+                density: den,
+                weight_kg: toKG(volInL, den),
+                location: storageLoc,
+                date: trade.date,
+                cost: price
+            });
+        }
     }
+
     if (editingTradeId) {
         var idx = state.trades.findIndex(function(x){return x.id === editingTradeId;});
         if (idx>=0) { trade.id = editingTradeId; state.trades[idx] = trade; }
@@ -1284,12 +1368,13 @@ function addTrade() {
         state.trades.push(trade);
         toast('Trade recorded');
     }
+    
     saveState(); renderTradesTable(); renderRecentTrades(); renderDashboardKpis();
     editingTradeId = null; currentTradeDocs = []; renderTradeDocs();
     document.getElementById('btn-scan-ai').style.display = 'none';
     var btn = document.querySelector('button[onclick="addTrade()"]');
     if (btn) { btn.innerHTML = '&#x1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
-    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-agent','tr-net-weight','tr-hs-code','tr-containers'].forEach(function(id){
+    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-agent','tr-net-weight','tr-hs-code','tr-containers','tr-storage-loc'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
     });
     document.getElementById('tr-party-select').value = '';
@@ -2133,6 +2218,53 @@ function openHssModal() {
     const buyer = state.buyers.find(b => b.id === buyId);
     if (buyer) {
         document.getElementById('hss-p-iec').value = buyer.iec || '';
+    }
+     // Prepare Trade Object
+    var trade = {
+        id: state.nextTradeId++,
+        type: type,
+        product: product,
+        party: party,
+        vol: vol,
+        price: price,
+        date: date,
+        terms: terms,
+        density: density,
+        raw_qty: rawQty,
+        unit: unit,
+        hss: isHss,
+        ship_docs: Object.assign({}, currentShipDocs),
+        expenses: JSON.parse(JSON.stringify(currentTradeExpenses)),
+        location: document.getElementById('tr-storage-loc').value
+    };
+
+    // If Import/Local Purchase and not HSS, update Yard Inventory
+    if (type === 'Buy' && !isHss) {
+        var weightKg = toKG(vol, density);
+        state.inventory.push({
+            id: state.nextInvId++,
+            trade_id: trade.id,
+            product: product,
+            vol: vol,
+            density: density,
+            weight_kg: weightKg,
+            location: trade.location,
+            date: date
+        });
+    }
+
+    if (isHss) {
+        trade.hss_purchase_rate = parseFloat(document.getElementById('hss-purchase-rate').value) || 0;
+        trade.hss_currency = document.getElementById('hss-currency').value;
+        trade.hss_ex_rate = parseFloat(document.getElementById('hss-ex-rate').value) || 1;
+        trade.hss_bl_no = document.getElementById('hss-bl-no').value;
+        trade.hss_vessel = document.getElementById('hss-vessel').value;
+        trade.hss_port_loading = document.getElementById('hss-port-loading').value;
+        trade.hss_port_discharge = document.getElementById('hss-port-discharge').value;
+        trade.hss_agent = document.getElementById('hss-agent').value;
+        trade.hss_containers = document.getElementById('hss-containers').value;
+        trade.hss_hs_code = document.getElementById('hss-hs-code').value;
+        trade.hss_net_weight = parseFloat(document.getElementById('hss-net-weight').value) || 0;
     }
     document.getElementById('hssModal').classList.add('show');
     renderHssPreviews();
