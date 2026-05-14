@@ -1,3 +1,8 @@
+/* ═══════ SUPABASE CONFIG ═══════ */
+const SUPABASE_URL = "https://rihqzycormftfxwefihx.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpaHF6eWNvcm1mdGZ4d2VmaWh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MDE0NjcsImV4cCI6MjA5MTk3NzQ2N30._2OFp9Sa0rJ3gV6HVQDayDIb0ZhNDN00D3IoehcT5TI";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 /* ═══════ STATE & CONFIG ═══════ */
 var DEF_P = [
   {name:'Crude Oil', density:0.850, hsn:'2709', other:''},
@@ -30,7 +35,29 @@ var DEF_S = {
 };
 
 var state;
-function loadState(){
+async function loadState(){
+  // Try Cloud first
+  try {
+    const { data: session } = await supabaseClient.auth.getSession();
+    if (session && session.session) {
+      const { data, error } = await supabaseClient
+        .from('murji_state')
+        .select('state_data')
+        .eq('user_id', session.session.user.id)
+        .maybeSingle();
+      
+      if (data && data.state_data) {
+        state = data.state_data;
+        console.log("Loaded from Cloud");
+        initApp();
+        return;
+      }
+    }
+  } catch (e) {
+    console.error("Cloud Load Error:", e);
+  }
+
+  // Fallback to Local
   try {
     var s = localStorage.getItem('murji_oil_v12');
     if(s){
@@ -43,7 +70,12 @@ function loadState(){
   }
   
   // --- MIGRATIONS (Must run for everyone) ---
-  
+  runMigrations();
+  initApp();
+}
+
+function runMigrations() {
+  if (!state) return;
   // 1. Convert string products to objects
   if (state.products && state.products.length > 0 && typeof state.products[0] === 'string') {
     state.products = state.products.map(function(p) {
@@ -59,8 +91,8 @@ function loadState(){
     state.apiModel = 'gemini-3.1-flash-lite';
   }
   
-  document.getElementById('api-key').value = state.apiKey;
-  document.getElementById('api-model').value = state.apiModel;
+  if (document.getElementById('api-key')) document.getElementById('api-key').value = state.apiKey;
+  if (document.getElementById('api-model')) document.getElementById('api-model').value = state.apiModel;
   
   // 3. Ensure suppliers have all required fields
   if (state.suppliers) {
@@ -78,19 +110,103 @@ function loadState(){
   // 4. Clean up legacy densities map if it exists
   delete state.densities;
 }
-function saveState(){
+
+async function saveState(){
+    // Save to Local (Immediate Cache)
     try {
-        const json = JSON.stringify(state);
-        localStorage.setItem('murji_oil_v12', json);
+        localStorage.setItem('murji_oil_v12', JSON.stringify(state));
     } catch(e) {
-        console.error('SAVE ERROR:', e);
-        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-            alert('CRITICAL: Storage Limit Exceeded!\n\nYour uploaded documents are too large for the browser to save (Max 5MB). \n\nPlease use smaller PDF/Image files or remove old trades with large attachments to ensure your data is saved.');
-        } else {
-            toast('Failed to save data to browser storage', true);
+        // Only alert if NOT logged in, because Cloud Sync handles the storage limit
+        const { data: auth } = await supabaseClient.auth.getSession();
+        if (!auth.session && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+            alert('CRITICAL: Storage Limit Exceeded!\n\nYour uploaded documents are too large for the browser to save (Max 5MB).\n\nPlease LOGIN to Cloud to use unlimited storage.');
         }
     }
+
+    // Save to Cloud (Background Sync)
+    try {
+        const { data: auth } = await supabaseClient.auth.getSession();
+        if (auth && auth.session) {
+            const { error } = await supabaseClient
+                .from('murji_state')
+                .upsert({ 
+                    user_id: auth.session.user.id, 
+                    state_data: state, 
+                    updated_at: new Date() 
+                }, { onConflict: 'user_id' });
+            
+            if (error) throw error;
+            console.log("Synced to Cloud");
+        }
+    } catch(e) {
+        console.error('Cloud Sync Error:', e);
+    }
 }
+
+function initApp() {
+    if (!state) return;
+    populateSelects();
+    renderProductsList();
+    renderTicker();
+    renderDashboardKpis();
+    renderInvLevels();
+    renderRecentTrades();
+    renderActiveOrders();
+    renderInventoryTable();
+    renderTradesTable();
+    renderOrdersTable();
+    renderChallansTable();
+}
+
+function openLoginModal() { document.getElementById('loginModal').classList.add('show'); }
+function closeLoginModal() { document.getElementById('loginModal').classList.remove('show'); }
+
+async function handleLogin() {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return toast('Enter credentials', true);
+    
+    try {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        closeLoginModal();
+        toast('Logged in successfully');
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+async function handleLogout() {
+    await supabaseClient.auth.signOut();
+    toast('Logged out');
+}
+
+function updateAuthState(session) {
+    const loginBtn = document.getElementById('btn-login');
+    const userInfo = document.getElementById('user-info');
+    const emailSpan = document.getElementById('user-email');
+    
+    if (session && session.user) {
+        loginBtn.style.display = 'none';
+        userInfo.style.display = 'flex';
+        emailSpan.textContent = session.user.email;
+    } else {
+        loginBtn.style.display = 'block';
+        userInfo.style.display = 'none';
+    }
+}
+
+// Check auth status on load
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    updateAuthState(session);
+    if (event === 'SIGNED_IN') {
+        loadState();
+    } else if (event === 'SIGNED_OUT') {
+        state = JSON.parse(JSON.stringify(DEF_S));
+        initApp();
+    }
+});
+
 loadState();
 
 var fmt=function(n){return'\u20B9'+Number(n).toLocaleString('en-IN',{maximumFractionDigits:2});};

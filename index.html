@@ -16,6 +16,8 @@
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <!-- html2pdf for clean mobile downloads -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- Supabase Client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
     .docs-mgr { background: var(--surface); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
     .docs-list { display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto; }
@@ -83,7 +85,17 @@
 
 <div class="topbar no-print">
   <div class="brand"><div class="brand-icon" aria-hidden="true">&#x1F6E2;</div><div><div class="brand-name">Murji Ravji & Co.</div><div class="brand-sub">OIL TRADING & LOGISTICS</div></div></div>
-  <div class="topbar-right"><div class="live-badge"><div class="live-dot"></div>LIVE</div><div class="date-badge" id="clockEl"></div></div>
+  <div class="topbar-right">
+    <div id="auth-status" style="display:flex; align-items:center; gap:10px;">
+        <button id="btn-login" class="btn btn-sm btn-ghost" onclick="openLoginModal()" style="color:var(--gold2); border:1px solid var(--gold2);">&#x1F512; Cloud Login</button>
+        <div id="user-info" style="display:none; align-items:center; gap:8px;">
+            <span id="user-email" style="font-size:11px; color:var(--muted);"></span>
+            <button class="btn btn-sm btn-ghost" onclick="handleLogout()" style="color:var(--red); padding:2px 5px;">Logout</button>
+            <div class="live-badge" style="background:rgba(45, 212, 191, 0.1); color:var(--teal); border-color:var(--teal);"><div class="live-dot" style="background:var(--teal);"></div>CLOUD SYNC</div>
+        </div>
+    </div>
+    <div class="date-badge" id="clockEl"></div>
+  </div>
 </div>
 
 <div class="nav no-print" role="tablist">
@@ -507,7 +519,25 @@
             </div>
         </div>
 
-        <div id="hss-previews" style="display:flex; flex-direction:column; gap:40px;">
+<!-- Login Modal -->
+<div id="loginModal" class="modal">
+    <div class="modal-content" style="max-width:400px; background:var(--surface); border:1px solid var(--border); padding:30px; border-radius:12px;">
+        <h2 style="color:var(--gold2); margin-top:0;">Cloud Access</h2>
+        <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Login to sync your data to the cloud and bypass local storage limits.</p>
+        <div class="form-group" style="margin-bottom:15px;">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="email@example.com" style="width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+        </div>
+        <div class="form-group" style="margin-bottom:20px;">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="••••••••" style="width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+        </div>
+        <button class="btn btn-gold" onclick="handleLogin()" style="width:100%; font-weight:bold;">LOGIN TO CLOUD</button>
+        <button class="btn btn-ghost" onclick="closeLoginModal()" style="width:100%; margin-top:10px;">Cancel</button>
+    </div>
+</div>
+
+<div id="hss-previews" style="display:flex; flex-direction:column; gap:40px;">
             <!-- Previews will be rendered here -->
         </div>
     </div>
