@@ -175,7 +175,7 @@
   <div class="section-title">Record Trade</div>
   <div class="panel">
     <div class="form-grid">
-      <div class="form-group"><label>Trade Type</label><select id="tr-type" onchange="toggleTradeModeField()"><option>Buy</option><option>Sell</option></select></div>
+      <div class="form-group"><label>Trade Type</label><select id="tr-type" onchange="toggleTradeModeField(); toggleTradeDetailFields();"><option>Buy</option><option>Sell</option><option>Move</option></select></div>
       <div id="tr-mode-group" class="form-group"><label>Trade Mode</label><select id="tr-mode" onchange="toggleTradeDetailFields()"><option value="local">Local Deal</option><option value="import">Import Deal</option><option value="hs_sale">High Seas Sale</option></select></div>
       <div id="tr-link-group" class="form-group" style="display:none"><label>Link to Purchase</label><select id="tr-link-purchase" onchange="loadPurchaseDetails()"></select></div>
       <div class="form-group"><label>Product</label><select id="tr-product"></select></div>
@@ -293,16 +293,16 @@
       <!-- Local Specific -->
       <div class="tr-local-fields form-group full" style="display:none; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px;">
         <div class="form-group"><label>Unit Price (&#x20B9;)</label><input id="tr-price-local" type="number" placeholder="0.00" step="0.01" oninput="calcTradeTotals()"></div>
-        <div class="form-group">
-                <label>Storage Location (Yard Assign)</label>
+        <div class="form-group" id="tr-source-loc-group" style="display:none;">
+                <label>Source Location (From)</label>
+                <select id="tr-source-loc">
+                    <option value="">-- Select Source --</option>
+                </select>
+            </div>
+            <div class="form-group" id="tr-dest-loc-group">
+                <label>Storage Location (To / Yard Assign)</label>
                 <select id="tr-storage-loc">
                     <option value="">-- Direct Sale / Other --</option>
-                    <option value="T1">Main Tank 1 (100,000 L)</option>
-                    <option value="T2">Main Tank 2 (100,000 L)</option>
-                    <option value="T3">Service Tank (20,000 L)</option>
-                    <optgroup label="Import Containers">
-                        <option value="NEW_CONTAINER">Assign to Container ID (Auto)</option>
-                    </optgroup>
                 </select>
             </div>
         </div>

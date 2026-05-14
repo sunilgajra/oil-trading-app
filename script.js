@@ -772,7 +772,18 @@ function toggleTradeDetailFields() {
     var imp = document.querySelector('.tr-import-fields');
     var loc = document.querySelector('.tr-local-fields');
     var linkGrp = document.getElementById('tr-link-group');
+    var srcGrp = document.getElementById('tr-source-loc-group');
     
+    if (srcGrp) srcGrp.style.display = type === 'Move' ? 'block' : 'none';
+    
+    if (type === 'Move') {
+        imp.style.display = 'none';
+        loc.style.display = 'grid';
+        linkGrp.style.display = 'none';
+        document.getElementById('tr-payments-section').style.display = 'none';
+        return;
+    }
+
     if (type === 'Buy') {
         linkGrp.style.display = 'none';
         if (mode === 'import') {
@@ -1380,7 +1391,39 @@ function addTrade() {
         }
 
         // AUTO-UPDATE YARD INVENTORY
-        if (storageLoc && !trade.is_hs) {
+        const sourceLoc = document.getElementById('tr-source-loc') ? document.getElementById('tr-source-loc').value : '';
+
+        if (type === 'Move') {
+            if (!sourceLoc || !storageLoc) return toast('Select source and destination', true);
+            if (sourceLoc === storageLoc) return toast('Source and destination cannot be same', true);
+            
+            // Subtract from source
+            state.inventory.push({
+                id: 'INV' + (state.nextInvId++),
+                trade_id: trade.id,
+                date: trade.date,
+                product: product,
+                location: sourceLoc,
+                vol: -volInL,
+                weight_kg: -(volInL * den),
+                density: den,
+                unit_cost: 0,
+                type: 'Internal Movement (Out)'
+            });
+            // Add to destination
+            state.inventory.push({
+                id: 'INV' + (state.nextInvId++),
+                trade_id: trade.id,
+                date: trade.date,
+                product: product,
+                location: storageLoc,
+                vol: volInL,
+                weight_kg: (volInL * den),
+                density: den,
+                unit_cost: 0,
+                type: 'Internal Movement (In)'
+            });
+        } else if (storageLoc && !trade.is_hs) {
             state.inventory.push({
                 id: state.nextInvId++,
                 trade_id: trade.id,
@@ -2445,6 +2488,7 @@ function renderTankManager() {
     
     // Update dropdowns elsewhere
     const locSelect = document.getElementById('tr-storage-loc');
+    const srcSelect = document.getElementById('tr-source-loc');
     if (locSelect) {
         let html = '<option value="">-- Direct Sale / Other --</option>';
         (state.tanks || []).forEach(t => {
@@ -2452,6 +2496,7 @@ function renderTankManager() {
         });
         html += '<optgroup label="Import Containers"><option value="NEW_CONTAINER">Assign to Container ID (Auto)</option></optgroup>';
         locSelect.innerHTML = html;
+        if (srcSelect) srcSelect.innerHTML = html.replace('-- Direct Sale / Other --', '-- Select Source --');
     }
 }
 
