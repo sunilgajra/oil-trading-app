@@ -2506,3 +2506,28 @@ async function forceCloudResync() {
     // Force reload
     window.location.reload();
 }
+
+async function inspectCloudData() {
+    try {
+        const { data: auth } = await supabaseClient.auth.getSession();
+        if (!auth.session) return alert("Please Login first to inspect cloud data.");
+        
+        toast("Checking cloud database...");
+        const { data, error } = await supabaseClient
+            .from('murji_state')
+            .select('state_data')
+            .eq('user_id', auth.session.user.id)
+            .maybeSingle();
+            
+        if (error) throw error;
+        if (!data || !data.state_data) return alert("No cloud data found for this user account.");
+        
+        const tradeCount = data.state_data.trades ? data.state_data.trades.length : 0;
+        const tankCount = data.state_data.tanks ? data.state_data.tanks.length : 0;
+        
+        alert(`CLOUD DATABASE CHECK:\n\n✅ Data Found!\n- Total Trades: ${tradeCount}\n- Storage Tanks: ${tankCount}\n- Products: ${data.state_data.products.length}\n\nIf you see your trades here, your data is SAFE. Click 'FORCE CLOUD RESYNC' to restore them to your screen.`);
+    } catch (e) {
+        console.error(e);
+        alert("Error connecting to cloud: " + e.message);
+    }
+}
