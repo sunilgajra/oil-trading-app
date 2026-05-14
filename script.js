@@ -209,6 +209,12 @@ function renderYardDashboard() {
         const batches = inventory.filter(i => i.location === tank.id);
         const totalVol = batches.reduce((sum, b) => sum + b.vol, 0);
         const totalKg = batches.reduce((sum, b) => sum + b.weight_kg, 0);
+        
+        // MT Calculation (Assuming default density if empty, or average of batches)
+        const avgDensity = batches.length > 0 ? (totalKg / totalVol) : 0.850;
+        const capMT = (tank.capacity * avgDensity) / 1000;
+        const currentMT = totalKg / 1000;
+
         const p = Math.min(100, (totalVol / tank.capacity) * 100);
         const color = p > 90 ? 'var(--red)' : p > 70 ? 'var(--gold2)' : 'var(--teal)';
         const prodNames = [...new Set(batches.map(b => b.product))].join(', ') || 'EMPTY';
@@ -222,7 +228,7 @@ function renderYardDashboard() {
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size:14px; font-weight:bold; color:var(--text);">${fmtN(totalVol)} L</div>
-                        <div style="font-size:11px; color:var(--muted);">${fmtKG(totalKg)} KG</div>
+                        <div style="font-size:11px; color:var(--muted);">${currentMT.toFixed(2)} MT</div>
                     </div>
                 </div>
                 <div style="background:rgba(0,0,0,0.3); height:8px; border-radius:4px; margin-bottom:10px;">
@@ -230,7 +236,7 @@ function renderYardDashboard() {
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:11px;">
                     <span style="color:var(--muted);">Product: <b style="color:var(--text);">${prodNames}</b></span>
-                    <span style="color:var(--muted);">Cap: ${fmtN(tank.capacity)}L</span>
+                    <span style="color:var(--muted);">Cap: ${fmtN(tank.capacity)}L / ${capMT.toFixed(1)}MT</span>
                 </div>
                 <div style="position:absolute; right:-10px; bottom:-10px; font-size:40px; opacity:0.05; transform:rotate(-15deg);"><i class="fas fa-oil-can"></i></div>
             </div>
@@ -2406,9 +2412,12 @@ function renderTankManager() {
     if (!list || !state) return;
     list.innerHTML = (state.tanks || []).map(t => `
         <div class="product-tag" style="padding:12px; display:flex; justify-content:space-between; align-items:center; background:var(--surface2); border:1px solid var(--border); border-radius:8px; margin-bottom:10px;">
-            <div>
-                <b style="color:var(--gold2);">${t.name}</b> (${t.id})<br>
-                <small style="color:var(--muted);">Cap: ${fmtN(t.capacity)}L | Loc: ${t.location}</small>
+            <div style="flex:1">
+                <input type="text" value="${t.name}" onchange="updateTankField('${t.id}', 'name', this.value)" style="background:transparent; border:none; color:var(--gold2); font-weight:bold; font-size:14px; width:100%; margin-bottom:4px;">
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div style="font-size:11px; color:var(--muted);">Cap (L): <input type="number" value="${t.capacity}" onchange="updateTankField('${t.id}', 'capacity', this.value)" style="width:70px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;"></div>
+                    <div style="font-size:11px; color:var(--muted);">Loc: <input type="text" value="${t.location}" onchange="updateTankField('${t.id}', 'location', this.value)" style="width:80px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;"></div>
+                </div>
             </div>
             <button class="btn btn-sm btn-danger" onclick="deleteTank('${t.id}')">&#x2715;</button>
         </div>
@@ -2424,6 +2433,16 @@ function renderTankManager() {
         html += '<optgroup label="Import Containers"><option value="NEW_CONTAINER">Assign to Container ID (Auto)</option></optgroup>';
         locSelect.innerHTML = html;
     }
+}
+
+function updateTankField(id, field, value) {
+    const tank = state.tanks.find(t => t.id === id);
+    if (!tank) return;
+    if (field === 'capacity') tank[field] = parseFloat(value) || 0;
+    else tank[field] = value;
+    saveState();
+    renderYardDashboard();
+    toast('Tank Updated');
 }
 
 function addTank() {
@@ -2452,4 +2471,14 @@ function deleteTank(id) {
     saveState();
     renderTankManager();
     renderYardDashboard();
+}
+
+async function forceCloudResync() {
+    if (!confirm('This will clear your local cache and reload ALL data from the Cloud. Any unsaved local changes will be lost. Proceed?')) return;
+    
+    toast('Clearing cache and re-syncing...');
+    localStorage.removeItem('murji_oil_v12');
+    
+    // Force reload
+    window.location.reload();
 }
