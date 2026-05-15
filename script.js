@@ -1022,8 +1022,37 @@ function renderActiveOrders() {
     }).join('');
 }
 
+function populateOrderParties() {
+    const type = document.getElementById('ord-type').value;
+    const sel = document.getElementById('ord-customer');
+    if (!sel) return;
+    
+    if (type === 'PURCHASE') {
+        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
+            (state.suppliers || []).map(s => `<option value="${escH(s.name)}">${escH(s.name)}</option>`).join('');
+    } else {
+        sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
+            (state.buyers || []).map(b => `<option value="${escH(b.name)}">${escH(b.name)}</option>`).join('');
+    }
+}
+
+function populateOrderParties() {
+    const type = document.getElementById('ord-type').value;
+    const sel = document.getElementById('ord-customer');
+    if (!sel) return;
+    
+    if (type === 'PURCHASE') {
+        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
+            (state.suppliers || []).map(s => `<option value="${escH(s.name)}">${escH(s.name)}</option>`).join('');
+    } else {
+        sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
+            (state.buyers || []).map(b => `<option value="${escH(b.name)}">${escH(b.name)}</option>`).join('');
+    }
+}
+
 function populateSelects() {
     if (!state || !state.products) return;
+    populateOrderParties();
     ['inv-product', 'tr-product', 'ord-product', 'ch-product'].forEach(function(id) {
         var el = document.getElementById(id);
         if (!el) return;
@@ -1670,6 +1699,7 @@ function renderOrdersTable() {
 
         return '<tr>' +
             '<td class="mono">'+o.id+'</td>' +
+            '<td><span class="badge '+(o.type==='PURCHASE'?'badge-blue':'badge-green')+'">'+(o.type||'SALE')+'</span></td>' +
             '<td><b>'+o.customer+'</b></td>' +
             '<td>'+o.product+'</td>' +
             '<td class="mono"><div>'+fmtN(displayQty.toFixed(1))+' '+mainUnit+'</div><small style="color:var(--muted)">'+fmtN(otherQty.toFixed(1))+' '+otherUnit+'</small></td>' +
@@ -1695,6 +1725,8 @@ function editOrder(id) {
     if (!o) return;
     editingOrderId = id;
     
+    document.getElementById('ord-type').value = o.type || 'SALE';
+    populateOrderParties();
     document.getElementById('ord-customer').value = o.customer;
     document.getElementById('ord-product').value = o.product;
     document.getElementById('ord-density').value = o.density || 0.850;
@@ -1718,6 +1750,7 @@ function editOrder(id) {
 }
 
 function addOrder() {
+    var type = document.getElementById('ord-type').value;
     var customer = document.getElementById('ord-customer').value;
     var product = document.getElementById('ord-product').value;
     var unit = document.getElementById('ord-unit').value;
@@ -1733,6 +1766,8 @@ function addOrder() {
     }
     
     var orderData = {
+        id: editingOrderId || ('ORD-' + String(state.nextOrderNum++).padStart(3, '0')),
+        type: type,
         customer: customer,
         product: product,
         unit: unit,
@@ -1988,6 +2023,7 @@ function renderReports() {
         kpiC('Purchases', fmt(buys), '') +
         kpiC('Profit', fmt(profit), '');
     document.getElementById('plSummary').innerHTML =
+        '<div class="form-group"><label>Order Type</label><select id="ord-type" onchange="populateOrderParties()"><option value="SALE">Sale Order</option><option value="PURCHASE">Purchase Order</option></select></div><div class="form-group"><label>Party / Customer</label><select id="ord-customer"></select></div>' +
         '<div class="stat-row"><span>Total Revenue</span><span class="stat-val up">'+fmt(sales)+'</span></div>' +
         '<div class="stat-row"><span>Total Expenses</span><span class="stat-val down">'+fmt(buys)+'</span></div>' +
         '<div class="stat-row"><span>Net Profit</span><span class="stat-val '+(profit>=0?'up':'down')+'">'+fmt(profit)+'</span></div>';

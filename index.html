@@ -412,7 +412,8 @@
   <div class="section-title">Create Order</div>
   <div class="panel">
     <div class="form-grid">
-      <div class="form-group"><label>Customer Name</label><input id="ord-customer" placeholder="Customer / Company"></div>
+      <div class="form-group"><label>Order Type</label><select id="ord-type" onchange="populateOrderParties()"><option value="SALE">Sale Order</option><option value="PURCHASE">Purchase Order</option></select></div>
+      <div class="form-group"><label>Party / Customer</label><select id="ord-customer"></select></div>
       <div class="form-group"><label>Product</label><select id="ord-product"></select></div>
       <div class="form-group"><label>Density (kg/L)</label><input id="ord-density" type="number" step="0.001" placeholder="0.850" oninput="onDensityChangeForPrice('ord')"></div>
       <div class="form-group"><label>Base Unit (for Pricing)</label><select id="ord-unit" onchange="dualCalc('ord','vol'); priceCalc('ord','perL');"><option value="LITRE">Litre (L)</option><option value="KG">Kilogram (KG)</option></select></div>
@@ -429,7 +430,7 @@
     <div class="btn-row"><button class="btn btn-primary" onclick="addOrder()">&#x1F4CB; Create Order</button></div>
   </div>
   <div class="section-title">All Orders</div>
-  <div class="table-wrap scroll-x"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Product</th><th>Quantity</th><th>Rate</th><th>Total Value</th><th>Status</th><th>Due</th><th>Actions</th></tr></thead><tbody id="ordersTable"></tbody></table></div>
+  <div class="table-wrap scroll-x"><table><thead><tr><th>Order ID</th><th>Type</th><th>Customer / Party</th><th>Product</th><th>Quantity</th><th>Rate</th><th>Total Value</th><th>Status</th><th>Due</th><th>Actions</th></tr></thead><tbody id="ordersTable"></tbody></table></div>
 </div></div>
 
 <!-- CHALLANS -->
