@@ -183,6 +183,7 @@
         <div id="tr-party-input-wrap"><input id="tr-party" placeholder="Supplier / Customer"></div>
         <div id="tr-party-select-wrap" style="display:none"><select id="tr-party-select"></select></div>
       </div>
+      <div id="tr-deal-group" class="form-group" style="display:none"><label>Sale Deal / Order</label><select id="tr-sale-deal" onchange="loadDealDetails()"></select></div>
       
       <!-- Shared Details -->
       <div class="form-group"><label>Quantity</label>
@@ -285,6 +286,40 @@
         </div>
         <div id="tr-payment-status" style="margin-top:10px; text-align:right; font-weight:bold; font-size:13px; display:none;">
             <span class="badge badge-green" style="padding:5px 15px;">FULL PAYMENT DONE</span>
+        </div>
+      </div>
+      
+      <!-- Buyer Payments Section -->
+      <div id="tr-buyer-payments-section" class="form-group full" style="margin-top:10px; border-top:1px solid var(--border); padding-top:20px; display:none;">
+        <label style="color:var(--teal); display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
+            <span><i class="fas fa-hand-holding-usd"></i> Buyer Payment Tracker</span>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <span style="font-size:11px; color:var(--muted);">Invoice Amt:</span>
+                <input id="tr-sale-inv-amt" type="number" placeholder="0.00" style="width:100px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;" oninput="updateBuyerPaymentSummary()">
+                <button class="btn btn-sm btn-ghost" onclick="addBuyerPaymentRow()">+ Add Received</button>
+            </div>
+        </label>
+        <div class="table-wrap" style="background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border); font-size:11px; color:var(--muted);">
+                        <th style="padding:10px; text-align:left;">Date</th>
+                        <th style="padding:10px; text-align:left;">Received Amt (&#x20B9;)</th>
+                        <th style="padding:10px; text-align:left;">Type</th>
+                        <th style="padding:10px; text-align:left;">Remarks / Ref</th>
+                        <th style="padding:10px; text-align:center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tr-buyer-payments-body"></tbody>
+                <tfoot>
+                    <tr style="background:rgba(0,0,0,0.2); font-weight:bold; font-size:12px;">
+                        <td colspan="1" style="padding:10px; text-align:right; color:var(--muted);">Total Received:</td>
+                        <td colspan="1" style="padding:10px; color:var(--green);" id="tr-buy-total-rec">₹ 0</td>
+                        <td colspan="2" style="padding:10px; text-align:right; color:var(--muted);">Balance Due:</td>
+                        <td colspan="1" style="padding:10px; color:var(--red);" id="tr-buy-balance">₹ 0</td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
       </div>
 

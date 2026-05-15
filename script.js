@@ -837,17 +837,21 @@ function toggleTradeDetailFields() {
             imp.style.display = 'grid';
             loc.style.display = 'none';
             document.getElementById('tr-payments-section').style.display = 'block';
+            document.getElementById('tr-buyer-payments-section').style.display = 'none';
             calcImportTotal();
         } else {
             imp.style.display = 'none';
             loc.style.display = 'grid';
             document.getElementById('tr-payments-section').style.display = 'none';
+            document.getElementById('tr-buyer-payments-section').style.display = 'none';
         }
     } else {
         // Sell
         imp.style.display = 'none';
-        loc.style.display = 'none';
+        loc.style.display = (mode === 'local') ? 'grid' : 'none';
         document.getElementById('tr-payments-section').style.display = 'none';
+        document.getElementById('tr-buyer-payments-section').style.display = (mode === 'local') ? 'block' : 'none';
+        document.getElementById('tr-deal-group').style.display = 'flex';
         if (mode === 'hs_sale') {
             linkGrp.style.display = 'flex';
             populatePurchaseLinks();
@@ -958,7 +962,7 @@ function renderActiveOrders() {
 
 function populateSelects() {
     if (!state || !state.products) return;
-    ['inv-product','tr-product','ord-product','ch-product'].forEach(function(id) {
+    ['inv-product', 'tr-product', 'ord-product', 'ch-product'].forEach(function(id) {
         var el = document.getElementById(id);
         if (!el) return;
         el.innerHTML = state.products.map(function(p){ 
@@ -966,6 +970,16 @@ function populateSelects() {
             return '<option value="'+escH(p.name)+'">'+escH(label)+'</option>'; 
         }).join('');
     });
+    
+    // Populate Sale Deal Dropdown
+    var dealSel = document.getElementById('tr-sale-deal');
+    if (dealSel) {
+        var activeOrders = state.orders.filter(function(o){ return o.status !== 'Delivered'; });
+        dealSel.innerHTML = '<option value="">-- Select Order / Deal --</option>' + 
+            activeOrders.map(function(o){ 
+                return '<option value="'+o.id+'">'+escH(o.id + ' | ' + o.customer + ' | ' + o.product)+'</option>'; 
+            }).join('');
+    }
 }
 function renderProductsList() {
     document.getElementById('productsList').innerHTML = state.products.map(function(p) {
@@ -1385,6 +1399,15 @@ function editTrade(id) {
         t.payments.forEach(p => addPaymentRow(p));
     }
     
+    // Load Buyer Payments
+    clearBuyerData();
+    if (t.sale_inv_amt) document.getElementById('tr-sale-inv-amt').value = t.sale_inv_amt;
+    if (t.sale_deal_id) document.getElementById('tr-sale-deal').value = t.sale_deal_id;
+    if (t.buyer_payments) {
+        t.buyer_payments.forEach(p => addBuyerPaymentRow(p));
+    }
+    updateBuyerPaymentSummary();
+    
     var btn = document.querySelector('button[onclick="addTrade()"]');
     if (btn) { btn.innerHTML = '&#x1F4BE; Update Trade'; btn.classList.add('btn-blue'); }
     window.scrollTo({top:0, behavior:'smooth'});
@@ -1428,6 +1451,9 @@ function addTrade() {
         expenses: getTradeExpenses(),
         ship_docs: currentShipDocs,
         payments: getSupplierPayments(),
+        buyer_payments: getBuyerPayments(),
+        sale_inv_amt: parseFloat(document.getElementById('tr-sale-inv-amt').value) || 0,
+        sale_deal_id: document.getElementById('tr-sale-deal').value || null,
         is_hs: document.getElementById('tr-is-hs').checked,
         hs_seller: document.getElementById('tr-hs-seller').value,
         location: storageLoc
@@ -1526,8 +1552,11 @@ function addTrade() {
     });
     document.getElementById('tr-party-select').value = '';
     document.getElementById('tr-is-hs').checked = false;
+    document.getElementById('tr-sale-deal').value = '';
+    document.getElementById('tr-sale-inv-amt').value = '';
     clearExpenses();
     clearSupplierData();
+    clearBuyerData();
     toggleTradeDetailFields();
 }
 function renderTradeDocs() {
@@ -1949,7 +1978,7 @@ function addExpenseRow(data) {
     row.className = 'expense-row';
     row.style.borderBottom = '1px solid var(--border)';
     
-    const types = ['Line Charges', 'CFS Charges', 'LOLO Charges', 'Customs Duty', 'THC Fees', 'Agency Fees', 'Transportation', 'Insurance', 'Survey', 'Other'];
+    const types = ['Line Charges', 'CFS Charges', 'LOLO Charges', 'Customs Duty', 'THC Fees', 'Agency Fees', 'Transportation', 'Truck Hire', 'Insurance', 'Survey', 'Other'];
     const defaultType = data ? data.type : 'Line Charges';
     const isOther = !types.includes(defaultType) && defaultType !== 'Other';
     const finalType = isOther ? 'Other' : defaultType;
@@ -2330,7 +2359,8 @@ function getSupplierPayments() {
 }
 
 function clearSupplierData() {
-    document.getElementById('tr-payments-body').innerHTML = '';
+    const body = document.getElementById('tr-payments-body');
+    if (body) body.innerHTML = '';
     currentShipDocs = [];
     currentTradeDocs = [];
     document.querySelectorAll('.ship-doc-item').forEach(i => {
@@ -2339,6 +2369,116 @@ function clearSupplierData() {
     renderShipDocs();
     renderTradeDocs();
     updatePaymentSummary();
+}
+
+// --- BUYER PAYMENTS ---
+function addBuyerPaymentRow(data) {
+    const tbody = document.getElementById('tr-buyer-payments-body');
+    if (!tbody) return;
+    const rowId = 'bpay_' + Date.now() + Math.random().toString(36).substr(2, 5);
+    const row = document.createElement('tr');
+    row.id = rowId;
+    row.className = 'buyer-payment-row';
+    row.style.borderBottom = '1px solid var(--border)';
+    
+    const dDate = data ? data.date : today();
+    const dAmt = data ? data.amount : 0;
+    const dType = data ? data.type : 'Bank';
+    const dRem = data ? data.remarks : '';
+    
+    row.innerHTML = `
+        <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updateBuyerPaymentSummary()"></td>
+        <td style="padding:8px;"><input type="number" value="${dAmt}" placeholder="Amount" oninput="updateBuyerPaymentSummary()"></td>
+        <td style="padding:8px;">
+            <select onchange="updateBuyerPaymentSummary()">
+                <option ${dType==='Bank'?'selected':''}>Bank</option>
+                <option ${dType==='Yard'?'selected':''}>Yard</option>
+            </select>
+        </td>
+        <td style="padding:8px;"><input type="text" value="${dRem}" placeholder="Ref/Remark" style="width:100%"></td>
+        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removeBuyerPaymentRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
+    `;
+    tbody.appendChild(row);
+    updateBuyerPaymentSummary();
+}
+
+function removeBuyerPaymentRow(id) {
+    const row = document.getElementById(id);
+    if (row) row.remove();
+    updateBuyerPaymentSummary();
+}
+
+function updateBuyerPaymentSummary() {
+    const rows = document.querySelectorAll('#tr-buyer-payments-body tr');
+    const invAmtEl = document.getElementById('tr-sale-inv-amt');
+    if (!invAmtEl) return;
+    const invAmt = parseFloat(invAmtEl.value) || 0;
+    
+    let totalRec = 0;
+    rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        totalRec += parseFloat(inputs[1].value) || 0;
+    });
+    
+    const recEl = document.getElementById('tr-buy-total-rec');
+    if (recEl) recEl.textContent = '₹ ' + totalRec.toLocaleString('en-IN');
+    
+    const balEl = document.getElementById('tr-buy-balance');
+    if (balEl) {
+        const balance = invAmt - totalRec;
+        balEl.textContent = '₹ ' + balance.toLocaleString('en-IN');
+        balEl.style.color = balance > 0 ? 'var(--red)' : 'var(--green)';
+    }
+}
+
+function getBuyerPayments() {
+    const rows = document.querySelectorAll('#tr-buyer-payments-body tr');
+    const payments = [];
+    rows.forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        const select = row.querySelector('select');
+        payments.push({
+            date: inputs[0].value,
+            amount: parseFloat(inputs[1].value) || 0,
+            type: select.value,
+            remarks: inputs[2].value
+        });
+    });
+    return payments;
+}
+
+function clearBuyerData() {
+    const body = document.getElementById('tr-buyer-payments-body');
+    if (body) body.innerHTML = '';
+    const invAmtEl = document.getElementById('tr-sale-inv-amt');
+    if (invAmtEl) invAmtEl.value = '';
+    updateBuyerPaymentSummary();
+}
+
+function loadDealDetails() {
+    var id = document.getElementById('tr-sale-deal').value;
+    if (!id) return;
+    var order = state.orders.find(o => o.id === id);
+    if (!order) return;
+    
+    document.getElementById('tr-product').value = order.product;
+    document.getElementById('tr-vol').value = order.qty;
+    document.getElementById('tr-density').value = order.density;
+    document.getElementById('tr-price-local').value = order.price;
+    
+    // Select the correct party
+    const partySel = document.getElementById('tr-party-select');
+    if (partySel) {
+        const options = Array.from(partySel.options);
+        const target = options.find(o => o.text === order.customer);
+        if (target) partySel.value = target.value;
+    }
+    
+    document.getElementById('tr-sale-inv-amt').value = order.qty * order.price;
+    
+    calcTradeTotals();
+    updateBuyerPaymentSummary();
+    toast('Loaded Order: ' + id);
 }
 
 
