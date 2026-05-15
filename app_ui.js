@@ -82,6 +82,39 @@ export function toggleTradeDetailFields() {
     }
 }
 
+export function toggleTradeModeField() {
+    const type = document.getElementById('tr-type').value;
+    const modeGrp = document.getElementById('tr-mode-group');
+    if (modeGrp) modeGrp.style.display = (type === 'Move') ? 'none' : 'block';
+}
+
+export function populatePurchaseLinks() {
+    const sel = document.getElementById('tr-link-purchase');
+    if (!sel) return;
+    const buys = state.trades.filter(t => t.type === 'Buy' && t.mode === 'import');
+    sel.innerHTML = '<option value="">-- Link to Import Purchase --</option>' + 
+        buys.map(t => `<option value="${t.id}">${escH(t.id + ' | ' + t.party + ' | ' + t.product)}</option>`).join('');
+}
+
+export function editTrade(id) {
+    const t = state.trades.find(x => x.id == id);
+    if (!t) return toast("Trade not found", true);
+    
+    document.getElementById('tr-type').value = t.type;
+    document.getElementById('tr-mode').value = t.mode;
+    document.getElementById('tr-date').value = t.date;
+    document.getElementById('tr-product').value = t.product;
+    document.getElementById('tr-qty').value = t.vol;
+    document.getElementById('tr-price').value = t.price;
+    
+    toggleTradeModeField();
+    toggleTradeDetailFields();
+    
+    // Jump to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast("Trade Loaded for Editing");
+}
+
 export function addPaymentRow() {
     const tbody = document.getElementById('tr-payments-body');
     if (!tbody) return;
