@@ -30,6 +30,9 @@ var DEF_S = {
 };
 
 var state;
+var currentTradeDocs = [];
+var currentShipDocs = [];
+var activeShipDocItem = null;
 async function loadState(){
   // Initialize state with default or local first
   try {
@@ -672,55 +675,6 @@ function shareWhatsApp(id) {
 }
 
 /* ═══════ CORE UI LOGIC ═══════ */
-async function handlePhotoUpload(input, pid) {
-    var f = input.files[0];
-    if (!f) return;
-    try {
-        document.getElementById(pid).innerHTML = '<small style="color:var(--gold2)">Uploading...</small>';
-        const url = await uploadFileToSupabase(f, 'slips');
-        input.dataset.url = url;
-        document.getElementById(pid).innerHTML = '<img src="' + url + '" class="photo-thumb" onclick="showImage(this.src)" alt="Slip">';
-    } catch (e) {
-        toast("Upload Failed: " + e.message, true);
-        document.getElementById(pid).innerHTML = '<small style="color:var(--red)">Failed</small>';
-    }
-}
-
-async function handleShipDocUpload(input) {
-    const files = input.files;
-    if (!files || files.length === 0) return;
-    
-    toast("Uploading Shipping Docs...");
-    for (let f of files) {
-        try {
-            const url = await uploadFileToSupabase(f, 'shipping');
-            currentShipDocs.push({ name: f.name, url: url, date: today() });
-        } catch (e) {
-            toast("Failed to upload " + f.name, true);
-        }
-    }
-    renderShipDocs();
-}
-
-async function uploadTradeDoc(input) {
-    const files = input.files;
-    if (!files || files.length === 0) return;
-    
-    toast("Uploading Trade Docs...");
-    for (let f of files) {
-        try {
-            const url = await uploadFileToSupabase(f, 'trades');
-            currentTradeDocs.push({ name: f.name, url: url, date: today() });
-        } catch (e) {
-            toast("Failed to upload " + f.name, true);
-        }
-    }
-    renderTradeDocs();
-}
-function showImage(src) {
-    document.getElementById('lightboxImg').src = src;
-    document.getElementById('lightbox').classList.add('show');
-}
 function updateClock() {
     document.getElementById('clockEl').textContent = new Date().toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'});
 }
@@ -1169,7 +1123,6 @@ function renderTradesTable() {
         return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
     }).join('');
 }
-var currentTradeDocs = [];
 async function handleTradeDocUpload(input) {
     const files = input.files;
     if (!files || files.length === 0) return;
@@ -1696,16 +1649,6 @@ function addTrade() {
     clearSupplierData();
     clearBuyerData();
     toggleTradeDetailFields();
-}
-function renderTradeDocs() {
-    const list = document.getElementById('tr-docs-list');
-    if (!list) return;
-    list.innerHTML = currentTradeDocs.map((doc, idx) => `
-        <div class="doc-badge">
-            <span onclick="openDocPreview('${doc.data || doc.url}', '${doc.name}')">${doc.name}</span>
-            <button onclick="currentTradeDocs.splice(${idx},1); renderTradeDocs()">&#x2715;</button>
-        </div>
-    `).join('');
 }
 
 function renderOrdersTable() {
@@ -2371,9 +2314,6 @@ function clearExpenses() {
 }
 
 // --- SHIPPING DOCUMENTS & PAYMENTS ---
-var currentShipDocs = [];
-var currentTradeDocs = [];
-var activeShipDocItem = null;
 
 function uploadShipDoc(btn) {
     activeShipDocItem = btn.closest('.ship-doc-item');
