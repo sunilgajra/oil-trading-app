@@ -226,79 +226,75 @@ function initApp() {
     }
 }
 
+/* ═══════ YARD MANAGER & TANK LOGIC ═══════ */
 function renderYardDashboard() {
-    const yardGrid = document.getElementById('yard-grid');
-    if (!yardGrid || !state) return;
+    const grid = document.getElementById('yard-grid');
+    if (!grid || !state) return;
     
-    let html = '';
-    const tanks = state.tanks || [];
-    const inventory = state.inventory || [];
-
-    tanks.forEach(tank => {
-        const batches = inventory.filter(i => i.location === tank.id);
-        const totalVol = batches.reduce((sum, b) => sum + b.vol, 0);
-        const totalKg = batches.reduce((sum, b) => sum + b.weight_kg, 0);
+    grid.innerHTML = (state.tanks || []).map(tank => {
+        const relevant = (state.inventory || []).filter(i => i.location === tank.id);
+        const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
+        const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
+        const mainProd = products.length > 0 ? products[0] : 'EMPTY';
+        const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
+        const color = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#14b8a6';
         
-        // MT Calculation (Assuming default density if empty, or average of batches)
-        const avgDensity = batches.length > 0 ? (totalKg / totalVol) : 0.850;
-        const capMT = (tank.capacity * avgDensity) / 1000;
-        const currentMT = totalKg / 1000;
-
-        const p = Math.min(100, (totalVol / tank.capacity) * 100);
-        const color = p > 90 ? 'var(--red)' : p > 70 ? 'var(--gold2)' : 'var(--teal)';
-        const prodNames = [...new Set(batches.map(b => b.product))].join(', ') || 'EMPTY';
-        
-        html += `
-            <div class="tank-card" style="background:var(--surface2); border:1px solid var(--border); padding:15px; border-radius:12px; position:relative; overflow:hidden;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-                    <div>
-                        <h4 style="margin:0; color:var(--gold2);">${tank.name}</h4>
-                        <small style="color:var(--muted);">${tank.id} | ${tank.location}</small>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:14px; font-weight:bold; color:var(--text);">${fmtN(totalVol)} L</div>
-                        <div style="font-size:11px; color:var(--muted);">${currentMT.toFixed(2)} MT</div>
-                    </div>
+        return `
+            <div class="panel" style="border-top: 4px solid ${color};">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <b>${escH(tank.name)}</b>
+                    <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
                 </div>
-                <div style="background:rgba(0,0,0,0.3); height:8px; border-radius:4px; margin-bottom:10px;">
-                    <div style="width:${p}%; height:100%; background:${color}; border-radius:4px; transition:width 0.5s;"></div>
+                <div style="background:rgba(255,255,255,0.05); height:60px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
+                    <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
+                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:11px;">
-                    <span style="color:var(--muted);">Product: <b style="color:var(--text);">${prodNames}</b></span>
-                    <span style="color:var(--muted);">Cap: ${fmtN(tank.capacity)}L / ${capMT.toFixed(1)}MT</span>
-                </div>
-                <div style="position:absolute; right:-10px; bottom:-10px; font-size:40px; opacity:0.05; transform:rotate(-15deg);"><i class="fas fa-oil-can"></i></div>
+                <div style="font-size:10px; margin-top:5px; color:var(--muted);">${mainProd} | ${escH(tank.location)}</div>
             </div>
         `;
-    });
-
-    // Add Containers Currently in Yard
-    const yardContainers = inventory.filter(i => !tanks.find(t => t.id === i.location));
-    yardContainers.forEach(cont => {
-         html += `
-            <div class="tank-card" style="background:rgba(20, 184, 166, 0.05); border:1px solid var(--teal); padding:15px; border-radius:12px; border-style:dashed;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-                    <div>
-                        <h4 style="margin:0; color:var(--teal);"><i class="fas fa-box"></i> Container Storage</h4>
-                        <small style="color:var(--muted);">${cont.location}</small>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:14px; font-weight:bold; color:var(--text);">${fmtN(cont.vol)} L</div>
-                        <div style="font-size:11px; color:var(--muted);">${fmtKG(cont.weight_kg)} KG</div>
-                    </div>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:15px;">
-                    <span style="color:var(--muted);">Product: <b style="color:var(--text);">${cont.product}</b></span>
-                    <span style="color:var(--muted);">Date: ${cont.date}</span>
-                </div>
-            </div>
-        `;
-    });
-
-    yardGrid.innerHTML = html;
+    }).join('');
 }
 
-function openLoginModal() { document.getElementById('loginModal').classList.add('show'); }
+function renderTankManager() {
+    const tbody = document.getElementById('tankManagerTable');
+    if (!tbody || !state) return;
+    tbody.innerHTML = (state.tanks || []).map(t => `
+        <tr>
+            <td class="mono">${t.id}</td>
+            <td>${escH(t.name)}</td>
+            <td>${escH(t.location)}</td>
+            <td>${fmtN(t.capacity)} L</td>
+            <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')">&#x2715;</button></td>
+        </tr>
+    `).join('');
+}
+
+function addTank() {
+    if (!state.tanks) state.tanks = [];
+    const name = document.getElementById('new-tank-name').value;
+    let cap = parseFloat(document.getElementById('new-tank-cap').value);
+    const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
+    if (!name || !cap) return toast('Enter name and capacity', true);
+    const id = 'T' + (state.tanks.length + 1);
+    state.tanks.push({ id, name, capacity: cap, location: loc });
+    document.getElementById('new-tank-name').value = '';
+    document.getElementById('new-tank-cap').value = '';
+    saveState();
+    renderTankManager();
+    renderYardDashboard();
+    toast('New Tank Added');
+}
+
+function deleteTank(id) {
+    if (!confirm('Are you sure?')) return;
+    state.tanks = state.tanks.filter(t => t.id !== id);
+    saveState();
+    renderTankManager();
+    renderYardDashboard();
+}
+
+function openLoginModal() {
+ document.getElementById('loginModal').classList.add('show'); }
 function closeLoginModal() { document.getElementById('loginModal').classList.remove('show'); }
 
 async function handleLogin() {
@@ -3010,7 +3006,13 @@ function renderTankManager() {
     }
 }
 
-function updateTankField(id, field, value) {
+function deleteTank(id) {
+    if (!confirm('Are you sure you want to remove this tank? Batches inside will remain but location will be unlinked.')) return;
+    state.tanks = state.tanks.filter(t => t.id !== id);
+    saveState();
+    renderTankManager();
+    renderYardDashboard();
+}
     const tank = state.tanks.find(t => t.id === id);
     if (!tank) return;
     if (field === 'capacity') tank[field] = parseFloat(value) || 0;
