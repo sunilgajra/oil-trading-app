@@ -44,8 +44,36 @@ export function renderInventoryTable() {
     table.innerHTML = state.inventory.map(i => `
         <tr>
             <td><b>${escH(i.product)}</b></td>
-            <td>${escH(i.tank)}</td>
+            <td>${escH(i.location)}</td>
             <td class="mono">${fmtN(i.vol)}</td>
-            <td class="mono">${fmt(i.cost)}</td>
+            <td class="mono">${fmt(i.unit_cost || 0)}</td>
         </tr>`).join('');
+}
+
+export function toggleTradeDetailFields() {
+    const type = document.getElementById('tr-type').value;
+    const mode = document.getElementById('tr-mode').value;
+    const buySec = document.getElementById('tr-payments-section');
+    const sellSec = document.getElementById('tr-buyer-payments-section');
+    
+    if (type === 'Buy') {
+        if (buySec) buySec.style.display = (mode === 'import') ? 'block' : 'none';
+        if (sellSec) sellSec.style.display = 'none';
+    } else {
+        if (buySec) buySec.style.display = 'none';
+        if (sellSec) sellSec.style.display = (mode === 'local') ? 'block' : 'none';
+    }
+}
+
+export function addPaymentRow() {
+    const tbody = document.getElementById('tr-payments-body');
+    if (!tbody) return;
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td style="padding:8px;"><input type="date" value="${today()}"></td>
+        <td style="padding:8px;"><input type="number" placeholder="Amount"></td>
+        <td style="padding:8px;"><input type="text" placeholder="Remarks"></td>
+        <td style="padding:8px;"><button class="btn btn-sm" onclick="this.closest('tr').remove()">X</button></td>
+    `;
+    tbody.appendChild(row);
 }

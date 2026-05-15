@@ -1,8 +1,8 @@
 /**
- * main.js - Flat Structure Version (Final Fix)
+ * main.js - Flat Structure Version (Fully Complete)
  */
-import { state, config, supabaseClient, validateState, saveState, DEF_S, today, toast, showImage } from './app_core.js';
-import { renderTradesTable, renderInventoryTable, renderYardDashboard } from './app_ui.js';
+import { state, config, supabaseClient, validateState, saveState, DEF_S, today, toast, showImage, addProductMaster, addTank } from './app_core.js';
+import { renderTradesTable, renderInventoryTable, renderYardDashboard, toggleTradeDetailFields, addPaymentRow } from './app_ui.js';
 import { refineWithCloudAI } from './app_services.js';
 
 window.App = {
@@ -20,7 +20,7 @@ window.App = {
     openLoginModal: () => document.getElementById('loginModal').classList.add('show'),
     closeLoginModal: () => document.getElementById('loginModal').classList.remove('show'),
     
-    // Login Logic
+    // Core Functions
     handleLogin: async () => {
         const email = document.getElementById('login-email').value;
         const pass = document.getElementById('login-password').value;
@@ -37,7 +37,13 @@ window.App = {
     },
     handleLogout: async () => { await supabaseClient.auth.signOut(); location.reload(); },
     
+    // Master Data
+    addProductMaster,
+    addTank,
+    
     // UI Logic
+    toggleTradeDetailFields,
+    addPaymentRow,
     toast,
     showImage,
     renderTradesTable,
@@ -52,7 +58,7 @@ Object.keys(window.App).forEach(key => window[key] = window.App[key]);
 async function init() {
     supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN') loadState();
-        else if (event === 'SIGNED_OUT') { /* handle logout */ }
+        else if (event === 'SIGNED_OUT') { /* Refresh UI */ }
     });
     
     const { data: auth } = await supabaseClient.auth.getSession();

@@ -75,7 +75,28 @@ export async function saveState(force = false) {
                 updated_at: new Date()
             }, { onConflict: 'user_id' });
         }
+        if (force) toast("Cloud Sync Complete");
     } catch (e) { console.error("Save Error:", e); }
+}
+
+export function addProductMaster() {
+    const name = document.getElementById('new-prod-name').value;
+    const den = parseFloat(document.getElementById('new-prod-den').value) || 0.850;
+    if (!name) return toast("Product name required", true);
+    state.products.push({ name, density: den, hsn: '', other: '' });
+    saveState();
+    toast("Product Added");
+    location.reload(); 
+}
+
+export function addTank() {
+    const name = document.getElementById('new-tank-name').value;
+    const cap = parseFloat(document.getElementById('new-tank-cap').value) || 0;
+    if (!name || cap <= 0) return toast("Invalid Tank Data", true);
+    state.tanks.push({ id: 'T' + Date.now(), name, capacity: cap, location: 'Yard' });
+    saveState();
+    toast("Tank Added");
+    location.reload();
 }
 
 export async function uploadFileToSupabase(file, path) {
