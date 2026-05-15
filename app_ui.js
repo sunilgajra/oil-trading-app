@@ -17,10 +17,27 @@ export function renderYardDashboard() {
                     <b>${escH(tank.name)}</b>
                     <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
                 </div>
-                <div style="font-size:16px; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
-                <div style="font-size:12px; color:var(--muted);">${escH(tank.location)}</div>
+                <div style="background:rgba(255,255,255,0.05); height:60px; position:relative; border-radius:4px; overflow:hidden;">
+                    <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
+                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:bold;">
+                        ${fmtN(currentL.toFixed(0))} L
+                    </div>
+                </div>
+                <div style="font-size:12px; color:var(--muted); margin-top:5px;">${escH(tank.location)}</div>
             </div>`;
     }).join('');
+}
+
+export function renderProductsList() {
+    const list = document.getElementById('productsList');
+    if (!list) return;
+    list.innerHTML = (state.products || []).map(p => `
+        <div class="doc-badge" style="display:inline-flex; align-items:center; gap:10px; margin:5px; background:var(--surface2); padding:5px 12px; border-radius:20px; border:1px solid var(--border);">
+            <span style="font-weight:bold; color:var(--teal);">${escH(p.name)}</span>
+            <span style="font-size:11px; color:var(--muted);">${p.density}</span>
+            <button onclick="App.deleteProduct('${escH(p.name)}')" style="background:none; border:none; color:var(--red); cursor:pointer; font-weight:bold;">&times;</button>
+        </div>
+    `).join('');
 }
 
 export function renderTradesTable() {

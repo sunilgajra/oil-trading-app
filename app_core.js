@@ -80,28 +80,42 @@ export async function saveState(force = false) {
 }
 
 export function addProductMaster() {
-    const name = document.getElementById('pm-name').value;
-    const other = document.getElementById('pm-other').value;
-    const hsn = document.getElementById('pm-hsn').value;
-    const den = parseFloat(document.getElementById('pm-density').value) || 0.850;
+    const nEl = document.getElementById('pm-name');
+    const oEl = document.getElementById('pm-other');
+    const hEl = document.getElementById('pm-hsn');
+    const dEl = document.getElementById('pm-density');
+    
+    const name = nEl.value;
+    const den = parseFloat(dEl.value) || 0.850;
+    
     if (!name) return toast("Product name required", true);
-    state.products.push({ name, density: den, hsn, other });
+    state.products.push({ name, density: den, hsn: hEl.value, other: oEl.value });
     saveState();
     toast("Product Added");
-    location.reload(); 
+    
+    // Clear Form
+    nEl.value = ''; oEl.value = ''; hEl.value = ''; dEl.value = '0.850';
+    
+    // Refresh UI (global call via App)
+    if (window.App && window.App.renderProductsList) window.App.renderProductsList();
 }
 
 export function addTank(source) {
     const prefix = source === 'yard' ? 'yard-' : 'settings-';
-    const name = document.getElementById(prefix + 'new-tank-name').value;
-    const cap = parseFloat(document.getElementById(prefix + 'new-tank-cap').value) || 0;
-    const loc = document.getElementById(prefix + 'new-tank-loc').value || 'Main Yard';
+    const nEl = document.getElementById(prefix + 'new-tank-name');
+    const cEl = document.getElementById(prefix + 'new-tank-cap');
+    const lEl = document.getElementById(prefix + 'new-tank-loc');
+    
+    const name = nEl.value;
+    const cap = parseFloat(cEl.value) || 0;
     
     if (!name || cap <= 0) return toast("Invalid Tank Data", true);
-    state.tanks.push({ id: 'T' + Date.now(), name, capacity: cap, location: loc });
+    state.tanks.push({ id: 'T' + Date.now(), name, capacity: cap, location: lEl.value || 'Yard' });
     saveState();
     toast("Tank Added");
-    location.reload();
+    
+    nEl.value = ''; cEl.value = ''; lEl.value = '';
+    if (window.App && window.App.renderYardDashboard) window.App.renderYardDashboard();
 }
 
 export async function uploadFileToSupabase(file, path) {
