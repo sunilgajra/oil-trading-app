@@ -1493,46 +1493,56 @@ function addTrade() {
         }
 
         // AUTO-UPDATE YARD INVENTORY
-        const sourceLoc = document.getElementById('tr-source-loc') ? document.getElementById('tr-source-loc').value : '';
-
-        if (type === 'Move') {
-            if (!sourceLoc || !storageLoc) return toast('Select source and destination', true);
-            if (sourceLoc === storageLoc) return toast('Source and destination cannot be same', true);
-            
-            // Subtract from source
+        if (storageLoc && !trade.is_hs) {
             state.inventory.push({
                 id: 'INV' + (state.nextInvId++),
                 trade_id: trade.id,
-                date: trade.date,
                 product: product,
-                location: sourceLoc,
-                vol: -volInL,
-                weight_kg: -(volInL * den),
-                density: den,
-                unit_cost: 0,
-                type: 'Internal Movement (Out)'
-            });
-            // Add to destination
-            state.inventory.push({
-                id: 'INV' + (state.nextInvId++),
-                trade_id: trade.id,
-                date: trade.date,
-                product: product,
-                location: storageLoc,
                 vol: volInL,
-                weight_kg: (volInL * den),
                 density: den,
-                unit_cost: 0,
-                type: 'Internal Movement (In)'
-            });
+                weight_kg: toKG(volInL, den),
+                location: storageLoc,
+                date: trade.date,
+                cost: price
             });
         }
+    } else if (type === 'Move') {
+        const sourceLoc = document.getElementById('tr-source-loc') ? document.getElementById('tr-source-loc').value : '';
+        if (!sourceLoc || !storageLoc) return toast('Select source and destination', true);
+        if (sourceLoc === storageLoc) return toast('Source and destination cannot be same', true);
+        
+        // Subtract from source
+        state.inventory.push({
+            id: 'INV' + (state.nextInvId++),
+            trade_id: trade.id,
+            date: trade.date,
+            product: product,
+            location: sourceLoc,
+            vol: -volInL,
+            weight_kg: -(volInL * den),
+            density: den,
+            unit_cost: 0,
+            type: 'Internal Movement (Out)'
+        });
+        // Add to destination
+        state.inventory.push({
+            id: 'INV' + (state.nextInvId++),
+            trade_id: trade.id,
+            date: trade.date,
+            product: product,
+            location: storageLoc,
+            vol: volInL,
+            weight_kg: (volInL * den),
+            density: den,
+            unit_cost: 0,
+            type: 'Internal Movement (In)'
+        });
     } else if (type === 'Sell') {
         const sourceLoc = document.getElementById('tr-source-loc') ? document.getElementById('tr-source-loc').value : '';
         if (sourceLoc) {
             // Deduct from inventory
             state.inventory.push({
-                id: state.nextInvId++,
+                id: 'INV' + (state.nextInvId++),
                 trade_id: trade.id,
                 product: product,
                 vol: -volInL,
@@ -1540,7 +1550,7 @@ function addTrade() {
                 weight_kg: -toKG(volInL, den),
                 location: sourceLoc,
                 date: trade.date,
-                cost: 0, // Sale deduction has no "cost" for inventory value calculation
+                cost: 0,
                 type: 'Sale Deduction'
             });
         }
