@@ -190,7 +190,7 @@ export function addPaymentRow() {
     tbody.appendChild(row);
 }
 
-export async function handleShipDocUpload(input) {
+export async function handleTradeDocUpload(input) {
     const files = Array.from(input.files);
     if (!files.length) return;
     
@@ -220,4 +220,52 @@ export async function handleShipDocUpload(input) {
             toast("Upload Failed", true);
         }
     }
+}
+
+export function syncWeightToQty() {
+    const weight = parseFloat(document.getElementById('tr-net-weight').value) || 0;
+    const density = parseFloat(document.getElementById('tr-density').value) || 0.850;
+    const unit = document.getElementById('tr-unit').value;
+    const volInput = document.getElementById('tr-vol');
+    
+    if (!volInput) return;
+    
+    if (unit === 'LITRE') {
+        volInput.value = (weight / density).toFixed(3);
+    } else if (unit === 'KG') {
+        volInput.value = weight.toFixed(3);
+    } else if (unit === 'MTON') {
+        volInput.value = (weight / 1000).toFixed(3);
+    }
+    
+    calcTradeTotals();
+}
+
+export function calcTradeTotals() {
+    const type = document.getElementById('tr-type').value;
+    const mode = document.getElementById('tr-mode').value;
+    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
+    const density = parseFloat(document.getElementById('tr-density').value) || 0.850;
+    
+    let rate = 0;
+    if (mode === 'import') {
+        const impRate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+        const exRate = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
+        rate = impRate * exRate;
+        
+        const totalFor = document.getElementById('tr-total-for');
+        if (totalFor) totalFor.value = (qty * impRate).toFixed(2);
+    } else {
+        rate = parseFloat(document.getElementById('tr-price-local')?.value) || 0;
+    }
+    
+    const totalINR = qty * rate;
+    const totalField = document.getElementById('tr-total-inr-shared');
+    if (totalField) totalField.value = totalINR.toFixed(2);
+    
+    // Landed Costs
+    const lLit = document.getElementById('tr-landed-l');
+    const lKg = document.getElementById('tr-landed-kg');
+    if (lLit) lLit.value = rate.toFixed(2);
+    if (lKg) lKg.value = (rate * density).toFixed(2);
 }

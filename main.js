@@ -1,8 +1,8 @@
 /**
- * main.js - Flat Structure Version (With AI Scan)
+ * main.js - Flat Structure Version (Fixed Logic)
  */
-import { state, config, supabaseClient, validateState, saveState, DEF_S, today, toast, showImage, addProductMaster, addTank } from './app_core.js';
-import { renderTradesTable, renderInventoryTable, renderYardDashboard, toggleTradeDetailFields, addPaymentRow, renderProductsList, toggleTradeModeField, editTrade, populatePurchaseLinks, populateTradeProducts, populateTradeParties, handleShipDocUpload } from './app_ui.js';
+import { state, config, supabaseClient, validateState, saveState, DEF_S, today, toast, showImage, addProductMaster, addTank, addSupplier, addBuyer } from './app_core.js';
+import { renderTradesTable, renderInventoryTable, renderYardDashboard, toggleTradeDetailFields, addPaymentRow, renderProductsList, toggleTradeModeField, editTrade, populatePurchaseLinks, populateTradeProducts, populateTradeParties, handleTradeDocUpload, syncWeightToQty, calcTradeTotals } from './app_ui.js';
 import { refineWithCloudAI } from './app_services.js';
 
 window.App = {
@@ -22,7 +22,7 @@ window.App = {
     openLoginModal: () => document.getElementById('loginModal').classList.add('show'),
     closeLoginModal: () => document.getElementById('loginModal').classList.remove('show'),
     
-    // Auth logic
+    // Auth
     handleLogin: async () => {
         const email = document.getElementById('login-email').value;
         const pass = document.getElementById('login-password').value;
@@ -32,26 +32,20 @@ window.App = {
     },
     handleLogout: async () => { await supabaseClient.auth.signOut(); location.reload(); },
     
-    // Master Data
+    // Core Logic
+    syncWeightToQty,
+    calcTradeTotals,
     addProductMaster,
     addTank,
-    deleteProduct: (pName) => {
-        if (!confirm(`Delete ${pName}?`)) return;
-        state.products = state.products.filter(p => p.name !== pName);
-        saveState(); renderProductsList(); toast("Product Removed");
-    },
-    
-    // Trade Logic
+    addSupplier,
+    addBuyer,
     editTrade,
     toggleTradeModeField,
     toggleTradeDetailFields,
     addPaymentRow,
-    populatePurchaseLinks,
-    populateTradeProducts,
-    populateTradeParties,
-    handleShipDocUpload,
+    handleTradeDocUpload,
     
-    // UI logic
+    // UI
     toast, showImage,
     renderTradesTable, renderInventoryTable, renderYardDashboard, renderProductsList,
     refineWithCloudAI
