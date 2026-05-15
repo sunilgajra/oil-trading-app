@@ -80,20 +80,25 @@ export async function saveState(force = false) {
 }
 
 export function addProductMaster() {
-    const name = document.getElementById('new-prod-name').value;
-    const den = parseFloat(document.getElementById('new-prod-den').value) || 0.850;
+    const name = document.getElementById('pm-name').value;
+    const other = document.getElementById('pm-other').value;
+    const hsn = document.getElementById('pm-hsn').value;
+    const den = parseFloat(document.getElementById('pm-density').value) || 0.850;
     if (!name) return toast("Product name required", true);
-    state.products.push({ name, density: den, hsn: '', other: '' });
+    state.products.push({ name, density: den, hsn, other });
     saveState();
     toast("Product Added");
     location.reload(); 
 }
 
-export function addTank() {
-    const name = document.getElementById('new-tank-name').value;
-    const cap = parseFloat(document.getElementById('new-tank-cap').value) || 0;
+export function addTank(source) {
+    const prefix = source === 'yard' ? 'yard-' : 'settings-';
+    const name = document.getElementById(prefix + 'new-tank-name').value;
+    const cap = parseFloat(document.getElementById(prefix + 'new-tank-cap').value) || 0;
+    const loc = document.getElementById(prefix + 'new-tank-loc').value || 'Main Yard';
+    
     if (!name || cap <= 0) return toast("Invalid Tank Data", true);
-    state.tanks.push({ id: 'T' + Date.now(), name, capacity: cap, location: 'Yard' });
+    state.tanks.push({ id: 'T' + Date.now(), name, capacity: cap, location: loc });
     saveState();
     toast("Tank Added");
     location.reload();
