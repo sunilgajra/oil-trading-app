@@ -940,7 +940,7 @@ function populateSourceLocations() {
     sel.innerHTML = '<option value="">-- Direct from Port / Other --</option>' + 
         state.tanks.map(t => `<option value="${t.id}">${escH(t.name)}</option>`).join('');
 }
-}
+
 function populatePurchaseLinks() {
     var sel = document.getElementById('tr-link-purchase');
     // Find Buy trades that are Import or already tagged as Buy-HS
