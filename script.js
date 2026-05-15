@@ -2691,12 +2691,20 @@ function loadDealDetails() {
     
     // Fill basic fields
     document.getElementById('tr-product').value = order.product;
-    document.getElementById('tr-vol').value = order.qty;
     document.getElementById('tr-density').value = order.density || 0.850;
+    
+    // Sync Unit and Values
+    const unitEl = document.getElementById('tr-unit');
+    const isKG = order.unit === 'KG';
+    if (unitEl) unitEl.value = isKG ? 'KG' : 'LITRE';
+    
+    document.getElementById('tr-vol').value = isKG ? (order.qty_kg || (order.qty * (order.density || 0.850))) : order.qty;
     
     // Fill Sale Rate (Local Sale specific)
     const rateEl = document.getElementById('tr-price-local');
-    if (rateEl) rateEl.value = order.price || 0;
+    if (rateEl) {
+        rateEl.value = isKG ? (order.price_kg || (order.price / (order.density || 0.850))) : order.price;
+    }
     
     // Select the correct party
     const partySel = document.getElementById('tr-party-select');
@@ -2715,14 +2723,18 @@ function loadDealDetails() {
     
     // Set Sale Invoice Amount
     const invAmtEl = document.getElementById('tr-sale-inv-amt');
-    if (invAmtEl) invAmtEl.value = (order.qty * order.price).toFixed(2);
+    if (invAmtEl) {
+        const qty = isKG ? (order.qty_kg || (order.qty * (order.density || 0.850))) : order.qty;
+        const rate = isKG ? (order.price_kg || (order.price / (order.density || 0.850))) : order.price;
+        invAmtEl.value = (qty * rate).toFixed(2);
+    }
     
     // Trigger UI updates
     populateSourceLocations();
     calcTradeTotals();
     updateBuyerPaymentSummary();
     
-    toast('Loaded Order: ' + id);
+    toast('Loaded Order: ' + id + ' (' + (isKG ? 'KG' : 'Litre') + ' basis)');
 }
 
 function populateSourceLocations() {
