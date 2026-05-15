@@ -1655,16 +1655,26 @@ function renderTradeDocs() {
 }
 
 function renderOrdersTable() {
-    document.getElementById('ordersTable').innerHTML = state.orders.slice().reverse().map(function(o) {
-        const kg = (o.qty * (o.density || 0.850)).toLocaleString('en-IN', {maximumFractionDigits:1});
+    document.getElementById('ordersTable').innerHTML = (state.orders || []).slice().reverse().map(function(o) {
+        const isKG = o.unit === 'KG';
+        const den = o.density || 0.850;
+        const mainQty = isKG ? (o.qty * den) : o.qty;
+        const mainRate = isKG ? (o.price / den) : o.price;
+        const otherQty = isKG ? o.qty : (o.qty * den);
+        const otherUnit = isKG ? 'L' : 'KG';
+        const mainUnit = isKG ? 'KG' : 'L';
+        
+        // Final values for display
+        const displayQty = isKG ? (o.qty_kg || (o.qty * den)) : o.qty;
+        const displayRate = isKG ? (o.price_kg || (o.price / den)) : o.price;
+
         return '<tr>' +
             '<td class="mono">'+o.id+'</td>' +
             '<td><b>'+o.customer+'</b></td>' +
             '<td>'+o.product+'</td>' +
-            '<td class="mono">'+fmtN(o.qty)+'</td>' +
-            '<td class="mono">'+kg+'</td>' +
-            '<td class="mono">'+fmt(o.price)+'</td>' +
-            '<td class="mono">'+fmt(o.qty*o.price)+'</td>' +
+            '<td class="mono"><div>'+fmtN(displayQty.toFixed(1))+' '+mainUnit+'</div><small style="color:var(--muted)">'+fmtN(otherQty.toFixed(1))+' '+otherUnit+'</small></td>' +
+            '<td class="mono"><div>\u20B9 '+displayRate.toFixed(2)+'</div><small style="color:var(--muted)">per '+mainUnit+'</small></td>' +
+            '<td class="mono"><b>'+fmt(displayQty * displayRate)+'</b></td>' +
             '<td>'+statusBadge(o.status)+'</td>' +
             '<td class="mono">'+o.due+'</td>' +
             '<td style="display:flex;gap:4px">' +
@@ -1688,6 +1698,8 @@ function editOrder(id) {
     document.getElementById('ord-customer').value = o.customer;
     document.getElementById('ord-product').value = o.product;
     document.getElementById('ord-density').value = o.density || 0.850;
+    document.getElementById('ord-unit').value = o.unit || 'LITRE';
+    
     document.getElementById('ord-qty').value = o.qty;
     document.getElementById('ord-price').value = o.price;
     document.getElementById('ord-date').value = o.date || today();
@@ -1708,20 +1720,40 @@ function editOrder(id) {
 function addOrder() {
     var customer = document.getElementById('ord-customer').value;
     var product = document.getElementById('ord-product').value;
-    var qty = parseFloat(document.getElementById('ord-qty').value);
-    var price = parseFloat(document.getElementById('ord-price').value);
-    if (!customer || !qty || !price) return toast('Please fill all required fields', true);
+    var unit = document.getElementById('ord-unit').value;
+    var density = parseFloat(document.getElementById('ord-density').value) || 0.850;
     
+    var qtyL = parseFloat(document.getElementById('ord-qty').value) || 0;
+    var qtyKG = parseFloat(document.getElementById('ord-kg').value) || 0;
+    var priceL = parseFloat(document.getElementById('ord-price').value) || 0;
+    var priceKG = parseFloat(document.getElementById('ord-price-kg').value) || 0;
+
+    if (!customer || (unit === 'LITRE' ? !qtyL || !priceL : !qtyKG || !priceKG)) {
+        return toast('Please fill all required fields', true);
+    }
+    
+    var orderData = {
+        customer: customer,
+        product: product,
+        unit: unit,
+        density: density,
+        qty: qtyL,
+        qty_kg: qtyKG,
+        price: priceL,
+        price_kg: priceKG,
+        date: document.getElementById('ord-date').value || today(),
+        due: document.getElementById('ord-due').value,
+        priority: document.getElementById('ord-priority').value,
+        status: 'Pending',
+        terms: 'Immediate'
+    };
+
     if (editingOrderId) {
         const idx = state.orders.findIndex(o => o.id === editingOrderId);
         if (idx >= 0) {
-            state.orders[idx].customer = customer;
-            state.orders[idx].product = product;
-            state.orders[idx].qty = qty;
-            state.orders[idx].price = price;
-            state.orders[idx].density = parseFloat(document.getElementById('ord-density').value) || 0.850;
-            state.orders[idx].due = document.getElementById('ord-due').value;
-            state.orders[idx].priority = document.getElementById('ord-priority').value;
+            orderData.id = editingOrderId;
+            orderData.status = state.orders[idx].status;
+            state.orders[idx] = orderData;
             toast('Order updated');
         }
         editingOrderId = null;
@@ -1731,17 +1763,9 @@ function addOrder() {
             btn.classList.remove('btn-blue');
         }
     } else {
-        var id = 'ORD-' + String(state.nextOrderNum++).padStart(3, '0');
-        state.orders.push({
-            id: id, customer: customer, product: product, qty: qty, price: price,
-            date: document.getElementById('ord-date').value || today(), 
-            due: document.getElementById('ord-due').value,
-            addr: '', priority: document.getElementById('ord-priority').value,
-            status: 'Pending',
-            density: parseFloat(document.getElementById('ord-density').value) || getDensity(product),
-            terms: 'Immediate'
-        });
-        toast('Created ' + id);
+        orderData.id = 'ORD-' + String(state.nextOrderNum++).padStart(3, '0');
+        state.orders.push(orderData);
+        toast('Created ' + orderData.id);
     }
     
     saveState(); renderOrdersTable(); renderActiveOrders(); populateSelects();
