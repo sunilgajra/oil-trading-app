@@ -28,6 +28,7 @@ export const DEF_S = {
     apiModel: 'gemini-1.5-flash'
 };
 
+export const config = DEF_S; // This fix solves the SyntaxError
 export var state = JSON.parse(JSON.stringify(DEF_S));
 
 const SUPABASE_URL = "https://vrkilanytzftkpfllqjh.supabase.co";
