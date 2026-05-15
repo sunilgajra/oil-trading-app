@@ -134,11 +134,39 @@ export function editTrade(id) {
     if (priceLocal) priceLocal.value = t.price || 0;
     if (priceImp) priceImp.value = t.price || 0;
     
+    // Import Specific Fields
+    const bl = document.getElementById('tr-bl-no');
+    if (bl) bl.value = t.bl_no || '';
+    
+    const vessel = document.getElementById('tr-vessel');
+    if (vessel) vessel.value = t.vessel || '';
+    
+    const pLoad = document.getElementById('tr-port-load');
+    if (pLoad) pLoad.value = t.port_load || '';
+    
+    const pDis = document.getElementById('tr-port-dis');
+    if (pDis) pDis.value = t.port_dis || '';
+    
+    const agent = document.getElementById('tr-agent');
+    if (agent) agent.value = t.agent || '';
+    
+    const weight = document.getElementById('tr-net-weight');
+    if (weight) weight.value = t.net_weight || '';
+    
+    const hsn = document.getElementById('tr-hs-code');
+    if (hsn) hsn.value = t.hs_code || '';
+    
+    const cont = document.getElementById('tr-containers');
+    if (cont) cont.value = t.containers || '';
+    
+    const hsCb = document.getElementById('tr-is-hs');
+    if (hsCb) hsCb.checked = !!t.is_hs;
+
     toggleTradeModeField();
     toggleTradeDetailFields();
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    toast("Trade Loaded for Editing");
+    toast("Full Trade Details Loaded");
 }
 
 export function addPaymentRow() {
