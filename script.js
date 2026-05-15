@@ -380,6 +380,43 @@ var getDensity = function(pName) {
 var toKG=function(v,d){return v*(d||0.85);};
 var escH=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
 
+function dualCalc(prefix, type) {
+    const volEl = document.getElementById(prefix + '-qty') || document.getElementById(prefix + '-vol');
+    const kgEl = document.getElementById(prefix + '-kg');
+    const denEl = document.getElementById(prefix + '-density');
+    if (!volEl || !kgEl || !denEl) return;
+    const density = parseFloat(denEl.value) || 0.850;
+
+    if (type === 'vol') {
+        const vol = parseFloat(volEl.value) || 0;
+        kgEl.value = (vol * density).toFixed(1);
+    } else {
+        const kg = parseFloat(kgEl.value) || 0;
+        volEl.value = (kg / density).toFixed(0);
+    }
+}
+
+function priceCalc(prefix, type) {
+    const pL = document.getElementById(prefix + '-price');
+    const pKG = document.getElementById(prefix + '-price-kg');
+    const denEl = document.getElementById(prefix + '-density');
+    if (!pL || !pKG || !denEl) return;
+    const density = parseFloat(denEl.value) || 0.850;
+
+    if (type === 'perL') {
+        const val = parseFloat(pL.value) || 0;
+        pKG.value = (val / density).toFixed(2);
+    } else {
+        const val = parseFloat(pKG.value) || 0;
+        pL.value = (val * density).toFixed(2);
+    }
+}
+
+function onDensityChangeForPrice(prefix) {
+    dualCalc(prefix, 'vol');
+    priceCalc(prefix, 'perL');
+}
+
 /* ═══════ PDF — Pure print approach ═══════ */
 /* ═══════ PDF — Robust Mobile Approach ═══════ */
 function commonStyle() {
@@ -1596,25 +1633,101 @@ function renderTradeDocs() {
 
 function renderOrdersTable() {
     document.getElementById('ordersTable').innerHTML = state.orders.slice().reverse().map(function(o) {
-        return '<tr><td class="mono">'+o.id+'</td><td><b>'+o.customer+'</b></td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(o.qty*o.price)+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+o.due+'</td><td style="display:flex;gap:4px"><select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)"><option '+(o.status==='Pending'?'selected':'')+'>Pending</option><option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option><option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option></select><button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">&#x2715;</button></td></tr>';
+        const kg = (o.qty * (o.density || 0.850)).toLocaleString('en-IN', {maximumFractionDigits:1});
+        return '<tr>' +
+            '<td class="mono">'+o.id+'</td>' +
+            '<td><b>'+o.customer+'</b></td>' +
+            '<td>'+o.product+'</td>' +
+            '<td class="mono">'+fmtN(o.qty)+'</td>' +
+            '<td class="mono">'+kg+'</td>' +
+            '<td class="mono">'+fmt(o.price)+'</td>' +
+            '<td class="mono">'+fmt(o.qty*o.price)+'</td>' +
+            '<td>'+statusBadge(o.status)+'</td>' +
+            '<td class="mono">'+o.due+'</td>' +
+            '<td style="display:flex;gap:4px">' +
+                '<select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)">' +
+                    '<option '+(o.status==='Pending'?'selected':'')+'>Pending</option>' +
+                    '<option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option>' +
+                    '<option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option>' +
+                '</select>' +
+                '<button class="btn btn-sm btn-ghost" onclick="editOrder(\''+o.id+'\')" style="color:var(--teal)">&#x270F;</button>' +
+                '<button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">&#x2715;</button>' +
+            '</td></tr>';
     }).join('');
 }
+
+var editingOrderId = null;
+function editOrder(id) {
+    const o = state.orders.find(x => x.id === id);
+    if (!o) return;
+    editingOrderId = id;
+    
+    document.getElementById('ord-customer').value = o.customer;
+    document.getElementById('ord-product').value = o.product;
+    document.getElementById('ord-density').value = o.density || 0.850;
+    document.getElementById('ord-qty').value = o.qty;
+    document.getElementById('ord-price').value = o.price;
+    document.getElementById('ord-date').value = o.date || today();
+    document.getElementById('ord-due').value = o.due || '';
+    document.getElementById('ord-priority').value = o.priority || 'Normal';
+    
+    dualCalc('ord', 'vol');
+    priceCalc('ord', 'perL');
+    
+    const btn = document.querySelector('button[onclick="addOrder()"]');
+    if (btn) {
+        btn.innerHTML = '&#x1F4BE; Update Order';
+        btn.classList.add('btn-blue');
+    }
+    window.scrollTo({top:0, behavior:'smooth'});
+}
+
 function addOrder() {
     var customer = document.getElementById('ord-customer').value;
     var product = document.getElementById('ord-product').value;
     var qty = parseFloat(document.getElementById('ord-qty').value);
     var price = parseFloat(document.getElementById('ord-price').value);
     if (!customer || !qty || !price) return toast('Please fill all required fields', true);
-    var id = 'ORD-' + String(state.nextOrderNum++).padStart(3, '0');
-    state.orders.push({
-        id: id, customer: customer, product: product, qty: qty, price: price,
-        date: today(), due: document.getElementById('ord-due').value,
-        addr: '', priority: document.getElementById('ord-priority').value,
-        status: 'Pending',
-        density: parseFloat(document.getElementById('ord-density').value) || getDensity(product),
-        terms: 'Immediate'
+    
+    if (editingOrderId) {
+        const idx = state.orders.findIndex(o => o.id === editingOrderId);
+        if (idx >= 0) {
+            state.orders[idx].customer = customer;
+            state.orders[idx].product = product;
+            state.orders[idx].qty = qty;
+            state.orders[idx].price = price;
+            state.orders[idx].density = parseFloat(document.getElementById('ord-density').value) || 0.850;
+            state.orders[idx].due = document.getElementById('ord-due').value;
+            state.orders[idx].priority = document.getElementById('ord-priority').value;
+            toast('Order updated');
+        }
+        editingOrderId = null;
+        const btn = document.querySelector('button[onclick="addOrder()"]');
+        if (btn) {
+            btn.innerHTML = '&#x1F4CB; Create Order';
+            btn.classList.remove('btn-blue');
+        }
+    } else {
+        var id = 'ORD-' + String(state.nextOrderNum++).padStart(3, '0');
+        state.orders.push({
+            id: id, customer: customer, product: product, qty: qty, price: price,
+            date: document.getElementById('ord-date').value || today(), 
+            due: document.getElementById('ord-due').value,
+            addr: '', priority: document.getElementById('ord-priority').value,
+            status: 'Pending',
+            density: parseFloat(document.getElementById('ord-density').value) || getDensity(product),
+            terms: 'Immediate'
+        });
+        toast('Created ' + id);
+    }
+    
+    saveState(); renderOrdersTable(); renderActiveOrders(); populateSelects();
+    
+    // Clear form
+    ['ord-customer','ord-qty','ord-kg','ord-price','ord-price-kg','ord-due'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
     });
-    saveState(); renderOrdersTable(); renderActiveOrders(); populateSelects(); toast('Created ' + id);
 }
 function updateOrderStatus(id, s) {
     for (var i = 0; i < state.orders.length; i++) {
