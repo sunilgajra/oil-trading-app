@@ -227,81 +227,7 @@ function initApp() {
 }
 
 /* ═══════ YARD MANAGER & TANK LOGIC ═══════ */
-function renderYardDashboard() {
-    const grid = document.getElementById('yard-grid');
-    if (!grid || !state) return;
-    
-    grid.innerHTML = (state.tanks || []).map(tank => {
-        const relevant = (state.inventory || []).filter(i => i.location === tank.id);
-        const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
-        const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
-        const mainProd = products.length > 0 ? products[0] : 'EMPTY';
-        const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
-        const color = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#14b8a6';
-        
-        return `
-            <div class="panel" style="border-top: 4px solid ${color};">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <b>${escH(tank.name)}</b>
-                    <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
-                </div>
-                <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
-                    <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
-                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
-                        <div style="font-size:16px; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
-                        <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(1))} KG</div>
-                    </div>
-                </div>
-                <div style="font-size:10px; margin-top:5px; color:var(--muted); display:flex; justify-content:space-between;">
-                    <span>${mainProd}</span>
-                    <span>${escH(tank.location)}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function renderTankManager() {
-    const tbody = document.getElementById('tankManagerTable');
-    if (!tbody || !state) return;
-    tbody.innerHTML = (state.tanks || []).map(t => `
-        <tr>
-            <td class="mono">${t.id}</td>
-            <td>${escH(t.name)}</td>
-            <td>${escH(t.location)}</td>
-            <td>${fmtN(t.capacity)} L</td>
-            <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')">&#x2715;</button></td>
-        </tr>
-    `).join('');
-}
-
-function addTank() {
-    if (!state.tanks) state.tanks = [];
-    const name = document.getElementById('new-tank-name').value;
-    let cap = parseFloat(document.getElementById('new-tank-cap').value);
-    const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
-    if (!name || !cap) return toast('Enter name and capacity', true);
-    const id = 'T' + (state.tanks.length + 1);
-    state.tanks.push({ id, name, capacity: cap, location: loc });
-    document.getElementById('new-tank-name').value = '';
-    document.getElementById('new-tank-cap').value = '';
-    document.getElementById('new-tank-cap-kg').value = '';
-    document.getElementById('new-tank-cap-mt').value = '';
-    saveState();
-    renderTankManager();
-    renderYardDashboard();
-    toast('New Tank Added');
-}
-
-function deleteTank(id) {
-    if (!confirm('Are you sure?')) return;
-    state.tanks = state.tanks.filter(t => t.id !== id);
-    saveState();
-    renderTankManager();
-    renderYardDashboard();
-}
-
-function openLoginModal() {
+function openLoginModal() { document.getElementById('loginModal').classList.add('show'); }
  document.getElementById('loginModal').classList.add('show'); }
 function closeLoginModal() { document.getElementById('loginModal').classList.remove('show'); }
 
@@ -3000,7 +2926,56 @@ function renderTankManager() {
         `;
     }).join('');
     
-    // Update dropdowns elsewhere
+/* ═══════ YARD MANAGER & TANK LOGIC ═══════ */
+function renderYardDashboard() {
+    const grid = document.getElementById('yard-grid');
+    if (!grid || !state) return;
+    
+    grid.innerHTML = (state.tanks || []).map(tank => {
+        const relevant = (state.inventory || []).filter(i => i.location === tank.id);
+        const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
+        const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
+        const mainProd = products.length > 0 ? products[0] : 'EMPTY';
+        const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
+        const color = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#14b8a6';
+        
+        return `
+            <div class="panel" style="border-top: 4px solid ${color};">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <b>${escH(tank.name)}</b>
+                    <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
+                </div>
+                <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
+                    <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
+                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
+                        <div style="font-size:16px; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
+                        <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(1))} KG</div>
+                    </div>
+                </div>
+                <div style="font-size:10px; margin-top:5px; color:var(--muted); display:flex; justify-content:space-between;">
+                    <span>${mainProd}</span>
+                    <span>${escH(tank.location)}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderTankManager() {
+    const tbody = document.getElementById('tankManagerTable');
+    if (!tbody || !state) return;
+    
+    tbody.innerHTML = (state.tanks || []).map(t => `
+        <tr>
+            <td class="mono">${t.id}</td>
+            <td style="font-weight:bold;">${escH(t.name)}</td>
+            <td>${escH(t.location)}</td>
+            <td class="mono">${fmtN(t.capacity)} L</td>
+            <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')" style="color:var(--red)">&#x2715;</button></td>
+        </tr>
+    `).join('');
+    
+    // Update Trade Storage Dropdown
     const locSelect = document.getElementById('tr-storage-loc');
     const srcSelect = document.getElementById('tr-source-loc');
     if (locSelect) {
@@ -3008,27 +2983,9 @@ function renderTankManager() {
         (state.tanks || []).forEach(t => {
             html += `<option value="${t.id}">${t.name} (${fmtN(t.capacity)} L)</option>`;
         });
-        html += '<optgroup label="Import Containers"><option value="NEW_CONTAINER">Assign to Container ID (Auto)</option></optgroup>';
         locSelect.innerHTML = html;
         if (srcSelect) srcSelect.innerHTML = html.replace('-- Direct Sale / Other --', '-- Select Source --');
     }
-}
-
-function deleteTank(id) {
-    if (!confirm('Are you sure you want to remove this tank? Batches inside will remain but location will be unlinked.')) return;
-    state.tanks = state.tanks.filter(t => t.id !== id);
-    saveState();
-    renderTankManager();
-    renderYardDashboard();
-}
-function updateTankField(id, field, value) {
-    const tank = state.tanks.find(t => t.id === id);
-    if (!tank) return;
-    if (field === 'capacity') tank[field] = parseFloat(value) || 0;
-    else tank[field] = value;
-    saveState();
-    renderYardDashboard();
-    toast('Tank Updated');
 }
 
 function addTank() {
@@ -3042,23 +2999,24 @@ function addTank() {
     if (capKG && !cap) cap = capKG / 0.850;
     if (capMT && !cap) cap = (capMT * 1000) / 0.850;
 
-    if (!name || !cap) return toast('Enter name and capacity (L or MT)', true);
+    if (!name || !cap) return toast('Enter name and capacity', true);
     
     const id = 'T' + (state.tanks.length + 1);
-    state.tanks.push({ id, name, capacity: cap, type: 'Static', location: loc });
+    state.tanks.push({ id, name, capacity: cap, location: loc });
     
     document.getElementById('new-tank-name').value = '';
     document.getElementById('new-tank-cap').value = '';
+    document.getElementById('new-tank-cap-kg').value = '';
     document.getElementById('new-tank-cap-mt').value = '';
     
     saveState();
     renderTankManager();
     renderYardDashboard();
-    toast('New Tank Added');
+    toast('New Tank Registered');
 }
 
 function deleteTank(id) {
-    if (!confirm('Are you sure you want to remove this tank? Batches inside will remain but location will be unlinked.')) return;
+    if (!confirm('Remove this tank?')) return;
     state.tanks = state.tanks.filter(t => t.id !== id);
     saveState();
     renderTankManager();
