@@ -529,8 +529,9 @@
     <div class="section-title">Tank & Container Management</div>
     <div class="form-grid">
       <div class="form-group"><label>Storage Name</label><input id="new-tank-name" placeholder="e.g. Tank A or Cont 101"></div>
-      <div class="form-group"><label>Capacity (L)</label><input id="new-tank-cap" type="number" placeholder="50000"></div>
-      <div class="form-group"><label>Capacity (MT)</label><input id="new-tank-cap-mt" type="number" placeholder="50" oninput="document.getElementById('new-tank-cap').value = (this.value*1000/0.850).toFixed(0)"></div>
+      <div class="form-group"><label>Capacity (L)</label><input id="new-tank-cap" type="number" placeholder="50000" oninput="document.getElementById('new-tank-cap-kg').value = (this.value*0.850).toFixed(0)"></div>
+      <div class="form-group"><label>Capacity (KG)</label><input id="new-tank-cap-kg" type="number" placeholder="42500" oninput="document.getElementById('new-tank-cap').value = (this.value/0.850).toFixed(0)"></div>
+      <div class="form-group"><label>Capacity (MT)</label><input id="new-tank-cap-mt" type="number" placeholder="50" oninput="document.getElementById('new-tank-cap').value = (this.value*1000/0.850).toFixed(0); document.getElementById('new-tank-cap-kg').value = (this.value*1000).toFixed(0);"></div>
       <div class="form-group"><label>Location</label><input id="new-tank-loc" placeholder="Main Yard / Section B"></div>
     </div>
     <div class="btn-row"><button class="btn btn-primary" onclick="addTank()">&#x2795; Register Storage</button></div>

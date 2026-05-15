@@ -245,11 +245,17 @@ function renderYardDashboard() {
                     <b>${escH(tank.name)}</b>
                     <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
                 </div>
-                <div style="background:rgba(255,255,255,0.05); height:60px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
+                <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
                     <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
-                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
+                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
+                        <div style="font-size:16px; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
+                        <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(1))} KG</div>
+                    </div>
                 </div>
-                <div style="font-size:10px; margin-top:5px; color:var(--muted);">${mainProd} | ${escH(tank.location)}</div>
+                <div style="font-size:10px; margin-top:5px; color:var(--muted); display:flex; justify-content:space-between;">
+                    <span>${mainProd}</span>
+                    <span>${escH(tank.location)}</span>
+                </div>
             </div>
         `;
     }).join('');
@@ -279,6 +285,8 @@ function addTank() {
     state.tanks.push({ id, name, capacity: cap, location: loc });
     document.getElementById('new-tank-name').value = '';
     document.getElementById('new-tank-cap').value = '';
+    document.getElementById('new-tank-cap-kg').value = '';
+    document.getElementById('new-tank-cap-mt').value = '';
     saveState();
     renderTankManager();
     renderYardDashboard();
@@ -3013,6 +3021,7 @@ function deleteTank(id) {
     renderTankManager();
     renderYardDashboard();
 }
+function updateTankField(id, field, value) {
     const tank = state.tanks.find(t => t.id === id);
     if (!tank) return;
     if (field === 'capacity') tank[field] = parseFloat(value) || 0;
@@ -3026,13 +3035,12 @@ function addTank() {
     if (!state.tanks) state.tanks = [];
     const name = document.getElementById('new-tank-name').value;
     let cap = parseFloat(document.getElementById('new-tank-cap').value);
+    const capKG = parseFloat(document.getElementById('new-tank-cap-kg').value);
     const capMT = parseFloat(document.getElementById('new-tank-cap-mt').value);
     const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
     
-    // If user entered MT, convert to L (using standard 0.850 for storage estimation)
-    if (capMT && !cap) {
-        cap = (capMT * 1000) / 0.850;
-    }
+    if (capKG && !cap) cap = capKG / 0.850;
+    if (capMT && !cap) cap = (capMT * 1000) / 0.850;
 
     if (!name || !cap) return toast('Enter name and capacity (L or MT)', true);
     
