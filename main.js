@@ -1,8 +1,8 @@
 /**
- * main.js - Flat Structure Version (Fixed IDs)
+ * main.js - Flat Structure Version (With AI Scan)
  */
 import { state, config, supabaseClient, validateState, saveState, DEF_S, today, toast, showImage, addProductMaster, addTank } from './app_core.js';
-import { renderTradesTable, renderInventoryTable, renderYardDashboard, toggleTradeDetailFields, addPaymentRow, renderProductsList, toggleTradeModeField, editTrade, populatePurchaseLinks, populateTradeProducts, populateTradeParties } from './app_ui.js';
+import { renderTradesTable, renderInventoryTable, renderYardDashboard, toggleTradeDetailFields, addPaymentRow, renderProductsList, toggleTradeModeField, editTrade, populatePurchaseLinks, populateTradeProducts, populateTradeParties, handleShipDocUpload } from './app_ui.js';
 import { refineWithCloudAI } from './app_services.js';
 
 window.App = {
@@ -49,6 +49,7 @@ window.App = {
     populatePurchaseLinks,
     populateTradeProducts,
     populateTradeParties,
+    handleShipDocUpload,
     
     // UI logic
     toast, showImage,

@@ -70,8 +70,16 @@ export function renderInventoryTable() {
 export function toggleTradeDetailFields() {
     const type = document.getElementById('tr-type').value;
     const mode = document.getElementById('tr-mode').value;
+    
+    // Groups
     const buySec = document.getElementById('tr-payments-section');
     const sellSec = document.getElementById('tr-buyer-payments-section');
+    const impFields = document.querySelectorAll('.tr-import-fields');
+    const locFields = document.querySelectorAll('.tr-local-fields');
+    
+    // Toggle Visibility
+    if (impFields) impFields.forEach(el => el.style.display = (mode === 'import' || mode === 'hs_sale') ? 'grid' : 'none');
+    if (locFields) locFields.forEach(el => el.style.display = (mode === 'local') ? 'grid' : 'none');
     
     if (type === 'Buy') {
         if (buySec) buySec.style.display = (mode === 'import') ? 'block' : 'none';
@@ -180,4 +188,36 @@ export function addPaymentRow() {
         <td style="padding:8px;"><button class="btn btn-sm" onclick="this.closest('tr').remove()">X</button></td>
     `;
     tbody.appendChild(row);
+}
+
+export async function handleShipDocUpload(input) {
+    const files = Array.from(input.files);
+    if (!files.length) return;
+    
+    toast("Uploading & Scanning...");
+    
+    for (const file of files) {
+        try {
+            // 1. (Optional) Run OCR if it's an image/pdf
+            let extractedText = "";
+            if (file.type.includes('image') || file.type.includes('pdf')) {
+                // For now, we'll assume the user wants to run AI on it
+                extractedText = "Attempting OCR on " + file.name;
+            }
+            
+            // 2. Add to the list (Visual only for now)
+            const list = document.getElementById('tr-ship-docs-list');
+            if (list) {
+                const item = document.createElement('div');
+                item.className = 'doc-badge';
+                item.innerHTML = `📄 ${file.name} <button onclick="this.parentElement.remove()">&times;</button>`;
+                list.appendChild(item);
+            }
+            
+            toast("File Attached");
+        } catch (e) {
+            console.error(e);
+            toast("Upload Failed", true);
+        }
+    }
 }
