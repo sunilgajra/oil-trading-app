@@ -228,10 +228,11 @@ function initApp() {
 
 /* ═══════ YARD MANAGER & TANK LOGIC ═══════ */
 function renderYardDashboard() {
-    const grid = document.getElementById('yard-grid');
-    if (!grid || !state) return;
+    const invGrid = document.getElementById('inventory-yard-grid');
+    const dashGrid = document.getElementById('yard-dashboard-grid');
+    if (!invGrid && !dashGrid) return;
     
-    grid.innerHTML = (state.tanks || []).map(tank => {
+    const html = (state.tanks || []).map(tank => {
         const relevant = (state.inventory || []).filter(i => i.location === tank.id);
         const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
         const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
@@ -242,7 +243,7 @@ function renderYardDashboard() {
         return `
             <div class="panel" style="border-top: 4px solid ${color};">
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <b>${escH(tank.name)}</b>
+                    <b style="color:var(--text)">${escH(tank.name)}</b>
                     <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
                 </div>
                 <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
@@ -253,12 +254,15 @@ function renderYardDashboard() {
                     </div>
                 </div>
                 <div style="font-size:10px; margin-top:5px; color:var(--muted); display:flex; justify-content:space-between;">
-                    <span>${mainProd}</span>
+                    <span>${escH(mainProd)}</span>
                     <span>${escH(tank.location)}</span>
                 </div>
             </div>
         `;
     }).join('');
+
+    if (invGrid) invGrid.innerHTML = html;
+    if (dashGrid) dashGrid.innerHTML = html;
 }
 
 function renderTankManager() {
@@ -288,13 +292,22 @@ function renderTankManager() {
     }
 }
 
-function addTank() {
+function addTank(formSource = 'yard') {
     if (!state.tanks) state.tanks = [];
-    const name = document.getElementById('new-tank-name').value;
-    let cap = parseFloat(document.getElementById('new-tank-cap').value);
-    const capKG = parseFloat(document.getElementById('new-tank-cap-kg').value);
-    const capMT = parseFloat(document.getElementById('new-tank-cap-mt').value);
-    const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
+    // Pick the right IDs based on which form was used
+    const prefix = formSource === 'settings' ? 'settings-' : 'yard-';
+    
+    const nameInput = document.getElementById(prefix + 'new-tank-name');
+    const capInput = document.getElementById(prefix + 'new-tank-cap');
+    const capKgInput = document.getElementById(prefix + 'new-tank-cap-kg');
+    const capMtInput = document.getElementById(prefix + 'new-tank-cap-mt');
+    const locInput = document.getElementById(prefix + 'new-tank-loc');
+
+    const name = nameInput ? nameInput.value : '';
+    let cap = parseFloat(capInput ? capInput.value : 0);
+    const capKG = parseFloat(capKgInput ? capKgInput.value : 0);
+    const capMT = parseFloat(capMtInput ? capMtInput.value : 0);
+    const loc = (locInput ? locInput.value : '') || 'Main Yard';
     
     if (capKG && !cap) cap = capKG / 0.850;
     if (capMT && !cap) cap = (capMT * 1000) / 0.850;
@@ -304,10 +317,12 @@ function addTank() {
     const id = 'T' + (state.tanks.length + 1);
     state.tanks.push({ id, name, capacity: cap, location: loc });
     
-    document.getElementById('new-tank-name').value = '';
-    document.getElementById('new-tank-cap').value = '';
-    document.getElementById('new-tank-cap-kg').value = '';
-    document.getElementById('new-tank-cap-mt').value = '';
+    // Clear inputs
+    if (nameInput) nameInput.value = '';
+    if (capInput) capInput.value = '';
+    if (capKgInput) capKgInput.value = '';
+    if (capMtInput) capMtInput.value = '';
+    if (locInput) locInput.value = '';
     
     saveState();
     renderTankManager();
@@ -405,42 +420,7 @@ var getDensity = function(pName) {
 var toKG=function(v,d){return v*(d||0.85);};
 var escH=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
 
-function dualCalc(prefix, type) {
-    const volEl = document.getElementById(prefix + '-qty') || document.getElementById(prefix + '-vol');
-    const kgEl = document.getElementById(prefix + '-kg');
-    const denEl = document.getElementById(prefix + '-density');
-    if (!volEl || !kgEl || !denEl) return;
-    const density = parseFloat(denEl.value) || 0.850;
 
-    if (type === 'vol') {
-        const vol = parseFloat(volEl.value) || 0;
-        kgEl.value = (vol * density).toFixed(1);
-    } else {
-        const kg = parseFloat(kgEl.value) || 0;
-        volEl.value = (kg / density).toFixed(0);
-    }
-}
-
-function priceCalc(prefix, type) {
-    const pL = document.getElementById(prefix + '-price');
-    const pKG = document.getElementById(prefix + '-price-kg');
-    const denEl = document.getElementById(prefix + '-density');
-    if (!pL || !pKG || !denEl) return;
-    const density = parseFloat(denEl.value) || 0.850;
-
-    if (type === 'perL') {
-        const val = parseFloat(pL.value) || 0;
-        pKG.value = (val / density).toFixed(2);
-    } else {
-        const val = parseFloat(pKG.value) || 0;
-        pL.value = (val * density).toFixed(2);
-    }
-}
-
-function onDensityChangeForPrice(prefix) {
-    dualCalc(prefix, 'vol');
-    priceCalc(prefix, 'perL');
-}
 
 /* ═══════ PDF — Pure print approach ═══════ */
 /* ═══════ PDF — Robust Mobile Approach ═══════ */
@@ -977,28 +957,7 @@ function calcImportTotal() {
     }
 }
 
-function populateTradeParties() {
-    var type = document.getElementById('tr-type').value;
-    var selectWrap = document.getElementById('tr-party-select-wrap');
-    var inputWrap = document.getElementById('tr-party-input-wrap');
-    var sel = document.getElementById('tr-party-select');
-    if (!sel || !selectWrap || !inputWrap) return;
-    
-    if (type === 'Buy') {
-        selectWrap.style.display = 'block';
-        inputWrap.style.display = 'none';
-        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
-            (state.suppliers||[]).map(function(s){ return '<option value="'+s.id+'">'+escH(s.name)+'</option>'; }).join('');
-    } else if (type === 'Sell') {
-        selectWrap.style.display = 'block';
-        inputWrap.style.display = 'none';
-        sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
-            (state.buyers||[]).map(function(b){ return '<option value="'+b.id+'">'+escH(b.name)+'</option>'; }).join('');
-    } else {
-        selectWrap.style.display = 'none';
-        inputWrap.style.display = 'block';
-    }
-}
+
 
 /* ═══════ RENDER FUNCTIONS ═══════ */
 function kpiC(label, val, sub) {
@@ -1061,19 +1020,7 @@ function populateOrderParties() {
     }
 }
 
-function populateOrderParties() {
-    const type = document.getElementById('ord-type').value;
-    const sel = document.getElementById('ord-customer');
-    if (!sel) return;
-    
-    if (type === 'PURCHASE') {
-        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
-            (state.suppliers || []).map(s => `<option value="${escH(s.name)}">${escH(s.name)}</option>`).join('');
-    } else {
-        sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
-            (state.buyers || []).map(b => `<option value="${escH(b.name)}">${escH(b.name)}</option>`).join('');
-    }
-}
+
 
 function populateSelects() {
     if (!state || !state.products) return;
@@ -1697,16 +1644,7 @@ function addTrade() {
     clearBuyerData();
     toggleTradeDetailFields();
 }
-function renderTradeDocs() {
-    const list = document.getElementById('tr-docs-list');
-    if (!list) return;
-    list.innerHTML = currentTradeDocs.map((doc, idx) => `
-        <div class="doc-badge">
-            <span onclick="openDocPreview('${doc.data || doc.url}', '${doc.name}')">${doc.name}</span>
-            <button onclick="currentTradeDocs.splice(${idx},1); renderTradeDocs()">&#x2715;</button>
-        </div>
-    `).join('');
-}
+
 
 function renderOrdersTable() {
     document.getElementById('ordersTable').innerHTML = (state.orders || []).slice().reverse().map(function(o) {
@@ -3000,104 +2938,7 @@ async function downloadAllHssDocs() {
     }, 500);
 }
 
-/* ═══════ YARD & TANK MANAGEMENT ═══════ */
-    
-/* ═══════ YARD MANAGER & TANK LOGIC ═══════ */
-function renderYardDashboard() {
-    const grid = document.getElementById('yard-grid');
-    if (!grid || !state) return;
-    
-    grid.innerHTML = (state.tanks || []).map(tank => {
-        const relevant = (state.inventory || []).filter(i => i.location === tank.id);
-        const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
-        const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
-        const mainProd = products.length > 0 ? products[0] : 'EMPTY';
-        const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
-        const color = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#14b8a6';
-        
-        return `
-            <div class="panel" style="border-top: 4px solid ${color};">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <b>${escH(tank.name)}</b>
-                    <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
-                </div>
-                <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
-                    <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
-                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
-                        <div style="font-size:16px; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
-                        <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(1))} KG</div>
-                    </div>
-                </div>
-                <div style="font-size:10px; margin-top:5px; color:var(--muted); display:flex; justify-content:space-between;">
-                    <span>${mainProd}</span>
-                    <span>${escH(tank.location)}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
 
-function renderTankManager() {
-    const tbody = document.getElementById('tankManagerTable');
-    if (!tbody || !state) return;
-    
-    tbody.innerHTML = (state.tanks || []).map(t => `
-        <tr>
-            <td class="mono">${t.id}</td>
-            <td style="font-weight:bold;">${escH(t.name)}</td>
-            <td>${escH(t.location)}</td>
-            <td class="mono">${fmtN(t.capacity)} L</td>
-            <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')" style="color:var(--red)">&#x2715;</button></td>
-        </tr>
-    `).join('');
-    
-    // Update Trade Storage Dropdown
-    const locSelect = document.getElementById('tr-storage-loc');
-    const srcSelect = document.getElementById('tr-source-loc');
-    if (locSelect) {
-        let html = '<option value="">-- Direct Sale / Other --</option>';
-        (state.tanks || []).forEach(t => {
-            html += `<option value="${t.id}">${t.name} (${fmtN(t.capacity)} L)</option>`;
-        });
-        locSelect.innerHTML = html;
-        if (srcSelect) srcSelect.innerHTML = html.replace('-- Direct Sale / Other --', '-- Select Source --');
-    }
-}
-
-function addTank() {
-    if (!state.tanks) state.tanks = [];
-    const name = document.getElementById('new-tank-name').value;
-    let cap = parseFloat(document.getElementById('new-tank-cap').value);
-    const capKG = parseFloat(document.getElementById('new-tank-cap-kg').value);
-    const capMT = parseFloat(document.getElementById('new-tank-cap-mt').value);
-    const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
-    
-    if (capKG && !cap) cap = capKG / 0.850;
-    if (capMT && !cap) cap = (capMT * 1000) / 0.850;
-
-    if (!name || !cap) return toast('Enter name and capacity', true);
-    
-    const id = 'T' + (state.tanks.length + 1);
-    state.tanks.push({ id, name, capacity: cap, location: loc });
-    
-    document.getElementById('new-tank-name').value = '';
-    document.getElementById('new-tank-cap').value = '';
-    document.getElementById('new-tank-cap-kg').value = '';
-    document.getElementById('new-tank-cap-mt').value = '';
-    
-    saveState();
-    renderTankManager();
-    renderYardDashboard();
-    toast('New Tank Registered');
-}
-
-function deleteTank(id) {
-    if (!confirm('Remove this tank?')) return;
-    state.tanks = state.tanks.filter(t => t.id !== id);
-    saveState();
-    renderTankManager();
-    renderYardDashboard();
-}
 
 async function forceCloudResync() {
     if (!confirm('This will clear your local cache and reload ALL data from the Cloud. Any unsaved local changes will be lost. Proceed?')) return;
@@ -3213,6 +3054,15 @@ async function uploadFileToSupabase(file, path) {
         
     return urlData.publicUrl;
 }
+
+// Global Listeners for UX
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeDocPreview();
+        closeHssModal();
+        closeLoginModal();
+    }
+});
 
 function exportStateToFile() {
     const dataStr = JSON.stringify(state, null, 2);
