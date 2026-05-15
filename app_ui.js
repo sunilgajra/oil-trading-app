@@ -96,21 +96,47 @@ export function populatePurchaseLinks() {
         buys.map(t => `<option value="${t.id}">${escH(t.id + ' | ' + t.party + ' | ' + t.product)}</option>`).join('');
 }
 
+export function populateTradeProducts() {
+    const sel = document.getElementById('tr-product');
+    if (!sel) return;
+    sel.innerHTML = state.products.map(p => `<option value="${escH(p.name)}">${escH(p.name)}</option>`).join('');
+}
+
+export function populateTradeParties() {
+    const sel = document.getElementById('tr-party-select');
+    if (!sel) return;
+    const parties = [...new Set([...state.suppliers.map(s => s.name), ...state.buyers.map(b => b.name)])];
+    sel.innerHTML = '<option value="">-- Select Party --</option>' + 
+        parties.map(p => `<option value="${escH(p)}">${escH(p)}</option>`).join('');
+}
+
 export function editTrade(id) {
     const t = state.trades.find(x => x.id == id);
     if (!t) return toast("Trade not found", true);
     
+    // Switch to trades page first
+    if (window.App && window.App.switchPage) window.App.switchPage('trades');
+
     document.getElementById('tr-type').value = t.type;
     document.getElementById('tr-mode').value = t.mode;
     document.getElementById('tr-date').value = t.date;
+    
+    // Ensure product list is ready before setting value
+    populateTradeProducts();
     document.getElementById('tr-product').value = t.product;
-    document.getElementById('tr-qty').value = t.vol;
-    document.getElementById('tr-price').value = t.price;
+    
+    document.getElementById('tr-party').value = t.party;
+    document.getElementById('tr-vol').value = t.vol;
+    
+    // Price handle (Imports vs Local)
+    const priceLocal = document.getElementById('tr-price-local');
+    const priceImp = document.getElementById('tr-imp-rate');
+    if (priceLocal) priceLocal.value = t.price || 0;
+    if (priceImp) priceImp.value = t.price || 0;
     
     toggleTradeModeField();
     toggleTradeDetailFields();
     
-    // Jump to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
     toast("Trade Loaded for Editing");
 }

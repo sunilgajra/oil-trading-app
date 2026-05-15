@@ -1,8 +1,8 @@
 /**
- * main.js - Flat Structure Version (Final Fix)
+ * main.js - Flat Structure Version (Fixed IDs)
  */
 import { state, config, supabaseClient, validateState, saveState, DEF_S, today, toast, showImage, addProductMaster, addTank } from './app_core.js';
-import { renderTradesTable, renderInventoryTable, renderYardDashboard, toggleTradeDetailFields, addPaymentRow, renderProductsList, toggleTradeModeField, editTrade, populatePurchaseLinks } from './app_ui.js';
+import { renderTradesTable, renderInventoryTable, renderYardDashboard, toggleTradeDetailFields, addPaymentRow, renderProductsList, toggleTradeModeField, editTrade, populatePurchaseLinks, populateTradeProducts, populateTradeParties } from './app_ui.js';
 import { refineWithCloudAI } from './app_services.js';
 
 window.App = {
@@ -15,7 +15,7 @@ window.App = {
         if (el) el.classList.add('active');
         
         if (name === 'dashboard') { renderYardDashboard(); renderProductsList(); }
-        if (name === 'trades') { renderTradesTable(); populatePurchaseLinks(); }
+        if (name === 'trades') { renderTradesTable(); populateTradeProducts(); populateTradeParties(); populatePurchaseLinks(); }
         if (name === 'inventory') { renderInventoryTable(); renderYardDashboard(); }
         if (name === 'settings') { renderProductsList(); }
     },
@@ -47,6 +47,8 @@ window.App = {
     toggleTradeDetailFields,
     addPaymentRow,
     populatePurchaseLinks,
+    populateTradeProducts,
+    populateTradeParties,
     
     // UI logic
     toast, showImage,
@@ -82,6 +84,8 @@ function renderAll() {
     renderInventoryTable();
     renderTradesTable();
     renderProductsList();
+    populateTradeProducts();
+    populateTradeParties();
 }
 
 document.addEventListener('DOMContentLoaded', init);
