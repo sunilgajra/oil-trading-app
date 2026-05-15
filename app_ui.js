@@ -182,10 +182,73 @@ export async function handleTradeDocUpload(input) {
     // Rest of scanning logic in app_services.js
 }
 
+export function addTrade() {
+    const type = document.getElementById('tr-type').value;
+    const mode = document.getElementById('tr-mode').value;
+    const product = document.getElementById('tr-product').value;
+    const party = (document.getElementById('tr-party-select-wrap').style.display !== 'none') 
+        ? document.getElementById('tr-party-select').value 
+        : document.getElementById('tr-party').value;
+    
+    const rawQty = parseFloat(document.getElementById('tr-vol').value);
+    const den = parseFloat(document.getElementById('tr-density').value) || 0.850;
+    const unit = document.getElementById('tr-unit').value;
+    const storageLoc = document.getElementById('tr-storage-loc')?.value || '';
+    const sourceLoc = document.getElementById('tr-source-loc')?.value || '';
+    const date = document.getElementById('tr-date').value || today();
+
+    if (!party || !rawQty) return toast('Please fill all required fields', true);
+
+    // Convert to Litres for internal tracking
+    let volInL = rawQty;
+    if (unit === 'KG') volInL = rawQty / den;
+    if (unit === 'MTON') volInL = (rawQty * 1000) / den;
+
+    // Pricing
+    let price = 0;
+    if (mode === 'import') {
+        const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+        const ex = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
+        price = rate * ex;
+    } else {
+        price = parseFloat(document.getElementById('tr-price-local')?.value) || 0;
+    }
+
+    const tradeId = Date.now();
+    const trade = {
+        id: tradeId, type, mode, product, party, vol: volInL, raw_qty: rawQty, 
+        unit, density: den, date, price, location: storageLoc, source_location: sourceLoc
+    };
+
+    // Inventory Updates
+    if (type === 'Buy') {
+        state.inventory.push({
+            id: 'INV' + Date.now(),
+            trade_id: tradeId, product, vol: volInL, density: den, location: storageLoc, date, cost: price
+        });
+    } else if (type === 'Move') {
+        if (!sourceLoc || !storageLoc) return toast('Select source and destination', true);
+        state.inventory.push({ id: 'INV' + Date.now() + 'A', product, location: sourceLoc, vol: -volInL, date });
+        state.inventory.push({ id: 'INV' + Date.now() + 'B', product, location: storageLoc, vol: volInL, date });
+    } else if (type === 'Sell' && sourceLoc) {
+        state.inventory.push({ id: 'INV' + Date.now(), product, location: sourceLoc, vol: -volInL, date });
+    }
+
+    state.trades.push(trade);
+    saveState();
+    renderTradesTable();
+    renderInventoryTable();
+    renderYardDashboard();
+    toast('Trade recorded successfully!');
+}
+
+export function openLoginModal() { document.getElementById('loginModal').classList.add('show'); }
+export function closeLoginModal() { document.getElementById('loginModal').classList.remove('show'); }
+
 export function populateTradeParties() {
     const sel = document.getElementById('tr-party-select');
     if (!sel) return;
-    const parties = [...state.suppliers, ...state.buyers];
+    const parties = [...(state.suppliers || []), ...(state.buyers || [])];
     sel.innerHTML = '<option value="">-- Select Party --</option>' + 
         parties.map(p => `<option value="${escH(p.name)}">${escH(p.name)}</option>`).join('');
 }

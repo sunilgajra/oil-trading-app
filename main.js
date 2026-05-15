@@ -1,9 +1,15 @@
 /**
  * main.js - Flat Structure Version (Final Parity)
  */
-import { state, config, supabaseClient, validateState, saveState, runMigrations, today, toast, showImage, addProductMaster, addTank, addSupplier, addBuyer } from './app_core.js';
-import { renderTradesTable, renderInventoryTable, renderYardDashboard, toggleTradeDetailFields, renderProductsList, toggleTradeModeField, editTrade, syncWeightToQty, calcTradeTotals, populateTradeParties, handleTradeDocUpload } from './app_ui.js';
+import { state, validateState, saveState, runMigrations, addProductMaster, addTank, addSupplier, addBuyer } from './app_core.js';
+import { 
+    renderTradesTable, renderInventoryTable, renderYardDashboard, 
+    toggleTradeDetailFields, renderProductsList, toggleTradeModeField, 
+    editTrade, syncWeightToQty, calcTradeTotals, populateTradeParties, 
+    handleTradeDocUpload, addTrade, openLoginModal, closeLoginModal 
+} from './app_ui.js';
 import { refineWithCloudAI } from './app_services.js';
+import { supabaseClient } from './app_core.js';
 
 window.App = {
     state,
@@ -18,6 +24,7 @@ window.App = {
         if (name === 'trades') { renderTradesTable(); populateTradeParties(); }
         if (name === 'inventory') { renderInventoryTable(); renderYardDashboard(); }
         if (name === 'settings') { renderProductsList(); }
+        if (name === 'yard') { renderYardDashboard(); }
     },
     
     // Auth
@@ -25,10 +32,12 @@ window.App = {
         const email = document.getElementById('login-email').value;
         const pass = document.getElementById('login-password').value;
         const { error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-        if (error) toast(error.message, true);
-        else { toast("Logged in!"); location.reload(); }
+        if (error) App.toast(error.message, true);
+        else { App.toast("Logged in!"); location.reload(); }
     },
     handleLogout: async () => { await supabaseClient.auth.signOut(); location.reload(); },
+    openLoginModal,
+    closeLoginModal,
     
     // Logic
     syncWeightToQty,
@@ -37,30 +46,33 @@ window.App = {
     addTank,
     addSupplier,
     addBuyer,
+    addTrade,
     editTrade,
     toggleTradeModeField,
     toggleTradeDetailFields,
     handleTradeDocUpload,
     
     // UI
-    toast, showImage,
     renderTradesTable, renderInventoryTable, renderYardDashboard, renderProductsList,
     refineWithCloudAI,
     
     deleteProduct: (pName) => {
         if (!confirm(`Delete ${pName}?`)) return;
         state.products = state.products.filter(p => p.name !== pName);
-        saveState(); renderProductsList(); toast("Product Removed");
+        saveState(); renderProductsList(); App.toast("Product Removed");
     }
 };
 
-// Global bridge
+// Global bridge for inline onclicks
 Object.keys(window.App).forEach(key => window[key] = window.App[key]);
 
 async function init() {
     const { data: auth } = await supabaseClient.auth.getSession();
     if (auth?.session) await loadState();
-    else renderAll();
+    else {
+        runMigrations();
+        renderAll();
+    }
 }
 
 async function loadState() {

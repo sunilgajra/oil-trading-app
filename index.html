@@ -13,10 +13,10 @@
 <!-- ACTUAL OCR / AI LIBRARIES -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Font Awesome -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
 <style>
     .docs-mgr { background: var(--surface); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
     .docs-list { display: flex; flex-direction: column; gap: 8px; max-height: 150px; overflow-y: auto; }
@@ -27,7 +27,6 @@
     .btn-gold { background: var(--gold2); color: #000; }
     .btn-gold:hover { background: #eab308; }
 
-    /* Modal Core Styles - FIX FOR PREVIEW WINDOW */
     .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:1000; align-items:center; justify-content:center; padding:20px; }
     .modal.show { display:flex; }
     .modal-content { position:relative; animation: modalSlide 0.3s ease; }
@@ -42,43 +41,18 @@
       --border: rgba(255,255,255,0.08);
       --shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
-.expense-row input, .expense-row select { 
-    background:transparent !important; 
-    border:none !important; 
-    padding:4px !important; 
-    color:var(--text) !important;
-    font-size:13px !important;
-    width:100%;
-}
-    .expense-row:hover { background: rgba(255,255,255,0.02); }
-    .status-pill { padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; cursor:pointer; }
-    .status-paid { background:rgba(74,222,128,0.2); color:var(--green); }
-    .status-pending { background:rgba(248,113,113,0.2); color:var(--red); }
-    .ship-doc-item { background: var(--surface2); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-    .ship-doc-item .btns { display: flex; gap: 5px; }
-    .ship-doc-item button { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 5px; border-radius: 4px; }
-    .ship-doc-item button:hover { background: rgba(255,255,255,0.1); color: var(--text); }
-    .ship-doc-item.active { border-color: var(--teal); background: rgba(45, 212, 191, 0.05); }
-    .ship-doc-item.active span { color: var(--teal); font-weight: 600; }
-    .ship-doc-item.active .view-btn { display: inline-block !important; color: var(--teal) !important; }
-    .view-btn { display: none !important; }
-    .pay-curr-label { font-size: 10px; color: var(--muted); margin-right: 4px; font-weight: bold; }
-    @keyframes pulseHighlight { 0% { box-shadow: 0 0 0px var(--gold); } 50% { box-shadow: 0 0 15px var(--gold); } 100% { box-shadow: 0 0 0px var(--gold); } }
-    .hss-print-page { 
-        width: 210mm; min-height: 297mm; padding: 20mm; background: #fff; color: #000; 
-        font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.5;
-        box-sizing: border-box; position: relative; border: 1px solid #eee; margin-bottom: 20px;
+    .expense-row input, .expense-row select { 
+        background:transparent !important; 
+        border:none !important; 
+        padding:4px !important; 
+        color:var(--text) !important;
+        font-size:13px !important;
+        width:100%;
     }
-    .hss-print-page h1, .hss-print-page h2 { text-align: center; text-decoration: underline; margin-bottom: 25px; font-size: 18px; font-weight: bold; }
-    .hss-print-page table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    .hss-print-page td, .hss-print-page th { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; }
-    .hss-print-page .no-border td { border: none; padding: 4px; }
-    .hss-print-page .signature-row { display: flex; justify-content: space-between; margin-top: 60px; }
-    .hss-print-page .letterhead { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px; position: relative; }
-    .hss-print-page .letterhead h3 { margin: 0; font-size: 26px; color: #1e3a8a; font-weight: bold; }
-    .hss-print-page .letterhead p { margin: 2px 0; font-size: 12px; color: #444; }
-    .hss-print-page .stamp-placeholder { position: absolute; right: 40px; bottom: 80px; width: 120px; height: 120px; border: 2px dashed #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 10px; }
-  </style>
+    .expense-row:hover { background: rgba(255,255,255,0.02); }
+    .ship-doc-item { background: var(--surface2); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; cursor: pointer; }
+    .ship-doc-item.active { border-color: var(--teal); background: rgba(45, 212, 191, 0.05); }
+</style>
 </head>
 <body>
 
@@ -86,11 +60,11 @@
   <div class="brand"><div class="brand-icon" aria-hidden="true">&#x1F6E2;</div><div><div class="brand-name">Murji Ravji & Co.</div><div class="brand-sub">OIL TRADING & LOGISTICS</div></div></div>
   <div class="topbar-right">
     <div id="auth-status" style="display:flex; align-items:center; gap:10px;">
-        <button id="btn-login" class="btn btn-sm btn-ghost" onclick="openLoginModal()" style="color:var(--gold2); border:1px solid var(--gold2);">&#x1F512; Cloud Login</button>
+        <button id="btn-login" class="btn btn-sm btn-ghost" onclick="App.openLoginModal()" style="color:var(--gold2); border:1px solid var(--gold2);">&#x1F512; Cloud Login</button>
         <div id="user-info" style="display:none; align-items:center; gap:8px;">
             <span id="user-email" style="font-size:11px; color:var(--muted);"></span>
-            <button class="btn btn-sm btn-ghost" onclick="handleLogout()" style="color:var(--red); padding:2px 5px;">Logout</button>
-            <button class="btn btn-sm btn-ghost" onclick="saveState(true)" style="color:var(--teal); padding:2px 5px; border:1px solid var(--teal); font-size:10px;">SYNC NOW</button>
+            <button class="btn btn-sm btn-ghost" onclick="App.handleLogout()" style="color:var(--red); padding:2px 5px;">Logout</button>
+            <button class="btn btn-sm btn-ghost" onclick="App.saveState(true)" style="color:var(--teal); padding:2px 5px; border:1px solid var(--teal); font-size:10px;">SYNC NOW</button>
             <div class="live-badge" style="background:rgba(45, 212, 191, 0.1); color:var(--teal); border-color:var(--teal);">
                 <div class="live-dot" style="background:var(--teal);"></div>
                 <span id="sync-status-badge">CLOUD SYNCED</span>
@@ -102,19 +76,19 @@
 </div>
 
 <div class="nav no-print" role="tablist">
-  <div class="nav-tab active" onclick="switchPage('dashboard')">&#x1F4CA; Dashboard</div>
-  <div class="nav-tab" onclick="switchPage('yard')">&#x1F3D7; Yard Manager</div>
-  <div class="nav-tab" onclick="switchPage('inventory')">&#x1F6E2; Inventory</div>
-  <div class="nav-tab" onclick="switchPage('trades')">&#x1F4B1; Trades</div>
-  <div class="nav-tab" onclick="switchPage('orders')">&#x1F4CB; Orders</div>
-  <div class="nav-tab" onclick="switchPage('challans')">&#x1F4E6; Challans</div>
-  <div class="nav-tab" onclick="switchPage('suppliers')">&#x1F3ED; Suppliers</div>
-  <div class="nav-tab" onclick="switchPage('buyers')">&#x1F464; Buyers</div>
-  <div class="nav-tab" onclick="switchPage('reports')">&#x1F4C8; Reports</div>
-  <div class="nav-tab" onclick="switchPage('settings')">&#x2699; Settings</div>
+  <div class="nav-tab active" onclick="App.switchPage('dashboard')">&#x1F4CA; Dashboard</div>
+  <div class="nav-tab" onclick="App.switchPage('yard')">&#x1F3D7; Yard Manager</div>
+  <div class="nav-tab" onclick="App.switchPage('inventory')">&#x1F6E2; Inventory</div>
+  <div class="nav-tab" onclick="App.switchPage('trades')">&#x1F4B1; Trades</div>
+  <div class="nav-tab" onclick="App.switchPage('orders')">&#x1F4CB; Orders</div>
+  <div class="nav-tab" onclick="App.switchPage('challans')">&#x1F4E6; Challans</div>
+  <div class="nav-tab" onclick="App.switchPage('suppliers')">&#x1F3ED; Suppliers</div>
+  <div class="nav-tab" onclick="App.switchPage('buyers')">&#x1F464; Buyers</div>
+  <div class="nav-tab" onclick="App.switchPage('reports')">&#x1F4C8; Reports</div>
+  <div class="nav-tab" onclick="App.switchPage('settings')">&#x2699; Settings</div>
 </div>
 
-<!-- DASHBOARD -->
+<!-- PAGES -->
 <div class="page active" id="page-dashboard"><div class="container">
   <div class="ticker" id="tickerEl"></div>
   <div class="kpi-grid" id="kpiGrid"></div>
@@ -122,549 +96,97 @@
     <div><div class="section-title">Inventory Levels</div><div class="panel" id="invLevels"></div></div>
     <div><div class="section-title">Recent Trades</div><div class="table-wrap"><table><thead><tr><th>Product</th><th>Type</th><th>Vol (L)</th><th>Weight (KG)</th><th>Price/L</th><th>Value</th></tr></thead><tbody id="recentTradesTbl"></tbody></table></div></div>
   </div>
-  <div class="section-title">Active Orders</div>
-  <div class="table-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Product</th><th>Qty (L)</th><th>Value</th><th>Status</th><th>Due</th></tr></thead><tbody id="activeOrdersTbl"></tbody></table></div>
 </div></div>
 
-    <!-- INVENTORY (YARD MANAGEMENT) -->
-    <div class="page" id="page-inventory"><div class="container">
-        <div class="section-title"><i class="fas fa-warehouse"></i> Yard & Storage Dashboard</div>
-        <div class="panel" style="background:var(--surface); border:1px solid var(--border);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3 style="margin:0; color:var(--gold2);">Storage Unit Status</h3>
-                <div style="display:flex; gap:10px;">
-                    <button class="btn btn-sm btn-ghost" onclick="renderYardDashboard()"><i class="fas fa-sync"></i> Refresh Yard</button>
-                    <button class="btn btn-sm btn-gold" onclick="exportInventoryExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
-                </div>
-            </div>
-            <div id="inventory-yard-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
-                <!-- Tanks/Containers rendered here -->
-            </div>
-        </div>
+<!-- YARD -->
+<div class="page" id="page-yard"><div class="container">
+  <div class="section-title">Yard Storage Overview</div>
+  <div id="yard-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:20px; margin-bottom:30px;"></div>
+  <div class="panel">
+    <div class="section-title">Add Storage Unit</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Name</label><input id="yard-new-tank-name"></div>
+      <div class="form-group"><label>Capacity (L)</label><input id="yard-new-tank-cap" type="number"></div>
+      <div class="form-group"><label>Location</label><input id="yard-new-tank-loc"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="App.addTank('yard')">+ Add Tank</button></div>
+  </div>
+</div></div>
 
-        <div class="section-title">Stock Batches (Audit Trail)</div>
-        <div class="panel">
-            <div class="search-row"><input class="search-input" placeholder="🔍 Search stock batches..." id="invSearch" oninput="renderInventoryTable()"></div>
-            <div class="table-wrap scroll-x">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Product</th><th>Batch Date</th><th>Density</th><th>Storage Loc</th><th>Vol (L)</th><th>Weight (KG)</th><th>Unit Cost</th><th>Value</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="invTable"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="section-title">Product Master</div>
-        <div class="panel">
-            <div class="form-grid" style="max-width:800px">
-                <div class="form-group"><label>Product Name</label><input id="pm-name" placeholder="e.g. Furnace Oil"></div>
-                <div class="form-group"><label>Other Name (Alias)</label><input id="pm-other" placeholder="e.g. FO"></div>
-                <div class="form-group"><label>HSN Code</label><input id="pm-hsn" placeholder="2710"></div>
-                <div class="form-group"><label>Default Density (kg/L)</label><input id="pm-density" type="number" step="0.001" placeholder="0.850"></div>
-            </div>
-            <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="addProductMaster()">➕ Add Product</button></div>
-            <div class="products-list" id="productsList" style="margin-top:14px"></div>
-        </div>
-    </div></div>
+<!-- INVENTORY -->
+<div class="page" id="page-inventory"><div class="container">
+  <div class="section-title">Inventory Batches</div>
+  <div class="panel">
+    <div class="table-wrap"><table style="width:100%"><thead><tr><th>Product</th><th>Location</th><th>Volume</th><th>Cost</th></tr></thead><tbody id="invTable"></tbody></table></div>
+  </div>
+</div></div>
 
 <!-- TRADES -->
 <div class="page" id="page-trades"><div class="container">
   <div class="section-title">Record Trade</div>
   <div class="panel">
     <div class="form-grid">
-      <div class="form-group"><label>Trade Type</label><select id="tr-type" onchange="toggleTradeModeField(); toggleTradeDetailFields();"><option>Buy</option><option>Sell</option><option>Move</option></select></div>
-      <div id="tr-mode-group" class="form-group"><label>Trade Mode</label><select id="tr-mode" onchange="toggleTradeDetailFields()"><option value="local">Local Deal</option><option value="import">Import Deal</option><option value="hs_sale">High Seas Sale</option></select></div>
-      <div id="tr-link-group" class="form-group" style="display:none"><label>Link to Purchase</label><select id="tr-link-purchase" onchange="loadPurchaseDetails()"></select></div>
-      <div class="form-group"><label>Product</label><select id="tr-product" onchange="populateSourceLocations(); calcTradeTotals();"></select></div>
-      <div class="form-group"><label>Counterparty</label>
-        <div id="tr-party-input-wrap"><input id="tr-party" placeholder="Supplier / Customer"></div>
-        <div id="tr-party-select-wrap" style="display:none"><select id="tr-party-select"></select></div>
-      </div>
-      <div id="tr-deal-group" class="form-group" style="display:none"><label>Sale Deal / Order</label><select id="tr-sale-deal" onchange="loadDealDetails()"></select></div>
+      <div class="form-group"><label>Type</label><select id="tr-type" onchange="App.toggleTradeModeField()"><option>Buy</option><option>Sell</option><option>Move</option></select></div>
+      <div id="tr-mode-group" class="form-group"><label>Mode</label><select id="tr-mode" onchange="App.toggleTradeDetailFields()"><option value="local">Local</option><option value="import">Import</option><option value="hs_sale">HS Sale</option></select></div>
+      <div class="form-group"><label>Product</label><select id="tr-product" onchange="App.calcTradeTotals()"></select></div>
+      <div class="form-group"><label>Counterparty</label><div id="tr-party-select-wrap"><select id="tr-party-select"></select></div><div id="tr-party-input-wrap" style="display:none"><input id="tr-party"></div></div>
       
-      <!-- Shared Details -->
-      <div class="form-group"><label>Quantity</label>
-        <div style="display:flex;gap:5px">
-            <input id="tr-vol" type="number" placeholder="0" style="flex:2" oninput="calcTradeTotals()">
-            <select id="tr-unit" style="flex:1" onchange="calcTradeTotals(); syncWeightToQty();"><option>LITRE</option><option>KG</option><option>MTON</option></select>
-        </div>
-      </div>
-      <div class="form-group"><label>Density (kg/L)</label><input id="tr-density" type="number" step="0.001" placeholder="0.850" oninput="calcTradeTotals(); syncWeightToQty();"></div>
-      <div class="form-group"><label>Trade Date</label><input id="tr-date" type="date"></div>
-      <div class="form-group"><label>Total Amount (&#x20B9;)</label><input id="tr-total-inr-shared" readonly style="background:var(--surface2); color:var(--green); font-weight:bold;"></div>
-      <div class="form-group" style="grid-column: span 2; display: flex; gap: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-top: 5px;">
-          <div style="flex: 1;"><label style="color:var(--teal); font-size: 11px; margin-bottom: 4px; display: block;">Landed Cost / Litre</label><input id="tr-landed-l" readonly style="background:transparent; color:var(--teal); font-weight:bold; border: none; font-size: 16px; width: 100%;" placeholder="0.00"></div>
-          <div style="width: 1px; background: var(--border); margin: 5px 0;"></div>
-          <div style="flex: 1;"><label style="color:var(--teal); font-size: 11px; margin-bottom: 4px; display: block;">Landed Cost / KG</label><input id="tr-landed-kg" readonly style="background:transparent; color:var(--teal); font-weight:bold; border: none; font-size: 16px; width: 100%;" placeholder="0.00"></div>
+      <div class="form-group"><label>Quantity</label><div style="display:flex;gap:5px"><input id="tr-vol" type="number" oninput="App.calcTradeTotals()"><select id="tr-unit" onchange="App.syncWeightToQty()"><option>LITRE</option><option>KG</option><option>MTON</option></select></div></div>
+      <div class="form-group"><label>Density</label><input id="tr-density" type="number" step="0.001" oninput="App.syncWeightToQty()"></div>
+      <div class="form-group"><label>Date</label><input id="tr-date" type="date"></div>
+      <div class="form-group"><label>Total (₹)</label><input id="tr-total-inr-shared" readonly></div>
+
+      <!-- Import Fields -->
+      <div class="tr-import-fields full" style="display:none; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+          <div class="form-group"><label>BL No.</label><input id="tr-bl-no"></div>
+          <div class="form-group"><label>Vessel</label><input id="tr-vessel"></div>
+          <div class="form-group"><label>Rate (Foreign)</label><input id="tr-imp-rate" type="number" oninput="App.calcTradeTotals()"></div>
+          <div class="form-group"><label>Exchange Rate</label><input id="tr-ex-rate" type="number" oninput="App.calcTradeTotals()"></div>
+          <div class="form-group"><label>Net Weight (KG)</label><input id="tr-net-weight" type="number" oninput="App.syncWeightToQty()"></div>
+          <div class="form-group"><label>Foreign Total</label><input id="tr-total-for" readonly></div>
       </div>
 
-      <!-- Import Specific -->
-      <div class="tr-import-fields form-group full" style="display:none; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px;">
-        <div class="form-group"><label style="color:var(--teal)">High Seas Deal?</label><div style="display:flex;align-items:center;height:100%;"><input id="tr-is-hs" type="checkbox" style="width:20px;height:20px" onchange="calcImportTotal()"> <span style="font-size:11px;margin-left:5px">Yes</span></div></div>
-        <div class="form-group"><label>Purchase Rate</label><input id="tr-imp-rate" type="number" step="0.01" placeholder="0.00" oninput="calcTradeTotals()"></div>
-        <div id="tr-imp-curr-group" class="form-group"><label>Currency</label><select id="tr-imp-curr" onchange="calcTradeTotals()"><option>USD</option><option>AED</option></select></div>
-        <div id="tr-ex-rate-group" class="form-group"><label>Ex. Rate (&#x20B9;/$)</label><input id="tr-ex-rate" type="number" step="0.01" placeholder="83.50" oninput="calcTradeTotals()"></div>
-        <div class="form-group"><label>Total (Foreign)</label><input id="tr-total-for" readonly style="background:var(--surface2); color:var(--gold2); font-weight:bold;"></div>
-        <div class="form-group"><label>BL NO.</label><input id="tr-bl-no" placeholder="XY123"></div>
-        <div class="form-group"><label>Vessel</label><input id="tr-vessel" placeholder="Vessel Name"></div>
-        <div class="form-group"><label>Loading Port</label><input id="tr-port-load" placeholder="Jebel Ali"></div>
-        <div class="form-group"><label>Discharge Port</label><input id="tr-port-dis" placeholder="Nhava Sheva"></div>
-        <div class="form-group"><label>Agent @ Dest.</label><input id="tr-agent" placeholder="Agent Name"></div>
-        <div class="form-group"><label>Net Weight (KG)</label><input id="tr-net-weight" type="number" step="0.01" placeholder="0.00" oninput="syncWeightToQty()"></div>
-        <div class="form-group"><label>HS Code</label><input id="tr-hs-code" placeholder="27101980"></div>
-        
-        <!-- High Seas Purchase Details -->
-        <div id="tr-hs-purchase-fields" class="form-group full" style="display:none; background:rgba(245,158,11,0.05); padding:10px; border-radius:8px; border:1px dashed var(--gold); margin-top:10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
-            <div class="form-group"><label style="color:var(--gold)">Purchased From (High Seas Seller)</label><input id="tr-hs-seller" placeholder="Seller Name"></div>
-            <div class="form-group" style="display:flex; align-items:flex-end;">
-                <button class="btn btn-sm btn-gold" onclick="openHssModal()" style="width:100%">&#x1F4D1; Create High Seas Docs</button>
-            </div>
-        </div>
-
-        <div class="form-group full"><label>Container Numbers</label><textarea id="tr-containers" placeholder="HCKU5703110, HLXU1663342, ..." style="min-height:40px"></textarea></div>
-        
-        <!-- Shipping Documents Checklist -->
-        <div class="form-group full" style="border-top:1px solid var(--border); padding-top:15px; margin-top:10px;">
-            <label style="color:var(--gold2); font-size:12px; margin-bottom:10px; display:block;">Shipping Documents Checklist</label>
-            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
-                <div class="ship-doc-item" data-type="Bill of Lading">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">🚢 BL</button>
-                </div>
-                <div class="ship-doc-item" data-type="Commercial Invoice">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">📄 INVOICE</button>
-                </div>
-                <div class="ship-doc-item" data-type="Packing List">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">📦 P.LIST</button>
-                </div>
-                <div class="ship-doc-item" data-type="COO">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">📜 COO</button>
-                </div>
-                <div class="ship-doc-item" data-type="Other">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">🛠️ OTHER</button>
-                </div>
-            </div>
-            <div id="tr-ship-docs-list" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:15px;"></div>
-            <input type="file" id="tr-ship-doc-upload" style="display:none" multiple onchange="handleShipDocUpload(this)">
-        </div>
-      </div>
-      
-      <!-- Supplier Payments Section -->
-      <div id="tr-payments-section" class="form-group full" style="margin-top:10px; border-top:1px solid var(--border); padding-top:20px; display:none;">
-        <label style="color:var(--gold2); display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
-            <span><i class="fas fa-money-bill-wave"></i> Supplier Payment Tracker</span>
-            <button class="btn btn-sm btn-ghost" onclick="addPaymentRow()">+ Add Payment</button>
-        </label>
-        <div class="table-wrap" style="background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
-            <table style="width:100%; border-collapse:collapse;">
-                <thead>
-                    <tr style="border-bottom:1px solid var(--border); font-size:11px; color:var(--muted);">
-                        <th style="padding:10px; text-align:left;">Date</th>
-                        <th style="padding:10px; text-align:left;">Amount (INR)</th>
-                        <th style="padding:10px; text-align:left;">Ex. Rate</th>
-                        <th style="padding:10px; text-align:left;">Bank Chg (₹)</th>
-                        <th style="padding:10px; text-align:left;">Type</th>
-                        <th style="padding:10px; text-align:left;">Remarks / Ref</th>
-                        <th style="padding:10px; text-align:center;">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="tr-payments-body"></tbody>
-                <tfoot>
-                    <tr style="background:rgba(0,0,0,0.2); font-weight:bold; font-size:12px;">
-                        <td colspan="2" style="padding:10px; text-align:right; color:var(--muted);">
-                            USD/AED Rate: <input id="tr-pay-univ-rate" type="number" step="0.0001" value="3.6725" style="width:70px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;" oninput="updatePaymentSummary()">
-                        </td>
-                        <td colspan="1" style="padding:10px; text-align:right; color:var(--muted);">Paid:</td>
-                        <td colspan="1" style="padding:10px;"><div id="tr-pay-total-dual" style="display:flex; flex-direction:column; gap:2px; font-size:10px;"><span>USD 0.00</span><span>AED 0.00</span></div></td>
-                        <td colspan="1" style="padding:10px; color:var(--gold);">Bank: <span id="tr-pay-total-bank">₹ 0</span></td>
-                        <td colspan="1" style="padding:10px; text-align:right;"><div id="tr-pay-balance-dual" style="display:flex; flex-direction:column; gap:2px; font-size:10px;"><span>Bal: USD 0.00</span><span>Bal: AED 0.00</span></div></td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        <div id="tr-payment-status" style="margin-top:10px; text-align:right; font-weight:bold; font-size:13px; display:none;">
-            <span class="badge badge-green" style="padding:5px 15px;">FULL PAYMENT DONE</span>
-        </div>
-      </div>
-      
-      <!-- Buyer Payments Section -->
-      <div id="tr-buyer-payments-section" class="form-group full" style="margin-top:10px; border-top:1px solid var(--border); padding-top:20px; display:none;">
-        <label style="color:var(--teal); display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
-            <span><i class="fas fa-hand-holding-usd"></i> Buyer Payment Tracker</span>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <span style="font-size:11px; color:var(--muted);">Invoice Amt:</span>
-                <input id="tr-sale-inv-amt" type="number" placeholder="0.00" style="width:100px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;" oninput="updateBuyerPaymentSummary()">
-                <button class="btn btn-sm btn-ghost" onclick="addBuyerPaymentRow()">+ Add Received</button>
-            </div>
-        </label>
-        <div class="table-wrap" style="background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
-            <table style="width:100%; border-collapse:collapse;">
-                <thead>
-                    <tr style="border-bottom:1px solid var(--border); font-size:11px; color:var(--muted);">
-                        <th style="padding:10px; text-align:left;">Date</th>
-                        <th style="padding:10px; text-align:left;">Received Amt (&#x20B9;)</th>
-                        <th style="padding:10px; text-align:left;">Type</th>
-                        <th style="padding:10px; text-align:left;">Remarks / Ref</th>
-                        <th style="padding:10px; text-align:center;">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="tr-buyer-payments-body"></tbody>
-                <tfoot>
-                    <tr style="background:rgba(0,0,0,0.2); font-weight:bold; font-size:12px;">
-                        <td colspan="1" style="padding:10px; text-align:right; color:var(--muted);">Total Received:</td>
-                        <td colspan="1" style="padding:10px; color:var(--green);" id="tr-buy-total-rec">₹ 0</td>
-                        <td colspan="2" style="padding:10px; text-align:right; color:var(--muted);">Balance Due:</td>
-                        <td colspan="1" style="padding:10px; color:var(--red);" id="tr-buy-balance">₹ 0</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
+      <div class="form-group full" style="display:flex; gap:10px;">
+          <div style="flex:1"><label>Landed / L</label><input id="tr-landed-l" readonly></div>
+          <div style="flex:1"><label>Landed / KG</label><input id="tr-landed-kg" readonly></div>
       </div>
 
-      <!-- Local Specific -->
-        <div class="tr-local-fields form-group full" style="display:none; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px;">
-        <div class="form-group"><label>Unit Price (&#x20B9;)</label><input id="tr-price-local" type="number" placeholder="0.00" step="0.01" oninput="calcTradeTotals()"></div>
-        <div class="form-group" id="tr-source-loc-group">
-                <label>Source Location (From)</label>
-                <div style="display:flex; gap:5px; align-items:center;">
-                    <select id="tr-source-loc" style="flex:1" onchange="checkSourceStock()">
-                        <option value="">-- Select Source --</option>
-                    </select>
-                    <div id="tr-avail-stock" style="font-size:11px; color:var(--teal); white-space:nowrap; background:rgba(45,212,191,0.1); padding:4px 8px; border-radius:4px; display:none;">
-                        Avail: 0 L
-                    </div>
-                </div>
-            </div>
-            <div class="form-group" id="tr-dest-loc-group">
-                <label>Storage Location (To / Yard Assign)</label>
-                <select id="tr-storage-loc">
-                    <option value="">-- Direct Sale / Other --</option>
-                </select>
-            </div>
-        </div>
-        
-        <div class="tr-local-fields form-grid full" style="display:none">
-            <div class="form-group"><label>Invoice No</label><input id="tr-inv-no"></div>
-            <div class="form-group"><label>GST No</label><input id="tr-gst"></div>
-            <div class="form-group"><label>Vehicle No</label><input id="tr-veh" placeholder="MH 12 ..."></div>
-        </div>
-      </div>
-      
-      <!-- Logistics & Expenses Section -->
-      <div id="tr-expenses-section" class="form-group full" style="margin-top:10px; border-top:1px solid var(--border); padding-top:20px;">
-        <label style="color:var(--gold2); display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
-            <span><i class="fas fa-shippping-fast"></i> Logistics & Trade Expenses</span>
-            <button class="btn btn-sm btn-ghost" onclick="addExpenseRow()">+ Add Expense</button>
-        </label>
-        <div class="table-wrap" style="background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
-            <table style="width:100%; border-collapse:collapse;">
-                <thead>
-                    <tr style="border-bottom:1px solid var(--border); font-size:12px; color:var(--muted);">
-                        <th style="padding:10px; text-align:left;">Expense Type</th>
-                        <th style="padding:10px; text-align:left;">Amount (&#x20B9;)</th>
-                        <th style="padding:10px; text-align:left;">Status</th>
-                        <th style="padding:10px; text-align:left;">Ref / Bill</th>
-                        <th style="padding:10px; text-align:center;">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="tr-expenses-body">
-                    <!-- Rows added dynamically -->
-                </tbody>
-                <tfoot>
-                    <tr style="background:rgba(0,0,0,0.2); font-weight:bold;">
-                        <td style="padding:10px; text-align:right;">Total Logistics Cost:</td>
-                        <td id="tr-total-expenses" style="padding:10px; color:var(--teal);">&#x20B9; 0.00</td>
-                        <td colspan="3"></td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-      </div>
-
-      <div class="form-group full"><label>Payment Terms</label>
-        <div class="terms-row"><div class="form-group" style="flex:1"><select id="tr-terms" onchange="toggleCustomTerm('tr')"><option>Immediate</option><option>Net 15</option><option>Net 30</option><option value="__custom__">Custom...</option></select></div><div class="custom-input" id="tr-custom-term"><input id="tr-custom-term-val" placeholder="Enter custom term"></div></div>
-      </div>
-
-      <div class="form-group full">
-        <label style="color:var(--gold2)">Trade Documents</label>
-        <div class="docs-mgr">
-            <div style="display:flex; gap:10px; margin-bottom:10px">
-                <input type="file" id="tr-doc-file" style="display:none" accept=".pdf,image/*" onchange="handleTradeDocUpload(this)">
-                <button class="btn btn-sm" onclick="document.getElementById('tr-doc-file').click()">&#x1F4CE; Attach PDF / Image</button>
-                <button class="btn btn-sm btn-gold" onclick="scanTradeDocWithAI()" id="btn-scan-ai" style="display:none">&#x2728; Scan with AI</button>
-            </div>
-            <div id="tr-docs-list" class="docs-list"></div>
-        </div>
-      </div>
+      <div class="form-group full"><label>Docs</label><input type="file" multiple onchange="App.handleTradeDocUpload(this)"></div>
     </div>
-    <div class="btn-row"><button class="btn btn-primary" onclick="addTrade()">&#x1F4B1; Record Trade</button></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="App.addTrade()">Record Trade</button></div>
   </div>
-  <div class="search-row"><input class="search-input" placeholder="&#x1F50D; Search trades..." id="tradeSearch" oninput="renderTradesTable()"></div>
-  <div class="section-title">Trade History</div>
-  <div class="table-wrap scroll-x"><table>        <thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Counterparty</th><th>Quantity</th><th>Price/Unit</th><th>Total (&#x20B9;)</th><th>Actions</th></tr></thead>
-<tbody id="tradesTable"></tbody></table></div>
+  <div class="table-wrap scroll-x"><table><thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Party</th><th>Qty</th><th>Price</th><th>Action</th></tr></thead><tbody id="tradesTable"></tbody></table></div>
 </div></div>
 
-<!-- ORDERS -->
-<div class="page" id="page-orders"><div class="container">
-  <div class="section-title">Create Order</div>
+<!-- SETTINGS -->
+<div class="page" id="page-settings"><div class="container">
+  <div class="section-title">Product Master</div>
   <div class="panel">
     <div class="form-grid">
-      <div class="form-group"><label>Order Type</label><select id="ord-type" onchange="populateOrderParties()"><option value="SALE">Sale Order</option><option value="PURCHASE">Purchase Order</option></select></div>
-      <div class="form-group"><label>Party / Customer</label><select id="ord-customer"></select></div>
-      <div class="form-group"><label>Product</label><select id="ord-product"></select></div>
-      <div class="form-group"><label>Density (kg/L)</label><input id="ord-density" type="number" step="0.001" placeholder="0.850" oninput="onDensityChangeForPrice('ord')"></div>
-      <div class="form-group"><label>Base Unit (for Pricing)</label><select id="ord-unit" onchange="dualCalc('ord','vol'); priceCalc('ord','perL');"><option value="LITRE">Litre (L)</option><option value="KG">Kilogram (KG)</option></select></div>
-      <div class="form-group"><label>Quantity</label>
-        <div class="dual"><div><input id="ord-qty" type="number" placeholder="0" oninput="dualCalc('ord','vol')"><div class="di-unit">Litres</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="ord-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('ord','kg')"><div class="di-unit">Kilograms</div></div></div>
-      </div>
-      <div class="form-group"><label>Agreed Price</label>
-        <div class="dual"><div><input id="ord-price" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('ord','perL')"><div class="di-unit">&#x20B9; / Litre</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="ord-price-kg" type="number" placeholder="0.00" step="0.01" oninput="priceCalc('ord','perKG')"><div class="di-unit">&#x20B9; / KG</div></div></div>
-      </div>
-      <div class="form-group"><label>Order Date</label><input id="ord-date" type="date"></div>
-      <div class="form-group"><label>Delivery Date</label><input id="ord-due" type="date"></div>
-      <div class="form-group"><label>Priority</label><select id="ord-priority"><option>Normal</option><option>High</option><option>Urgent</option></select></div>
+      <div class="form-group"><label>Name</label><input id="pm-name"></div>
+      <div class="form-group"><label>Density</label><input id="pm-density" type="number" step="0.001"></div>
+      <div class="form-group"><label>HSN</label><input id="pm-hsn"></div>
+      <div class="form-group"><label>Alias</label><input id="pm-other"></div>
     </div>
-    <div class="btn-row"><button class="btn btn-primary" onclick="addOrder()">&#x1F4CB; Create Order</button></div>
-  </div>
-  <div class="section-title">All Orders</div>
-  <div class="table-wrap scroll-x"><table><thead><tr><th>Order ID</th><th>Type</th><th>Customer / Party</th><th>Product</th><th>Quantity</th><th>Rate</th><th>Total Value</th><th>Status</th><th>Due</th><th>Actions</th></tr></thead><tbody id="ordersTable"></tbody></table></div>
-</div></div>
-
-<!-- CHALLANS -->
-<div class="page" id="page-challans"><div class="container">
-  <div class="section-title">Create Delivery Challan</div>
-  <div class="panel">
-    <div class="form-grid">
-      <div class="form-group"><label>Type</label><select id="ch-type" onchange="toggleChallanFields()"><option value="out">Outward (Dispatch)</option><option value="in">Inward (Receive)</option></select></div>
-      <div class="form-group"><label>Challan No.</label><input id="ch-no" placeholder="Auto if blank"></div>
-      <div class="form-group"><label>Date</label><input id="ch-date" type="date"></div>
-      <div class="form-group"><label>Product</label><select id="ch-product"></select></div>
-      <div class="form-group"><label>Density (kg/L)</label><input id="ch-density" type="number" step="0.001" placeholder="0.850" oninput="dualCalc('ch','kg')"></div>
-      <div class="form-group"><label>Quantity</label>
-        <div class="dual"><div><input id="ch-vol" type="number" placeholder="0" oninput="dualCalc('ch','vol')"><div class="di-unit">Litres</div></div><div class="dual-arrow">&#x21C4;</div><div><input id="ch-kg" type="number" step="0.1" placeholder="0" oninput="dualCalc('ch','kg')"><div class="di-unit">Kilograms</div></div></div>
-      </div>
-      <div class="form-group" id="ch-from-group"><label>Dispatched From</label><input id="ch-from" placeholder="Depot"></div>
-      <div class="form-group" id="ch-to-group"><label>Delivered To</label><input id="ch-to" placeholder="Customer"></div>
-      <div class="form-group"><label>Vehicle No.</label><input id="ch-vehicle" placeholder="MH 12 AB 1234"></div>
-      <div class="form-group"><label>Driver</label><input id="ch-driver" placeholder="Name"></div>
-      <div class="form-group"><label>Driver Phone</label><input id="ch-driver-ph" placeholder="+91 XXXXX XXXXX"></div>
-    </div>
-    <div class="btn-row"><button class="btn btn-primary" onclick="addChallan()">&#x1F4E6; Create Challan</button></div>
-  </div>
-  <div class="print-tip no-print" style="margin-top:-10px;margin-bottom:16px;">Tip: Click PDF to open print dialog — choose "Save as PDF" as the destination.</div>
-  <div class="section-title">Challan Register</div>
-  <div class="table-wrap scroll-x"><table><thead><tr><th>No.</th><th>Type</th><th>Date</th><th>Product</th><th>Vol (L)</th><th>From</th><th>To</th><th>Vehicle</th><th>Actions</th></tr></thead><tbody id="challansTable"></tbody></table></div>
-</div></div>
-
-<!-- SUPPLIERS -->
-<div class="page" id="page-suppliers"><div class="container">
-  <div class="section-title">Add Supplier</div>
-  <div class="panel">
-    <div class="form-grid">
-      <div class="form-group"><label>Company</label><input id="sup-name" placeholder="Name"></div>
-      <div class="form-group"><label>Supplier Type</label><select id="sup-type" onchange="toggleSupIntlFields()"><option value="local">Local Supplier</option><option value="import">Import Supplier</option></select></div>
-      <div class="form-group"><label>Contact</label><input id="sup-contact" placeholder="Person"></div>
-      <div class="form-group"><label>Phone</label><input id="sup-phone" placeholder="+91"></div>
-      <div class="form-group"><label>City</label><input id="sup-city" placeholder="Mumbai"></div>
-      <div class="form-group"><label>Bank Name</label><input id="sup-bank-name" placeholder="Bank Name"></div>
-      <div class="form-group"><label>Account No.</label><input id="sup-bank-ac" placeholder="Account Number"></div>
-      <div id="sup-ifsc-group" class="form-group"><label>IFSC Code</label><input id="sup-bank-ifsc" placeholder="IFSC Code"></div>
-      
-      <!-- International Fields -->
-      <div class="sup-intl-fields form-group" style="display:none"><label>IBAN</label><input id="sup-bank-iban" placeholder="International Bank Account No."></div>
-      <div class="sup-intl-fields form-group" style="display:none"><label>SWIFT / BIC</label><input id="sup-bank-swift" placeholder="SWIFT Code"></div>
-      <div class="sup-intl-fields form-group" style="display:none"><label>A/c Currency</label><select id="sup-bank-curr"><option>USD</option><option>EUR</option><option>AED</option><option>GBP</option></select></div>
-    </div>
-    <div class="btn-row">
-        <button id="btn-add-supplier" class="btn btn-primary" onclick="addSupplier()">&#x1F3ED; Add Supplier</button>
-        <button class="btn btn-ghost" onclick="clearSupForm()">Clear</button>
-    </div>
-  </div>
-  <div class="table-wrap scroll-x"><table><thead><tr><th>Company</th><th>Type</th><th>Contact</th><th>Phone</th><th>City</th><th>Bank Details</th><th>Actions</th></tr></thead><tbody id="suppliersTable"></tbody></table></div>
-</div></div>
-
-<!-- BUYERS -->
-<div class="page" id="page-buyers"><div class="container">
-  <div class="section-title">Add / Edit Buyer</div>
-  <div class="panel">
-    <div class="form-grid">
-      <div class="form-group"><label>Company</label><input id="buy-name" placeholder="Name"></div>
-      <div class="form-group"><label>Contact</label><input id="buy-contact" placeholder="Person"></div>
-      <div class="form-group"><label>Phone</label><input id="buy-phone" placeholder="+91"></div>
-      <div class="form-group"><label>City</label><input id="buy-city" placeholder="Mumbai"></div>
-      <div class="form-group"><label>Bank Name</label><input id="buy-bank-name" placeholder="Bank Name"></div>
-      <div class="form-group"><label>Account No.</label><input id="buy-bank-ac" placeholder="Account Number"></div>
-      <div class="form-group"><label>IFSC / SWIFT</label><input id="buy-bank-ifsc" placeholder="IFSC or SWIFT"></div>
-    </div>
-    <div class="btn-row">
-        <button id="btn-add-buyer" class="btn btn-primary" onclick="addBuyer()">&#x1F464; Add Buyer</button>
-        <button class="btn btn-ghost" onclick="clearBuyForm()">Clear</button>
-    </div>
-  </div>
-  <div class="section-title">Buyer Directory</div>
-  <div class="table-wrap scroll-x"><table><thead><tr><th>Company</th><th>Contact</th><th>Phone</th><th>City</th><th>Bank Details</th><th>Actions</th></tr></thead><tbody id="buyersTable"></tbody></table></div>
-</div></div>
-
-<!-- REPORTS -->
-<div class="page" id="page-reports"><div class="container">
-  <div class="kpi-grid" id="reportKpis"></div>
-  <div class="grid2">
-    <div class="panel"><div class="section-title">P&L Summary</div><div id="plSummary"></div></div>
-    <div class="panel"><div class="section-title">Top Customers</div><div id="topCustomers"></div></div>
+    <button class="btn btn-primary" onclick="App.addProductMaster()">Add Product</button>
+    <div id="productsList" style="margin-top:20px"></div>
   </div>
 </div></div>
 
-<!-- YARD MANAGER -->
-<div class="page" id="page-yard"><div class="container">
-  <div class="section-title">Yard Storage Overview</div>
-  <div id="yard-dashboard-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:20px; margin-bottom:30px;">
-    <!-- Tanks will be rendered here -->
-  </div>
-
-  <div class="panel">
-    <div class="section-title">Tank & Container Management</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Storage Name</label><input id="yard-new-tank-name" placeholder="e.g. Tank A or Cont 101"></div>
-      <div class="form-group"><label>Capacity (L)</label><input id="yard-new-tank-cap" type="number" placeholder="50000" oninput="document.getElementById('yard-new-tank-cap-kg').value = (this.value*0.850).toFixed(0)"></div>
-      <div class="form-group"><label>Capacity (KG)</label><input id="yard-new-tank-cap-kg" type="number" placeholder="42500" oninput="document.getElementById('yard-new-tank-cap').value = (this.value/0.850).toFixed(0)"></div>
-      <div class="form-group"><label>Capacity (MT)</label><input id="yard-new-tank-cap-mt" type="number" placeholder="50" oninput="document.getElementById('yard-new-tank-cap').value = (this.value*1000/0.850).toFixed(0); document.getElementById('yard-new-tank-cap-kg').value = (this.value*1000).toFixed(0);"></div>
-      <div class="form-group"><label>Location</label><input id="yard-new-tank-loc" placeholder="Main Yard / Section B"></div>
-    </div>
-    <div class="btn-row"><button class="btn btn-primary" onclick="addTank('yard')">&#x2795; Register Storage</button></div>
-    
-    <div class="table-wrap" style="margin-top:20px;">
-      <table><thead><tr><th>ID</th><th>Storage Unit</th><th>Location</th><th>Capacity</th><th>Action</th></tr></thead><tbody id="tankManagerTable"></tbody></table>
-    </div>
-  </div>
-</div></div>
-
-<!-- AI SETTINGS -->
-<div id="page-settings" class="page">
-    <div class="container" style="max-width:600px; padding-top:40px;">
-        <div class="card" style="padding:30px; background:var(--surface); border:1px solid var(--border);">
-            <h3 style="color:var(--gold2); margin-top:0;">&#x2699; AI Configuration</h3>
-            <p style="color:var(--muted); font-size:13px;">Enhance your scans with Google Gemini 1.5 for 100% accuracy on complex documents like Rider Sheets.</p>
-            
-            <div class="form-group" style="margin-top:20px;">
-                <label style="display:block; margin-bottom:8px; font-weight:500;">Google Gemini API Key</label>
-                <input type="password" id="api-key" placeholder="AIza..." style="width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
-            </div>
-
-            <div class="form-group" style="margin-top:20px;">
-                <label style="display:block; margin-bottom:8px; font-weight:500;">Gemini Model</label>
-                <select id="api-model" style="width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
-                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Fastest & Efficient)</option>
-                    <option value="gemini-3.1-pro">Gemini 3.1 Pro (Most Powerful)</option>
-                    <option value="gemini-3-flash">Gemini 3.0 Flash (Balanced)</option>
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Stable)</option>
-                </select>
-            </div>
-            
-            <p style="font-size:11px; color:var(--muted); margin-top:8px;">Your key is stored locally in your browser. Get one at aistudio.google.com</p>
-
-            <button class="btn btn-gold" onclick="saveApiKey()" style="width:100%; margin-top:10px; font-weight:bold;">SAVE CONFIGURATION</button>
-            <button class="btn btn-sm btn-ghost" onclick="forceCloudResync()" style="width:100%; margin-top:15px; color:var(--red); border:1px solid var(--red); font-size:11px;">⚠️ FORCE CLOUD RESYNC (FIX MISSING DATA)</button>
-            <button class="btn btn-sm btn-ghost" onclick="refineWithCloudAI()" style="width:100%; margin-top:5px; color:var(--teal); border:1px solid var(--teal); font-size:11px;">🔍 INSPECT CLOUD DATA (DIAGNOSTIC)</button>
-            <button class="btn btn-sm btn-ghost" onclick="deepRecoveryScan()" style="width:100%; margin-top:5px; background:rgba(234, 179, 8, 0.1); color:var(--gold2); border:1px solid var(--gold2); font-size:11px;">🚀 DEEP RECOVERY SCAN (SEARCH BROWSER BACKUPS)</button>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px;">
-                <button class="btn btn-sm btn-primary" onclick="exportStateToFile()" style="font-size:10px;">📥 EXPORT BACKUP</button>
-                <button class="btn btn-sm btn-ghost" onclick="document.getElementById('import-file').click()" style="font-size:10px; border:1px solid var(--border);">📤 IMPORT BACKUP</button>
-            </div>
-            <button class="btn btn-sm btn-gold" onclick="initializeStorage(true)" style="width:100%; margin-top:5px; font-weight:bold;">🛠️ INITIALIZE CLOUD STORAGE</button>
-            <input type="file" id="import-file" style="display:none" onchange="importStateFromFile(this)">
-        </div>
-
-        <div class="card" style="padding:30px; background:var(--surface); border:1px solid var(--border); margin-top:30px;">
-            <h3 style="color:var(--gold2); margin-top:0;"><i class="fas fa-warehouse"></i> Yard & Tank Management</h3>
-            <p style="color:var(--muted); font-size:13px;">Add or remove storage tanks and yard sections.</p>
-            
-            <div id="tank-manager-list" style="margin:20px 0;">
-                <!-- Tanks rendered here -->
-            </div>
-
-            <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:8px; border:1px solid var(--border);">
-                <h4 style="margin:0 0 10px 0; font-size:14px;">Add New Storage Unit</h4>
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div class="form-group"><label>Unit Name</label><input id="settings-new-tank-name" placeholder="e.g. Tank 4"></div>
-                    <div class="form-group"><label>Location / Yard</label><input id="settings-new-tank-loc" placeholder="e.g. Yard C"></div>
-                    <div class="form-group"><label>Cap (Liters)</label><input id="settings-new-tank-cap" type="number" placeholder="50000"></div>
-                    <div class="form-group"><label>Cap (MT)</label><input id="settings-new-tank-cap-mt" type="number" placeholder="42.5"></div>
-                </div>
-                <button class="btn btn-sm btn-gold" onclick="addTank('settings')" style="width:100%; margin-top:15px;">+ Create Unit</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Hidden print zone -->
-<div id="printZone"></div>
-
-<!-- Modals & Overlays -->
-<div class="modal-overlay no-print" id="confirmModal"><div class="modal-box"><p id="confirmMsg"></p><div class="modal-btns"><button class="btn btn-danger" id="confirmYes">Delete</button><button class="btn btn-ghost" id="confirmNo">Cancel</button></div></div></div>
-<div class="lightbox no-print" id="lightbox" onclick="this.classList.remove('show')"><img id="lightboxImg" src="" alt="Slip"></div>
-<div class="toast no-print" id="toast" role="alert" aria-live="polite"></div>
-
-<!-- Document Preview Modal -->
-<div id="docPreviewModal" class="modal">
-    <div class="modal-content" style="width:95%; height:95%; padding:0; overflow:hidden; border:none; background:var(--bg);">
-        <div style="background:rgba(20,20,20,0.8); backdrop-filter:blur(10px); padding:10px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border);">
-            <h3 id="previewDocTitle" style="margin:0; font-size:16px; color:var(--gold2);">Document Preview</h3>
-            <button type="button" class="close" onclick="closeDocPreview()" style="font-size:24px; cursor:pointer; background:none; border:none; color:var(--text);" aria-label="Close Preview">&times;</button>
-        </div>
-        <div id="docPreviewContainer" style="width:100%; height:calc(100% - 50px); background:#fff;"></div>
-    </div>
-</div>
-
-<!-- High Seas Document Center Modal -->
-<div class="modal" id="hssModal">
-    <div class="modal-content" style="width:95%; max-width:900px; max-height:90vh; overflow-y:auto; background:var(--surface); border:1px solid var(--border); padding:25px; border-radius:15px; position:relative;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:15px;">
-            <h2 style="color:var(--gold2); margin:0;"><i class="fas fa-file-contract"></i> High Seas Document Center</h2>
-            <button type="button" class="close" onclick="closeHssModal()" style="font-size:24px; cursor:pointer; color:var(--muted); background:none; border:none;" aria-label="Close Document Center">&times;</button>
-        </div>
-        
-        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; background:rgba(0,0,0,0.2); padding:15px; border-radius:10px; margin-bottom:20px;">
-            <div class="form-group"><label>Purchaser IEC</label><input id="hss-p-iec" placeholder="e.g. ABLPR6329K"></div>
-            <div class="form-group"><label>Profit % (for Consideration)</label><input id="hss-profit" type="number" step="0.1" value="2.0"></div>
-            <div class="form-group"><label>Invoice No / Ref</label><input id="hss-inv-no" placeholder="CI/00006/04"></div>
-            <div class="form-group" style="display:flex; align-items:flex-end;">
-                <button class="btn btn-gold" onclick="downloadAllHssDocs()" style="width:100%"><i class="fas fa-download"></i> Download All Docs (PDF)</button>
-            </div>
-        </div>
-        <div id="hss-previews" style="display:flex; flex-direction:column; gap:40px;">
-            <!-- Previews will be rendered here -->
-        </div>
-    </div>
-</div>
-
-<!-- Login Modal -->
+<!-- MODALS -->
 <div id="loginModal" class="modal">
-    <div class="modal-content" style="max-width:400px; background:var(--surface); border:1px solid var(--border); padding:30px; border-radius:12px;">
-        <h2 style="color:var(--gold2); margin-top:0;">Cloud Access</h2>
-        <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Login to sync your data to the cloud and bypass local storage limits.</p>
-        <div class="form-group" style="margin-bottom:15px;">
-            <label>Email</label>
-            <input type="email" id="login-email" placeholder="email@example.com" style="width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
-        </div>
-        <div class="form-group" style="margin-bottom:20px;">
-            <label>Password</label>
-            <input type="password" id="login-password" placeholder="••••••••" style="width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
-        </div>
-        <button class="btn btn-gold" onclick="handleLogin()" style="width:100%; font-weight:bold;">LOGIN TO CLOUD</button>
-        <button class="btn btn-ghost" onclick="handleSignUp()" style="width:100%; margin-top:5px; color:var(--teal);">New User? Sign Up</button>
-        <button class="btn btn-ghost" onclick="closeLoginModal()" style="width:100%; margin-top:10px;">Cancel</button>
+    <div class="modal-content" style="max-width:400px; background:var(--surface); padding:30px; border-radius:12px;">
+        <h2 style="color:var(--gold2)">Cloud Login</h2>
+        <div class="form-group"><label>Email</label><input type="email" id="login-email"></div>
+        <div class="form-group"><label>Password</label><input type="password" id="login-password"></div>
+        <button class="btn btn-gold" onclick="App.handleLogin()" style="width:100%">Login</button>
+        <button class="btn btn-ghost" onclick="App.closeLoginModal()" style="width:100%">Cancel</button>
     </div>
 </div>
 
-<div id="hss-print-container" style="position:fixed; left:0; top:0; width:210mm; background:#fff; z-index:-1; opacity:0; pointer-events:none;"></div>
+<div class="toast" id="toast"></div>
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('show')"><img id="lightboxImg"></div>
 
-<!-- Main Application Entry Point (Modular) -->
-<script type="module" src="./main.js"></script>
-<!-- Legacy Script (Backup) 
-<script src="script.js"></script>
--->
+<script type="module" src="main.js"></script>
 </body>
 </html>
