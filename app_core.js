@@ -10,6 +10,20 @@ export const today = () => new Date().toISOString().split('T')[0];
 export const escH = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const toKG = (v, d) => v * (d || 0.850);
 
+export const toast = (msg, isErr = false) => {
+    const el = document.getElementById('toast');
+    if (!el) return console.log("Toast:", msg);
+    el.textContent = msg;
+    el.className = 'toast show' + (isErr ? ' err' : '');
+    setTimeout(() => el.classList.remove('show'), 4000);
+};
+
+export function showImage(src) {
+    const img = document.getElementById('lightboxImg');
+    const box = document.getElementById('lightbox');
+    if (img && box) { img.src = src; box.classList.add('show'); }
+}
+
 // --- STATE ---
 export const DEF_S = {
     products: [
