@@ -178,7 +178,7 @@
       <div class="form-group"><label>Trade Type</label><select id="tr-type" onchange="toggleTradeModeField(); toggleTradeDetailFields();"><option>Buy</option><option>Sell</option><option>Move</option></select></div>
       <div id="tr-mode-group" class="form-group"><label>Trade Mode</label><select id="tr-mode" onchange="toggleTradeDetailFields()"><option value="local">Local Deal</option><option value="import">Import Deal</option><option value="hs_sale">High Seas Sale</option></select></div>
       <div id="tr-link-group" class="form-group" style="display:none"><label>Link to Purchase</label><select id="tr-link-purchase" onchange="loadPurchaseDetails()"></select></div>
-      <div class="form-group"><label>Product</label><select id="tr-product"></select></div>
+      <div class="form-group"><label>Product</label><select id="tr-product" onchange="populateSourceLocations(); calcTradeTotals();"></select></div>
       <div class="form-group"><label>Counterparty</label>
         <div id="tr-party-input-wrap"><input id="tr-party" placeholder="Supplier / Customer"></div>
         <div id="tr-party-select-wrap" style="display:none"><select id="tr-party-select"></select></div>
@@ -324,13 +324,18 @@
       </div>
 
       <!-- Local Specific -->
-      <div class="tr-local-fields form-group full" style="display:none; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px;">
+        <div class="tr-local-fields form-group full" style="display:none; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px;">
         <div class="form-group"><label>Unit Price (&#x20B9;)</label><input id="tr-price-local" type="number" placeholder="0.00" step="0.01" oninput="calcTradeTotals()"></div>
-        <div class="form-group" id="tr-source-loc-group" style="display:none;">
+        <div class="form-group" id="tr-source-loc-group">
                 <label>Source Location (From)</label>
-                <select id="tr-source-loc">
-                    <option value="">-- Select Source --</option>
-                </select>
+                <div style="display:flex; gap:5px; align-items:center;">
+                    <select id="tr-source-loc" style="flex:1" onchange="checkSourceStock()">
+                        <option value="">-- Select Source --</option>
+                    </select>
+                    <div id="tr-avail-stock" style="font-size:11px; color:var(--teal); white-space:nowrap; background:rgba(45,212,191,0.1); padding:4px 8px; border-radius:4px; display:none;">
+                        Avail: 0 L
+                    </div>
+                </div>
             </div>
             <div class="form-group" id="tr-dest-loc-group">
                 <label>Storage Location (To / Yard Assign)</label>

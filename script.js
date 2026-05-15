@@ -822,8 +822,9 @@ function toggleTradeDetailFields() {
     var linkGrp = document.getElementById('tr-link-group');
     var srcGrp = document.getElementById('tr-source-loc-group');
     
-    if (srcGrp) srcGrp.style.display = type === 'Move' ? 'block' : 'none';
-    
+    if (srcGrp) srcGrp.style.display = (type === 'Move' || (type === 'Sell' && mode === 'local')) ? 'block' : 'none';
+    if (srcGrp.style.display === 'block') populateSourceLocations();
+
     if (type === 'Move') {
         imp.style.display = 'none';
         loc.style.display = 'grid';
@@ -1335,6 +1336,11 @@ function editTrade(id) {
     document.getElementById('tr-density').value = t.density;
     document.getElementById('tr-date').value = t.date;
     document.getElementById('tr-terms').value = t.terms || 'Immediate';
+    if (t.source_location) {
+        populateSourceLocations();
+        document.getElementById('tr-source-loc').value = t.source_location;
+        checkSourceStock();
+    }
     // Trade Docs handled below in specific section
     if (t.mode === 'import') {
         document.getElementById('tr-is-hs').checked = !!t.is_hs;
@@ -1457,7 +1463,8 @@ function addTrade() {
         sale_deal_id: document.getElementById('tr-sale-deal').value || null,
         is_hs: document.getElementById('tr-is-hs').checked,
         hs_seller: document.getElementById('tr-hs-seller').value,
-        location: storageLoc
+        location: storageLoc,
+        source_location: document.getElementById('tr-source-loc') ? document.getElementById('tr-source-loc').value : null
     };
     
     if (type === 'Sell' && mode === 'hs_sale') trade.link_purchase_id = document.getElementById('tr-link-purchase').value;
@@ -1518,17 +1525,23 @@ function addTrade() {
                 unit_cost: 0,
                 type: 'Internal Movement (In)'
             });
-        } else if (storageLoc && !trade.is_hs) {
+            });
+        }
+    } else if (type === 'Sell') {
+        const sourceLoc = document.getElementById('tr-source-loc') ? document.getElementById('tr-source-loc').value : '';
+        if (sourceLoc) {
+            // Deduct from inventory
             state.inventory.push({
                 id: state.nextInvId++,
                 trade_id: trade.id,
                 product: product,
-                vol: volInL,
+                vol: -volInL,
                 density: den,
-                weight_kg: toKG(volInL, den),
-                location: storageLoc,
+                weight_kg: -toKG(volInL, den),
+                location: sourceLoc,
                 date: trade.date,
-                cost: price
+                cost: 0, // Sale deduction has no "cost" for inventory value calculation
+                type: 'Sale Deduction'
             });
         }
     }
@@ -1980,8 +1993,15 @@ function addExpenseRow(data) {
     row.className = 'expense-row';
     row.style.borderBottom = '1px solid var(--border)';
     
-    const types = ['Line Charges', 'CFS Charges', 'LOLO Charges', 'Customs Duty', 'THC Fees', 'Agency Fees', 'Transportation', 'Truck Hire', 'Insurance', 'Survey', 'Other'];
-    const defaultType = data ? data.type : 'Line Charges';
+    const mode = document.getElementById('tr-mode').value;
+    let types = [];
+    if (mode === 'local') {
+        types = ['Transportation', 'Truck Hire', 'Loading Charges', 'Unloading Charges', 'Commission', 'Other'];
+    } else {
+        types = ['Line Charges', 'CFS Charges', 'LOLO Charges', 'Customs Duty', 'THC Fees', 'Agency Fees', 'Transportation', 'Truck Hire', 'Insurance', 'Survey', 'Other'];
+    }
+    
+    const defaultType = data ? data.type : (mode === 'local' ? 'Truck Hire' : 'Line Charges');
     const isOther = !types.includes(defaultType) && defaultType !== 'Other';
     const finalType = isOther ? 'Other' : defaultType;
     
@@ -2481,6 +2501,46 @@ function loadDealDetails() {
     calcTradeTotals();
     updateBuyerPaymentSummary();
     toast('Loaded Order: ' + id);
+}
+
+function populateSourceLocations() {
+    const sel = document.getElementById('tr-source-loc');
+    const product = document.getElementById('tr-product').value;
+    if (!sel || !product) return;
+    
+    // Get unique locations from inventory for this product
+    const locations = state.inventory
+        .filter(i => i.product === product)
+        .map(i => i.location);
+    
+    const uniqueLocs = [...new Set(locations)].filter(l => l);
+    
+    sel.innerHTML = '<option value="">-- Select Source --</option>' + 
+        uniqueLocs.map(l => {
+            const tank = state.tanks.find(t => t.id === l);
+            const label = tank ? (tank.name + ' (' + tank.location + ')') : l;
+            return '<option value="'+l+'">'+escH(label)+'</option>';
+        }).join('');
+}
+
+function checkSourceStock() {
+    const loc = document.getElementById('tr-source-loc').value;
+    const product = document.getElementById('tr-product').value;
+    const infoEl = document.getElementById('tr-avail-stock');
+    
+    if (!loc || !product) {
+        infoEl.style.display = 'none';
+        return;
+    }
+    
+    const relevant = state.inventory.filter(i => i.product === product && i.location === loc);
+    const total = relevant.reduce((sum, i) => sum + i.vol, 0);
+    
+    infoEl.textContent = 'Avail: ' + fmtN(total.toFixed(0)) + ' L';
+    infoEl.style.display = 'block';
+    
+    if (total <= 0) infoEl.style.color = 'var(--red)';
+    else infoEl.style.color = 'var(--teal)';
 }
 
 
