@@ -882,37 +882,39 @@ function toggleTradeDetailFields() {
     var imp = document.querySelector('.tr-import-fields');
     var loc = document.querySelector('.tr-local-fields');
     var linkGrp = document.getElementById('tr-link-group');
-    var srcGrp = document.getElementById('tr-source-loc-group');
-    
+    var storeGrp = document.getElementById('tr-storage-loc-group');
+    if (storeGrp) storeGrp.style.display = (type === 'Buy') ? 'block' : 'none';
     if (srcGrp) srcGrp.style.display = (type === 'Move' || (type === 'Sell' && mode === 'local')) ? 'block' : 'none';
-    if (srcGrp.style.display === 'block') populateSourceLocations();
+    
+    if (storeGrp && storeGrp.style.display === 'block') populateStorageLocations();
+    if (srcGrp && srcGrp.style.display === 'block') populateSourceLocations();
 
     if (type === 'Move') {
         imp.style.display = 'none';
-        loc.style.display = 'grid';
+        if (loc) loc.style.display = 'grid';
         linkGrp.style.display = 'none';
         document.getElementById('tr-payments-section').style.display = 'none';
+        document.getElementById('tr-buyer-payments-section').style.display = 'none';
         return;
     }
 
     if (type === 'Buy') {
         linkGrp.style.display = 'none';
+        document.getElementById('tr-buyer-payments-section').style.display = 'none';
         if (mode === 'import') {
             imp.style.display = 'grid';
-            loc.style.display = 'none';
+            if (loc) loc.style.display = 'none';
             document.getElementById('tr-payments-section').style.display = 'block';
-            document.getElementById('tr-buyer-payments-section').style.display = 'none';
             calcImportTotal();
         } else {
             imp.style.display = 'none';
-            loc.style.display = 'grid';
+            if (loc) loc.style.display = 'grid';
             document.getElementById('tr-payments-section').style.display = 'none';
-            document.getElementById('tr-buyer-payments-section').style.display = 'none';
         }
     } else {
         // Sell
         imp.style.display = 'none';
-        loc.style.display = (mode === 'local') ? 'grid' : 'none';
+        if (loc) loc.style.display = (mode === 'local') ? 'grid' : 'none';
         document.getElementById('tr-payments-section').style.display = 'none';
         document.getElementById('tr-buyer-payments-section').style.display = (mode === 'local') ? 'block' : 'none';
         document.getElementById('tr-deal-group').style.display = 'flex';
@@ -923,6 +925,21 @@ function toggleTradeDetailFields() {
             linkGrp.style.display = 'none';
         }
     }
+}
+
+function populateStorageLocations() {
+    const sel = document.getElementById('tr-storage-loc');
+    if (!sel || !state.tanks) return;
+    sel.innerHTML = '<option value="">-- Direct Sale / Yard Stock --</option>' + 
+        state.tanks.map(t => `<option value="${t.id}">${escH(t.name)}</option>`).join('');
+}
+
+function populateSourceLocations() {
+    const sel = document.getElementById('tr-source-loc');
+    if (!sel || !state.tanks) return;
+    sel.innerHTML = '<option value="">-- Direct from Port / Other --</option>' + 
+        state.tanks.map(t => `<option value="${t.id}">${escH(t.name)}</option>`).join('');
+}
 }
 function populatePurchaseLinks() {
     var sel = document.getElementById('tr-link-purchase');
@@ -1045,20 +1062,6 @@ function renderActiveOrders() {
     document.getElementById('activeOrdersTbl').innerHTML = state.orders.filter(function(o){return o.status!=='Delivered';}).map(function(o) {
         return '<tr><td class="mono">'+o.id+'</td><td>'+o.customer+'</td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(o.qty*o.price)+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+o.due+'</td></tr>';
     }).join('');
-}
-
-function populateOrderParties() {
-    const type = document.getElementById('ord-type').value;
-    const sel = document.getElementById('ord-customer');
-    if (!sel) return;
-    
-    if (type === 'PURCHASE') {
-        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
-            (state.suppliers || []).map(s => `<option value="${escH(s.name)}">${escH(s.name)}</option>`).join('');
-    } else {
-        sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
-            (state.buyers || []).map(b => `<option value="${escH(b.name)}">${escH(b.name)}</option>`).join('');
-    }
 }
 
 function populateOrderParties() {
