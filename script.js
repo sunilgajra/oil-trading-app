@@ -30,6 +30,17 @@ var DEF_S = {
 };
 
 var state;
+var config = {
+  apiKey: localStorage.getItem('murji_api_key') || '',
+  apiModel: localStorage.getItem('murji_api_model') || 'gemini-3.1-flash-lite'
+};
+
+function validateState(s) {
+  if (!s || typeof s !== 'object') return false;
+  const required = ['products', 'tanks', 'inventory', 'trades', 'orders'];
+  return required.every(key => Array.isArray(s[key]));
+}
+
 async function loadState(){
   // Initialize state with default or local first
   try {
@@ -58,15 +69,11 @@ async function loadState(){
         .maybeSingle();
       
       if (data && data.state_data) {
-        // Accept cloud state if it has products OR trades (more inclusive)
-        const hasData = (data.state_data.trades && data.state_data.trades.length > 0) || 
-                        (data.state_data.products && data.state_data.products.length > 0);
-        
-        if (hasData) {
+        if (validateState(data.state_data)) {
             state = data.state_data;
             console.log("Cloud Data Accepted: " + (state.trades ? state.trades.length : 0) + " trades found.");
         } else {
-            console.warn("Cloud record found but appears empty.");
+            console.warn("Cloud record found but failed validation.");
         }
       }
     }
@@ -92,13 +99,8 @@ function runMigrations() {
   if (!state.buyers) state.buyers = [];
   if (!state.orders) state.orders = [];
   if (!state.nextBuyId) state.nextBuyId = 1;
-  if (!state.apiKey) state.apiKey = '';
-  if (!state.apiModel || state.apiModel.includes('1.5') || state.apiModel === 'gemini-pro') {
-    state.apiModel = 'gemini-3.1-flash-lite';
-  }
-  
-  if (document.getElementById('api-key')) document.getElementById('api-key').value = state.apiKey;
-  if (document.getElementById('api-model')) document.getElementById('api-model').value = state.apiModel;
+  if (document.getElementById('api-key')) document.getElementById('api-key').value = config.apiKey;
+  if (document.getElementById('api-model')) document.getElementById('api-model').value = config.apiModel;
   
   // 3. Ensure suppliers have all required fields
   if (state.suppliers) {
@@ -314,7 +316,7 @@ function addTank(formSource = 'yard') {
 
     if (!name || !cap) return toast('Enter name and capacity', true);
     
-    const id = 'T' + (state.tanks.length + 1);
+    const id = 'T' + Date.now();
     state.tanks.push({ id, name, capacity: cap, location: loc });
     
     // Clear inputs
@@ -405,8 +407,7 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
         initApp();
     }
 });
-
-loadState();
+// Initial load is now handled by the listener above
 
 var fmt=function(n){return'\u20B9'+Number(n).toLocaleString('en-IN',{maximumFractionDigits:2});};
 var fmtN=function(n){return Number(n).toLocaleString('en-IN');};
@@ -526,7 +527,7 @@ function openPrintWindow(html, filename) {
     try {
         const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8" });
         const url = URL.createObjectURL(blob);
-        const w = window.open(url, "_blank");
+        const w = window.open(url, '_blank', 'noopener,noreferrer');
         if (!w) alert("Please allow pop-ups for document preview.");
     } catch (e) {
         console.error("Blob Print Error:", e);
@@ -648,7 +649,7 @@ function shareWhatsApp(id) {
     var text = '*MURJI RAVJI & CO.*\nChallan: ' + c.id + '\nDate: ' + c.date +
         '\nProduct: ' + c.product + '\nVol: ' + fmtN(c.vol) + ' L\nWeight: ' + fmtKG(c.weight) + ' KG' +
         '\nFrom: ' + (c.from||'-') + '\nTo: ' + (c.to||'-') + '\nVehicle: ' + c.vehicle;
-    window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(text), '_blank');
+    window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer');
 }
 
 /* ═══════ CORE UI LOGIC ═══════ */
@@ -698,8 +699,12 @@ async function uploadTradeDoc(input) {
     renderTradeDocs();
 }
 function showImage(src) {
-    document.getElementById('lightboxImg').src = src;
-    document.getElementById('lightbox').classList.add('show');
+    const img = document.getElementById('lightboxImg');
+    const box = document.getElementById('lightbox');
+    if (img && box) {
+        img.src = src;
+        box.classList.add('show');
+    }
 }
 function updateClock() {
     document.getElementById('clockEl').textContent = new Date().toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'});
@@ -864,8 +869,10 @@ function toggleTradeDetailFields() {
     var linkGrp = document.getElementById('tr-link-group');
     var srcGrp = document.getElementById('tr-source-loc-group');
     
-    if (srcGrp) srcGrp.style.display = (type === 'Move' || (type === 'Sell' && mode === 'local')) ? 'block' : 'none';
-    if (srcGrp.style.display === 'block') populateSourceLocations();
+    if (srcGrp) {
+        srcGrp.style.display = (type === 'Move' || (type === 'Sell' && mode === 'local')) ? 'block' : 'none';
+        if (srcGrp.style.display === 'block') populateSourceLocations();
+    }
 
     if (type === 'Move') {
         imp.style.display = 'none';
@@ -1061,7 +1068,7 @@ function renderInventoryTable() {
     var q = document.getElementById('invSearch').value.toLowerCase();
     document.getElementById('invTable').innerHTML = state.inventory.filter(function(i){return i.product.toLowerCase().indexOf(q) >= 0;}).map(function(i) {
         var lvPct = Math.min(100, i.vol / i.threshold * 10);
-        return '<tr><td><b>'+i.product+'</b></td><td>'+i.grade+'</td><td class="mono">'+i.density+'</td><td>'+i.tank+'</td><td class="mono">'+fmtN(i.vol)+'</td><td class="mono">'+fmtKG(toKG(i.vol,i.density))+'</td><td class="mono">'+fmt(i.cost)+'</td><td class="mono">'+fmt(i.vol*i.cost)+'</td><td><div class="progress" style="width:60px"><div class="progress-fill '+(i.vol>i.threshold?'green':'red')+'" style="width:'+lvPct+'%"></div></div></td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\','+i.id+')">&#x2715;</button></td></tr>';
+        return '<tr><td><b>'+escH(i.product)+'</b></td><td>'+escH(i.grade)+'</td><td class="mono">'+i.density+'</td><td>'+escH(i.tank)+'</td><td class="mono">'+fmtN(i.vol)+'</td><td class="mono">'+fmtKG(toKG(i.vol,i.density))+'</td><td class="mono">'+fmt(i.cost)+'</td><td class="mono">'+fmt(i.vol*i.cost)+'</td><td><div class="progress" style="width:60px"><div class="progress-fill '+(i.vol>i.threshold?'green':'red')+'" style="width:'+lvPct+'%"></div></div></td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\','+i.id+')">&#x2715;</button></td></tr>';
     }).join('');
 }
 
@@ -1084,7 +1091,7 @@ function addInventory() {
         cost: cost,
         threshold: parseFloat(document.getElementById('inv-thresh').value) || 1000,
         density: parseFloat(document.getElementById('inv-density').value) || getDensity(product),
-        slip: document.getElementById('inv-slip').dataset.base64 || null
+        slip: document.getElementById('inv-slip').dataset.url || null
     });
 
     saveState();
@@ -1113,7 +1120,7 @@ function renderTradesTable() {
         var hasDocs = (t.docs && t.docs.length > 0) || hasShipDocs;
         var docBadge = hasDocs ? ' <span title="Documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
 
-        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
+        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+docBadge+'</td><td>'+escH(t.product)+'</td><td>'+escH(t.party)+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
     }).join('');
 }
 var currentTradeDocs = [];
@@ -1251,7 +1258,7 @@ async function refineWithCloudAI(docOrText) {
     var btn = document.getElementById('btn-scan-ai');
     
     try {
-        const model = state.apiModel || 'gemini-3.1-flash-lite';
+        const model = config.apiModel || 'gemini-3.1-flash-lite';
         let payload;
 
         if (typeof docOrText === 'object') {
@@ -1295,7 +1302,7 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
             };
         }
 
-        const response = await fetch('https://generativelanguage.googleapis.com/v1/models/' + model + ':generateContent?key=' + state.apiKey, {
+        const response = await fetch('https://generativelanguage.googleapis.com/v1/models/' + model + ':generateContent?key=' + config.apiKey, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1319,13 +1326,18 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
         const data = await response.json();
         
         // Defensive check for Gemini response structure
-        if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-            let rawJson = data.candidates[0].content.parts[0].text;
-            
-            // Clean up JSON if AI wrapped it in markdown code blocks
-            rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-            
-            const ai = JSON.parse(rawJson);
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+            let rawJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            let ai;
+            try {
+                ai = JSON.parse(rawJson);
+            } catch (jsonErr) {
+                // Fallback: try to extract JSON from text if AI included conversational filler
+                const match = rawJson.match(/\{[\s\S]*\}/);
+                if (match) ai = JSON.parse(match[0]);
+                else throw jsonErr;
+            }
             
             if (ai.bl_no) document.getElementById('tr-bl-no').value = ai.bl_no;
             if (ai.vessel) document.getElementById('tr-vessel').value = ai.vessel;
@@ -1353,10 +1365,11 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
 }
 
 function saveApiKey() {
-    state.apiKey = document.getElementById('api-key').value;
-    state.apiModel = document.getElementById('api-model').value;
-    saveState();
-    toast('AI Configuration Saved');
+    config.apiKey = document.getElementById('api-key').value;
+    config.apiModel = document.getElementById('api-model').value;
+    localStorage.setItem('murji_api_key', config.apiKey);
+    localStorage.setItem('murji_api_model', config.apiModel);
+    toast('AI Configuration Saved (Local Only)');
 }
 
 function runDemoScan() {
@@ -1556,7 +1569,7 @@ function addTrade() {
         // AUTO-UPDATE YARD INVENTORY
         if (storageLoc && !trade.is_hs) {
             state.inventory.push({
-                id: 'INV' + (state.nextInvId++),
+                id: 'INV' + Date.now() + Math.floor(Math.random()*1000),
                 trade_id: trade.id,
                 product: product,
                 vol: volInL,
@@ -1574,7 +1587,7 @@ function addTrade() {
         
         // Subtract from source
         state.inventory.push({
-            id: 'INV' + (state.nextInvId++),
+            id: 'INV' + Date.now() + Math.floor(Math.random()*1000),
             trade_id: trade.id,
             date: trade.date,
             product: product,
@@ -1587,7 +1600,7 @@ function addTrade() {
         });
         // Add to destination
         state.inventory.push({
-            id: 'INV' + (state.nextInvId++),
+            id: 'INV' + Date.now() + (Math.floor(Math.random()*1000) + 1),
             trade_id: trade.id,
             date: trade.date,
             product: product,
@@ -1603,7 +1616,7 @@ function addTrade() {
         if (sourceLoc) {
             // Deduct from inventory
             state.inventory.push({
-                id: 'INV' + (state.nextInvId++),
+                id: 'INV' + Date.now() + Math.floor(Math.random()*1000),
                 trade_id: trade.id,
                 product: product,
                 vol: -volInL,
@@ -1622,7 +1635,7 @@ function addTrade() {
         if (idx>=0) { trade.id = editingTradeId; state.trades[idx] = trade; }
         toast('Trade updated');
     } else {
-        trade.id = state.nextTradeId++;
+        trade.id = Date.now();
         state.trades.push(trade);
         toast('Trade recorded');
     }
