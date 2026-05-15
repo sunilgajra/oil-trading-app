@@ -71,6 +71,10 @@ Object.keys(window.App).forEach(key => {
 async function init() {
     console.log("Initializing Murji Oil ERP (Modularized)...");
     
+    // PDF.js Worker setup
+    if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
     // Auth Listener
     supabaseClient.auth.onAuthStateChange((event, session) => {
         updateAuthStateUI(session);
