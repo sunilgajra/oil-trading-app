@@ -952,6 +952,29 @@ function calcImportTotal() {
     }
 }
 
+function populateTradeParties() {
+    var type = document.getElementById('tr-type').value;
+    var selectWrap = document.getElementById('tr-party-select-wrap');
+    var inputWrap = document.getElementById('tr-party-input-wrap');
+    var sel = document.getElementById('tr-party-select');
+    if (!sel || !selectWrap || !inputWrap) return;
+    
+    if (type === 'Buy') {
+        selectWrap.style.display = 'block';
+        inputWrap.style.display = 'none';
+        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
+            (state.suppliers||[]).map(function(s){ return '<option value="'+s.id+'">'+escH(s.name)+'</option>'; }).join('');
+    } else if (type === 'Sell') {
+        selectWrap.style.display = 'block';
+        inputWrap.style.display = 'none';
+        sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
+            (state.buyers||[]).map(function(b){ return '<option value="'+b.id+'">'+escH(b.name)+'</option>'; }).join('');
+    } else {
+        selectWrap.style.display = 'none';
+        inputWrap.style.display = 'block';
+    }
+}
+
 /* ═══════ RENDER FUNCTIONS ═══════ */
 function kpiC(label, val, sub) {
     return '<div class="kpi"><div class="kpi-label">'+label+'</div><div class="kpi-value">'+val+'</div><div class="kpi-change">'+sub+'</div></div>';
@@ -2603,26 +2626,42 @@ function clearBuyerData() {
 function loadDealDetails() {
     var id = document.getElementById('tr-sale-deal').value;
     if (!id) return;
-    var order = state.orders.find(o => o.id === id);
+    var order = state.orders.find(function(o){ return o.id === id; });
     if (!order) return;
     
+    // Fill basic fields
     document.getElementById('tr-product').value = order.product;
     document.getElementById('tr-vol').value = order.qty;
-    document.getElementById('tr-density').value = order.density;
-    document.getElementById('tr-price-local').value = order.price;
+    document.getElementById('tr-density').value = order.density || 0.850;
+    
+    // Fill Sale Rate (Local Sale specific)
+    const rateEl = document.getElementById('tr-price-local');
+    if (rateEl) rateEl.value = order.price || 0;
     
     // Select the correct party
     const partySel = document.getElementById('tr-party-select');
     if (partySel) {
+        // Find option by text matching customer name
         const options = Array.from(partySel.options);
-        const target = options.find(o => o.text === order.customer);
-        if (target) partySel.value = target.value;
+        const target = options.find(function(o){ return o.text === order.customer; });
+        if (target) {
+            partySel.value = target.value;
+        } else {
+            // Fallback to text input if select not found
+            const partyInput = document.getElementById('tr-party');
+            if (partyInput) partyInput.value = order.customer;
+        }
     }
     
-    document.getElementById('tr-sale-inv-amt').value = order.qty * order.price;
+    // Set Sale Invoice Amount
+    const invAmtEl = document.getElementById('tr-sale-inv-amt');
+    if (invAmtEl) invAmtEl.value = (order.qty * order.price).toFixed(2);
     
+    // Trigger UI updates
+    populateSourceLocations();
     calcTradeTotals();
     updateBuyerPaymentSummary();
+    
     toast('Loaded Order: ' + id);
 }
 
