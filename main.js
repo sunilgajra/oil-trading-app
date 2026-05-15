@@ -1,7 +1,7 @@
 /**
  * main.js - Flat Structure Version (Final Parity)
  */
-import { state, validateState, saveState, runMigrations, addProductMaster, addTank, addSupplier, addBuyer } from './app_core.js';
+import { state, validateState, saveState, runMigrations, addProductMaster, addTank, addSupplier, addBuyer, toast } from './app_core.js';
 import { 
     renderTradesTable, renderInventoryTable, renderYardDashboard, 
     toggleTradeDetailFields, renderProductsList, toggleTradeModeField, 
@@ -32,8 +32,8 @@ window.App = {
         const email = document.getElementById('login-email').value;
         const pass = document.getElementById('login-password').value;
         const { error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-        if (error) App.toast(error.message, true);
-        else { App.toast("Logged in!"); location.reload(); }
+        if (error) toast(error.message, true);
+        else { toast("Logged in!"); location.reload(); }
     },
     handleLogout: async () => { await supabaseClient.auth.signOut(); location.reload(); },
     openLoginModal,
@@ -59,7 +59,7 @@ window.App = {
     deleteProduct: (pName) => {
         if (!confirm(`Delete ${pName}?`)) return;
         state.products = state.products.filter(p => p.name !== pName);
-        saveState(); renderProductsList(); App.toast("Product Removed");
+        saveState(); renderProductsList(); toast("Product Removed");
     }
 };
 
