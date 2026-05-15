@@ -88,8 +88,9 @@ function runMigrations() {
     });
   }
   
-  // 2. Ensure buyers array exists
+  // 2. Ensure buyers & orders array exists
   if (!state.buyers) state.buyers = [];
+  if (!state.orders) state.orders = [];
   if (!state.nextBuyId) state.nextBuyId = 1;
   if (!state.apiKey) state.apiKey = '';
   if (!state.apiModel || state.apiModel.includes('1.5') || state.apiModel === 'gemini-pro') {
@@ -1590,13 +1591,13 @@ function addOrder() {
         density: parseFloat(document.getElementById('ord-density').value) || getDensity(product),
         terms: 'Immediate'
     });
-    saveState(); renderOrdersTable(); renderActiveOrders(); toast('Created ' + id);
+    saveState(); renderOrdersTable(); renderActiveOrders(); populateSelects(); toast('Created ' + id);
 }
 function updateOrderStatus(id, s) {
     for (var i = 0; i < state.orders.length; i++) {
         if (state.orders[i].id === id) { state.orders[i].status = s; break; }
     }
-    saveState(); renderOrdersTable(); renderActiveOrders(); toast('Status updated');
+    saveState(); renderOrdersTable(); renderActiveOrders(); populateSelects(); toast('Status updated');
 }
 
 function toggleChallanFields() {
@@ -1850,7 +1851,7 @@ function deleteOrder(id) {
     customConfirm('Delete order ' + id + '?').then(function(ok) {
         if (!ok) return;
         state.orders = state.orders.filter(function(o){ return o.id !== id; });
-        saveState(); renderOrdersTable(); renderActiveOrders(); toast('Order removed');
+        saveState(); renderOrdersTable(); renderActiveOrders(); populateSelects(); toast('Order removed');
     });
 }
 function deleteChallan(id) {
@@ -1948,6 +1949,7 @@ function switchPage(name) {
     if (event && event.target) event.target.classList.add('active');
     document.getElementById('page-' + name).classList.add('active');
     if (name === 'reports') renderReports();
+    if (name === 'trades') populateSelects();
 }
 
 /* ═══════ TICKER ═══════ */
