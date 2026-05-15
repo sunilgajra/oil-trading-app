@@ -1,10 +1,10 @@
 /**
- * app_ui.js - Combined UI Logic (Trades, Inventory, Dashboard)
+ * app_ui.js - Combined UI & Complex Trade Logic
  */
-import { state, saveState, fmt, fmtN, today, escH, toKG } from './app_core.js';
+import { state, saveState, fmt, fmtN, today, escH, toKG, toast, showImage } from './app_core.js';
 
 export function renderYardDashboard() {
-    const grid = document.getElementById('inventory-yard-grid');
+    const grid = document.getElementById('inventory-yard-grid') || document.getElementById('yard-grid');
     if (!grid || !state) return;
     grid.innerHTML = (state.tanks || []).map(tank => {
         const relevant = (state.inventory || []).filter(i => i.location === tank.id);
@@ -17,13 +17,15 @@ export function renderYardDashboard() {
                     <b>${escH(tank.name)}</b>
                     <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
                 </div>
-                <div style="background:rgba(255,255,255,0.05); height:60px; position:relative; border-radius:4px; overflow:hidden;">
+                <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden;">
                     <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
-                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:bold;">
-                        ${fmtN(currentL.toFixed(0))} L
+                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+                        <div style="font-weight:bold; font-size:16px;">${fmtN(currentL.toFixed(0))} L</div>
                     </div>
                 </div>
-                <div style="font-size:12px; color:var(--muted); margin-top:5px;">${escH(tank.location)}</div>
+                <div style="font-size:10px; margin-top:5px; color:var(--muted); display:flex; justify-content:space-between;">
+                    <span>${escH(tank.location)}</span>
+                </div>
             </div>`;
     }).join('');
 }
@@ -34,8 +36,7 @@ export function renderProductsList() {
     list.innerHTML = (state.products || []).map(p => `
         <div class="doc-badge" style="display:inline-flex; align-items:center; gap:10px; margin:5px; background:var(--surface2); padding:5px 12px; border-radius:20px; border:1px solid var(--border);">
             <span style="font-weight:bold; color:var(--teal);">${escH(p.name)}</span>
-            <span style="font-size:11px; color:var(--muted);">${p.density}</span>
-            <button onclick="App.deleteProduct('${escH(p.name)}')" style="background:none; border:none; color:var(--red); cursor:pointer; font-weight:bold;">&times;</button>
+            <button onclick="App.deleteProduct('${escH(p.name)}')" style="background:none; border:none; color:var(--red); cursor:pointer;">&times;</button>
         </div>
     `).join('');
 }
@@ -43,7 +44,7 @@ export function renderProductsList() {
 export function renderTradesTable() {
     const table = document.getElementById('tradesTable');
     if (!table) return;
-    table.innerHTML = state.trades.slice().reverse().map(t => `
+    table.innerHTML = (state.trades || []).slice().reverse().map(t => `
         <tr>
             <td class="mono">${t.date}</td>
             <td><span class="badge ${t.type === 'Buy' ? 'badge-blue' : 'badge-green'}">${t.type}</span></td>
@@ -58,35 +59,35 @@ export function renderTradesTable() {
 export function renderInventoryTable() {
     const table = document.getElementById('invTable');
     if (!table) return;
-    table.innerHTML = state.inventory.map(i => `
+    table.innerHTML = (state.inventory || []).map(i => `
         <tr>
             <td><b>${escH(i.product)}</b></td>
             <td>${escH(i.location)}</td>
             <td class="mono">${fmtN(i.vol)}</td>
-            <td class="mono">${fmt(i.unit_cost || 0)}</td>
+            <td class="mono">${fmt(i.cost || 0)}</td>
         </tr>`).join('');
 }
 
+// Complex Toggle Logic
 export function toggleTradeDetailFields() {
     const type = document.getElementById('tr-type').value;
     const mode = document.getElementById('tr-mode').value;
     
-    // Groups
-    const buySec = document.getElementById('tr-payments-section');
-    const sellSec = document.getElementById('tr-buyer-payments-section');
+    const buyPay = document.getElementById('tr-payments-section');
+    const sellPay = document.getElementById('tr-buyer-payments-section');
     const impFields = document.querySelectorAll('.tr-import-fields');
     const locFields = document.querySelectorAll('.tr-local-fields');
     
-    // Toggle Visibility
+    // Visibility
     if (impFields) impFields.forEach(el => el.style.display = (mode === 'import' || mode === 'hs_sale') ? 'grid' : 'none');
     if (locFields) locFields.forEach(el => el.style.display = (mode === 'local') ? 'grid' : 'none');
     
     if (type === 'Buy') {
-        if (buySec) buySec.style.display = (mode === 'import') ? 'block' : 'none';
-        if (sellSec) sellSec.style.display = 'none';
+        if (buyPay) buyPay.style.display = (mode === 'import') ? 'block' : 'none';
+        if (sellPay) sellPay.style.display = 'none';
     } else {
-        if (buySec) buySec.style.display = 'none';
-        if (sellSec) sellSec.style.display = (mode === 'local') ? 'block' : 'none';
+        if (buyPay) buyPay.style.display = 'none';
+        if (sellPay) sellPay.style.display = (mode === 'local') ? 'block' : 'none';
     }
 }
 
@@ -94,178 +95,97 @@ export function toggleTradeModeField() {
     const type = document.getElementById('tr-type').value;
     const modeGrp = document.getElementById('tr-mode-group');
     if (modeGrp) modeGrp.style.display = (type === 'Move') ? 'none' : 'block';
+    
+    const modeSel = document.getElementById('tr-mode');
+    if (type === 'Buy') {
+        modeSel.innerHTML = '<option value="local">Local Purchase</option><option value="import">Import Purchase</option>';
+    } else {
+        modeSel.innerHTML = '<option value="local">Local Sale</option><option value="hs_sale">High Seas Sale</option>';
+    }
+    toggleTradeDetailFields();
 }
 
-export function populatePurchaseLinks() {
-    const sel = document.getElementById('tr-link-purchase');
-    if (!sel) return;
-    const buys = state.trades.filter(t => t.type === 'Buy' && t.mode === 'import');
-    sel.innerHTML = '<option value="">-- Link to Import Purchase --</option>' + 
-        buys.map(t => `<option value="${t.id}">${escH(t.id + ' | ' + t.party + ' | ' + t.product)}</option>`).join('');
+// Logic Restored from Old Script
+export function syncWeightToQty() {
+    const weight = parseFloat(document.getElementById('tr-net-weight').value) || 0;
+    const density = parseFloat(document.getElementById('tr-density').value) || 0.850;
+    const unit = document.getElementById('tr-unit').value;
+    const qtyInput = document.getElementById('tr-vol');
+    if (!qtyInput) return;
+
+    if (unit === 'KG') qtyInput.value = weight.toFixed(2);
+    else if (unit === 'LITRE') qtyInput.value = (weight / density).toFixed(0);
+    else if (unit === 'MTON') qtyInput.value = (weight / 1000).toFixed(3);
+    
+    calcTradeTotals();
 }
 
-export function populateTradeProducts() {
-    const sel = document.getElementById('tr-product');
-    if (!sel) return;
-    sel.innerHTML = state.products.map(p => `<option value="${escH(p.name)}">${escH(p.name)}</option>`).join('');
-}
-
-export function populateTradeParties() {
-    const sel = document.getElementById('tr-party-select');
-    if (!sel) return;
-    const parties = [...new Set([...state.suppliers.map(s => s.name), ...state.buyers.map(b => b.name)])];
-    sel.innerHTML = '<option value="">-- Select Party --</option>' + 
-        parties.map(p => `<option value="${escH(p)}">${escH(p)}</option>`).join('');
+export function calcTradeTotals() {
+    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
+    const mode = document.getElementById('tr-mode').value;
+    const density = parseFloat(document.getElementById('tr-density').value) || 0.850;
+    
+    let price = 0;
+    if (mode === 'import') {
+        const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+        const ex = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
+        price = rate * ex;
+        const totalFor = document.getElementById('tr-total-for');
+        if (totalFor) totalFor.value = (qty * rate).toFixed(2);
+    } else {
+        price = parseFloat(document.getElementById('tr-price-local')?.value) || 0;
+    }
+    
+    const totalINR = qty * price;
+    const totalEl = document.getElementById('tr-total-inr-shared');
+    if (totalEl) totalEl.value = totalINR.toFixed(2);
+    
+    // Landed Costs
+    const lLit = document.getElementById('tr-landed-l');
+    const lKg = document.getElementById('tr-landed-kg');
+    if (lLit) lLit.value = price.toFixed(2);
+    if (lKg) lKg.value = (price * density).toFixed(2);
 }
 
 export function editTrade(id) {
     const t = state.trades.find(x => x.id == id);
     if (!t) return toast("Trade not found", true);
     
-    // Switch to trades page first
-    if (window.App && window.App.switchPage) window.App.switchPage('trades');
-
+    document.getElementById('page-trades').classList.add('active'); // Switch view
+    
     document.getElementById('tr-type').value = t.type;
-    document.getElementById('tr-mode').value = t.mode;
-    document.getElementById('tr-date').value = t.date;
-    
-    // Ensure product list is ready before setting value
-    populateTradeProducts();
-    document.getElementById('tr-product').value = t.product;
-    
-    document.getElementById('tr-party').value = t.party;
-    document.getElementById('tr-vol').value = t.vol;
-    
-    // Price handle (Imports vs Local)
-    const priceLocal = document.getElementById('tr-price-local');
-    const priceImp = document.getElementById('tr-imp-rate');
-    if (priceLocal) priceLocal.value = t.price || 0;
-    if (priceImp) priceImp.value = t.price || 0;
-    
-    // Import Specific Fields
-    const bl = document.getElementById('tr-bl-no');
-    if (bl) bl.value = t.bl_no || '';
-    
-    const vessel = document.getElementById('tr-vessel');
-    if (vessel) vessel.value = t.vessel || '';
-    
-    const pLoad = document.getElementById('tr-port-load');
-    if (pLoad) pLoad.value = t.port_load || '';
-    
-    const pDis = document.getElementById('tr-port-dis');
-    if (pDis) pDis.value = t.port_dis || '';
-    
-    const agent = document.getElementById('tr-agent');
-    if (agent) agent.value = t.agent || '';
-    
-    const weight = document.getElementById('tr-net-weight');
-    if (weight) weight.value = t.net_weight || '';
-    
-    const hsn = document.getElementById('tr-hs-code');
-    if (hsn) hsn.value = t.hs_code || '';
-    
-    const cont = document.getElementById('tr-containers');
-    if (cont) cont.value = t.containers || '';
-    
-    const hsCb = document.getElementById('tr-is-hs');
-    if (hsCb) hsCb.checked = !!t.is_hs;
-
     toggleTradeModeField();
+    document.getElementById('tr-mode').value = t.mode || 'local';
     toggleTradeDetailFields();
     
+    document.getElementById('tr-product').value = t.product;
+    document.getElementById('tr-party').value = t.party;
+    document.getElementById('tr-vol').value = t.vol;
+    document.getElementById('tr-density').value = t.density;
+    document.getElementById('tr-date').value = t.date;
+    
+    if (t.mode === 'import') {
+        document.getElementById('tr-bl-no').value = t.bl_no || '';
+        document.getElementById('tr-vessel').value = t.vessel || '';
+        document.getElementById('tr-imp-rate').value = t.price || 0;
+        document.getElementById('tr-ex-rate').value = t.ex_rate || 85;
+    }
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    toast("Full Trade Details Loaded");
-}
-
-export function addPaymentRow() {
-    const tbody = document.getElementById('tr-payments-body');
-    if (!tbody) return;
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td style="padding:8px;"><input type="date" value="${today()}"></td>
-        <td style="padding:8px;"><input type="number" placeholder="Amount"></td>
-        <td style="padding:8px;"><input type="text" placeholder="Remarks"></td>
-        <td style="padding:8px;"><button class="btn btn-sm" onclick="this.closest('tr').remove()">X</button></td>
-    `;
-    tbody.appendChild(row);
+    toast("Trade details loaded");
 }
 
 export async function handleTradeDocUpload(input) {
     const files = Array.from(input.files);
     if (!files.length) return;
-    
-    toast("Uploading & Scanning...");
-    
-    for (const file of files) {
-        try {
-            // 1. (Optional) Run OCR if it's an image/pdf
-            let extractedText = "";
-            if (file.type.includes('image') || file.type.includes('pdf')) {
-                // For now, we'll assume the user wants to run AI on it
-                extractedText = "Attempting OCR on " + file.name;
-            }
-            
-            // 2. Add to the list (Visual only for now)
-            const list = document.getElementById('tr-ship-docs-list');
-            if (list) {
-                const item = document.createElement('div');
-                item.className = 'doc-badge';
-                item.innerHTML = `📄 ${file.name} <button onclick="this.parentElement.remove()">&times;</button>`;
-                list.appendChild(item);
-            }
-            
-            toast("File Attached");
-        } catch (e) {
-            console.error(e);
-            toast("Upload Failed", true);
-        }
-    }
+    toast("Scanning...");
+    // Rest of scanning logic in app_services.js
 }
 
-export function syncWeightToQty() {
-    const weight = parseFloat(document.getElementById('tr-net-weight').value) || 0;
-    const density = parseFloat(document.getElementById('tr-density').value) || 0.850;
-    const unit = document.getElementById('tr-unit').value;
-    const volInput = document.getElementById('tr-vol');
-    
-    if (!volInput) return;
-    
-    if (unit === 'LITRE') {
-        volInput.value = (weight / density).toFixed(3);
-    } else if (unit === 'KG') {
-        volInput.value = weight.toFixed(3);
-    } else if (unit === 'MTON') {
-        volInput.value = (weight / 1000).toFixed(3);
-    }
-    
-    calcTradeTotals();
-}
-
-export function calcTradeTotals() {
-    const type = document.getElementById('tr-type').value;
-    const mode = document.getElementById('tr-mode').value;
-    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
-    const density = parseFloat(document.getElementById('tr-density').value) || 0.850;
-    
-    let rate = 0;
-    if (mode === 'import') {
-        const impRate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-        const exRate = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
-        rate = impRate * exRate;
-        
-        const totalFor = document.getElementById('tr-total-for');
-        if (totalFor) totalFor.value = (qty * impRate).toFixed(2);
-    } else {
-        rate = parseFloat(document.getElementById('tr-price-local')?.value) || 0;
-    }
-    
-    const totalINR = qty * rate;
-    const totalField = document.getElementById('tr-total-inr-shared');
-    if (totalField) totalField.value = totalINR.toFixed(2);
-    
-    // Landed Costs
-    const lLit = document.getElementById('tr-landed-l');
-    const lKg = document.getElementById('tr-landed-kg');
-    if (lLit) lLit.value = rate.toFixed(2);
-    if (lKg) lKg.value = (rate * density).toFixed(2);
+export function populateTradeParties() {
+    const sel = document.getElementById('tr-party-select');
+    if (!sel) return;
+    const parties = [...state.suppliers, ...state.buyers];
+    sel.innerHTML = '<option value="">-- Select Party --</option>' + 
+        parties.map(p => `<option value="${escH(p.name)}">${escH(p.name)}</option>`).join('');
 }
