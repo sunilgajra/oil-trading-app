@@ -1489,7 +1489,14 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                 toast('&#x2728; Documents Verified & Synced!');
             }
 
-            if (ai.net_weight) syncWeightToQty();
+            if (ai.net_weight) {
+                syncWeightToQty();
+                const totalGridNet = document.getElementById('tr-total-bl-net');
+                if (totalGridNet) {
+                    totalGridNet.value = ai.net_weight;
+                    calcContainerTotals();
+                }
+            }
             calcTradeTotals();
         }
     } catch (e) {
@@ -2595,10 +2602,15 @@ function calcContainerTotals() {
     });
     
     document.getElementById('tr-total-bl-gross').textContent = tGross.toFixed(2);
-    document.getElementById('tr-total-bl-net').textContent = tNet.toFixed(2);
+    
+    const totalNetEl = document.getElementById('tr-total-bl-net');
+    // Auto-sum only if individual container net weights are entered
+    if (tNet > 0) totalNetEl.value = tNet.toFixed(2);
+    const finalTotalNet = parseFloat(totalNetEl.value) || 0;
+
     document.getElementById('tr-total-cfs-wt').textContent = tCfs.toFixed(2);
     
-    const totalVar = tCfs > 0 ? (tCfs - tNet) : 0;
+    const totalVar = tCfs > 0 ? (tCfs - finalTotalNet) : 0;
     const varEl = document.getElementById('tr-total-variance');
     varEl.textContent = totalVar > 0 ? '+' + totalVar.toFixed(2) : totalVar.toFixed(2);
     varEl.style.color = totalVar <= -50 ? 'var(--red)' : (totalVar > 0 ? 'var(--green)' : 'var(--text)');
