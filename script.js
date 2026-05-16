@@ -1705,6 +1705,10 @@ function editTrade(id) {
         document.getElementById('tr-tank-rate').value = t.tank_rate || '';
         document.getElementById('tr-containers').value = t.containers || '';
         
+        // Restore manual total weight if available
+        const totalNetEl = document.getElementById('tr-total-bl-net');
+        if (totalNetEl) totalNetEl.value = t.container_tally_total_net || '';
+        
         clearContainerGrid();
         if (t.container_tally && t.container_tally.length > 0) {
             t.container_tally.forEach(c => addContainerRow(c));
@@ -1810,6 +1814,7 @@ function addTrade() {
         docs: JSON.parse(JSON.stringify(currentTradeDocs)),
         expenses: getTradeExpenses(),
         container_tally: getContainerGridData(),
+        container_tally_total_net: parseFloat(document.getElementById('tr-total-bl-net').value) || 0,
         containers: document.getElementById('tr-containers').value,
         ship_docs: currentShipDocs,
         payments: getSupplierPayments(),
@@ -2725,7 +2730,10 @@ function calcContainerTotals() {
     
     const totalNetEl = document.getElementById('tr-total-bl-net');
     // Auto-sum only if individual container net weights are entered
-    if (tNet > 0) totalNetEl.value = tNet.toFixed(2);
+    // IMPORTANT: Do NOT overwrite if the user is currently typing in this field
+    if (tNet > 0 && document.activeElement !== totalNetEl) {
+        totalNetEl.value = tNet.toFixed(2);
+    }
     const finalTotalNet = parseFloat(totalNetEl.value) || 0;
 
     document.getElementById('tr-total-cfs-wt').textContent = tCfs.toFixed(2);
@@ -3824,6 +3832,7 @@ function generateLandedCostReport(tradeId) {
     const payments = t.payments || [];
     let bankForeign = 0, bankInr = 0;
     let yardForeign = 0, yardInr = 0;
+    let yardRateOverride = null;
 
     payments.forEach(p => {
         const foreign = (p.ex_rate > 0) ? (p.amount_inr / p.ex_rate) : 0;
@@ -3833,6 +3842,7 @@ function generateLandedCostReport(tradeId) {
         } else {
             yardForeign += foreign;
             yardInr += p.amount_inr;
+            if (p.ex_rate > 0) yardRateOverride = p.ex_rate;
         }
     });
 
@@ -3842,13 +3852,14 @@ function generateLandedCostReport(tradeId) {
     const totalPaidForeign = bankForeign + yardForeign;
     if (totalForeignVal > totalPaidForeign) {
         const balance = totalForeignVal - totalPaidForeign;
+        const balRate = yardRateOverride || exRate; // Priority to the rate typed in the Yard row
         yardForeign += balance;
-        yardInr += (balance * exRate); // Use the trade's default ex_rate for unpaid portion
+        yardInr += (balance * balRate); 
     }
 
     const basicInr = bankInr + yardInr;
     const avgBankEx = bankForeign > 0 ? (bankInr / bankForeign) : exRate;
-    const avgYardEx = yardForeign > 0 ? (yardInr / yardForeign) : exRate;
+    const avgYardEx = yardForeign > 0 ? (yardInr / yardForeign) : (yardRateOverride || exRate);
 
     const expenses = t.expenses || [];
     const expNetTotal = expenses.reduce((s, e) => s + (parseFloat(e.net_amount) || 0), 0);
