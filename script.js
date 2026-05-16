@@ -3054,51 +3054,35 @@ function updatePaymentSummary() {
     const mainCurr = document.getElementById('tr-imp-curr').value;
     const univRate = parseFloat(document.getElementById('tr-pay-univ-rate').value) || 3.6725;
 
-    let bankINR = 0, bankForeign = 0;
-    let yardINR = 0, yardForeign = 0;
-    let yardRateFound = 0;
+    let totalInMainCurr = 0;
+    let totalBankINR = 0;
+
+    let totalINRForAvg = 0;
+    let totalForeignForAvg = 0;
+    let lastValidRate = 0;
 
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        const select = row.querySelector('select');
         const amtInr = parseFloat(inputs[1].value) || 0;
         const exRate = parseFloat(inputs[2].value) || 0;
-        const type = select ? select.value : 'Bank';
-        const bankChg = parseFloat(inputs[3].value) || 0;
-        totalBankINR += bankChg;
+        const bank = parseFloat(inputs[3].value) || 0;
+        totalBankINR += bank;
         
         if (exRate > 0) {
-            const foreign = (amtInr / exRate);
-            if (type === 'Bank') {
-                bankINR += amtInr;
-                bankForeign += foreign;
-            } else {
-                yardINR += amtInr;
-                yardForeign += foreign;
-                yardRateFound = exRate;
-            }
-            totalInMainCurr += foreign;
+            totalInMainCurr += (amtInr / exRate);
+            totalINRForAvg += amtInr;
+            totalForeignForAvg += (amtInr / exRate);
+            lastValidRate = exRate;
         }
     });
 
-    // Blended Average Rate Calculation for the ENTIRE DEAL
-    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
-    const purchaseRateUSD = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-    const totalDealUSD = qty * purchaseRateUSD;
-    const balanceUSD = Math.max(0, totalDealUSD - (bankForeign + yardForeign));
-    
-    // Default fallback rate if no Yard row exists yet
-    const currentExValue = parseFloat(document.getElementById('tr-ex-rate').value) || 85;
-    const yardRateToUse = yardRateFound || currentExValue;
-    
-    const totalEstimatedINR = bankINR + yardINR + (balanceUSD * yardRateToUse);
-    const blendedRate = totalDealUSD > 0 ? (totalEstimatedINR / totalDealUSD) : yardRateToUse;
-
-    // Update the main Ex. Rate field
+    // Update the main Ex. Rate field with the weighted average
     const mainExField = document.getElementById('tr-ex-rate');
     if (mainExField && document.activeElement !== mainExField) {
-        if (blendedRate > 0) {
-            mainExField.value = blendedRate.toFixed(3);
+        const avgEx = totalForeignForAvg > 0 ? (totalINRForAvg / totalForeignForAvg) : lastValidRate;
+        if (avgEx > 0) {
+            mainExField.value = avgEx.toFixed(3);
+            // Trigger trade total recalculation since exchange rate changed
             if (typeof calcTradeTotals === 'function') calcTradeTotals();
         }
     }
