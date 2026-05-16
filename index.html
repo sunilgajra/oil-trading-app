@@ -232,7 +232,43 @@
             </div>
         </div>
 
-        <div class="form-group full"><label>Container Numbers</label><textarea id="tr-containers" placeholder="HCKU5703110, HLXU1663342, ..." style="min-height:40px"></textarea></div>
+        <div class="form-group full">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Container Weight Tally (BL vs CFS)</span>
+                <button type="button" class="btn btn-sm btn-ghost" onclick="addContainerRow()">+ Add Container</button>
+            </label>
+            <!-- Hidden original textarea to preserve legacy logic and AI extraction mapping -->
+            <textarea id="tr-containers" style="display:none;"></textarea>
+            
+            <div class="table-wrap" style="background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border); font-size:11px; color:var(--muted);">
+                            <th style="padding:10px; text-align:left;">Container No.</th>
+                            <th style="padding:10px; text-align:left;">BL Gross Wt (KG)</th>
+                            <th style="padding:10px; text-align:left;">BL Net Wt (KG)</th>
+                            <th style="padding:10px; text-align:left;">CFS Wt (KG)</th>
+                            <th style="padding:10px; text-align:left;">Variance</th>
+                            <th style="padding:10px; text-align:center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tr-container-body">
+                        <!-- Rows added dynamically -->
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:rgba(0,0,0,0.2); font-weight:bold; font-size:12px;">
+                            <td style="padding:10px; text-align:right; color:var(--muted);">Totals:</td>
+                            <td style="padding:10px; color:var(--teal);" id="tr-total-bl-gross">0.00</td>
+                            <td style="padding:10px; color:var(--teal);" id="tr-total-bl-net">0.00</td>
+                            <td style="padding:10px; color:var(--gold2);" id="tr-total-cfs-wt">0.00</td>
+                            <td style="padding:10px;" id="tr-total-variance">0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div style="font-size:10px; color:var(--muted); margin-top:5px; text-align:right;">* Variances exceeding -50 KG shortage will be highlighted automatically.</div>
+        </div>
         
         <!-- Shipping Documents Checklist -->
         <div class="form-group full" style="border-top:1px solid var(--border); padding-top:15px; margin-top:10px;">

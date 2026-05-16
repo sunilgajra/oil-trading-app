@@ -1388,7 +1388,8 @@ RULES:
 3. Identify Vessel, Ports, Agent, and HS Code.
 4. Extract "Invoice Number" if scanning an Invoice.
 5. Extract "Number of Containers" (Total count).
-Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "net_weight": "", "container_count": 0, "containers": [] }` },
+6. If the document has a container-level packing list or weight breakdown, extract the individual container weights.
+Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "net_weight": "", "container_count": 0, "containers_tally": [{"container_no": "", "bl_gross": 0.00, "bl_net": 0.00}] }` },
                         { inlineData: { mimeType: docOrText.type || "application/pdf", data: base64Data } }
                     ]
                 }]
@@ -1430,9 +1431,17 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                 'tr-agent': ai.dest_agent,
                 'tr-hs-code': ai.hs_code,
                 'tr-net-weight': ai.net_weight,
-                'tr-container-count': ai.container_count,
-                'tr-containers': Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers
+                'tr-container-count': ai.container_count
             };
+
+            if (ai.containers_tally && Array.isArray(ai.containers_tally) && ai.containers_tally.length > 0) {
+                clearContainerGrid();
+                ai.containers_tally.forEach(c => addContainerRow(c));
+            } else if (ai.containers) {
+                clearContainerGrid();
+                const arr = Array.isArray(ai.containers) ? ai.containers : ai.containers.split(',');
+                arr.forEach(c => addContainerRow({ container_no: c.trim() }));
+            }
 
             // Helper to compare values accurately (handles numbers vs strings, units like KGS, and dots/slashes)
             const norm = (s) => {
@@ -1568,6 +1577,15 @@ function editTrade(id) {
         document.getElementById('tr-container-count').value = t.container_count || '';
         document.getElementById('tr-tank-rate').value = t.tank_rate || '';
         document.getElementById('tr-containers').value = t.containers || '';
+        
+        clearContainerGrid();
+        if (t.container_tally && t.container_tally.length > 0) {
+            t.container_tally.forEach(c => addContainerRow(c));
+        } else if (t.containers) {
+            const oldContainers = typeof t.containers === 'string' ? t.containers.split(',').map(s=>s.trim()).filter(Boolean) : [];
+            oldContainers.forEach(c => addContainerRow({ container_no: c }));
+        }
+
         calcImportTotal();
     } else if (t.mode === 'hs_sale') {
         document.getElementById('tr-link-purchase').value = t.link_purchase_id || '';
@@ -1664,6 +1682,8 @@ function addTrade() {
         terms: termsVal, density: den, 
         docs: JSON.parse(JSON.stringify(currentTradeDocs)),
         expenses: getTradeExpenses(),
+        container_tally: getContainerGridData(),
+        containers: document.getElementById('tr-containers').value,
         ship_docs: currentShipDocs,
         payments: getSupplierPayments(),
         buyer_payments: getBuyerPayments(),
@@ -1807,6 +1827,7 @@ function addTrade() {
         document.getElementById('tr-sale-deal').value = '';
         document.getElementById('tr-sale-inv-amt').value = '';
         clearExpenses();
+        clearContainerGrid();
         clearSupplierData();
         clearBuyerData();
         toggleTradeDetailFields();
@@ -2525,6 +2546,82 @@ function clearExpenses() {
     const tbody = document.getElementById('tr-expenses-body');
     if (tbody) tbody.innerHTML = '';
     updateTotalExpenses();
+}
+
+// --- CONTAINER WEIGHT TALLY GRID ---
+function addContainerRow(data = {}) {
+    const tbody = document.getElementById('tr-container-body');
+    if (!tbody) return;
+    
+    const tr = document.createElement('tr');
+    tr.style.background = 'rgba(255,255,255,0.02)';
+    tr.innerHTML = `
+        <td style="padding:8px;"><input class="cnt-no" value="${escH(data.container_no || '')}" placeholder="TCNU..." style="width:100%; text-transform:uppercase; background:transparent; border:1px solid var(--border); color:var(--text); padding:4px; border-radius:4px;"></td>
+        <td style="padding:8px;"><input class="cnt-bl-gross" type="number" step="0.01" value="${data.bl_gross || ''}" placeholder="0.00" style="width:100%; background:transparent; border:1px solid var(--border); color:var(--text); padding:4px; border-radius:4px;" oninput="calcContainerTotals()"></td>
+        <td style="padding:8px;"><input class="cnt-bl-net" type="number" step="0.01" value="${data.bl_net || ''}" placeholder="0.00" style="width:100%; background:transparent; border:1px solid var(--border); color:var(--text); padding:4px; border-radius:4px;" oninput="calcContainerTotals()"></td>
+        <td style="padding:8px;"><input class="cnt-cfs" type="number" step="0.01" value="${data.cfs_wt || ''}" placeholder="0.00" style="width:100%; border:1px solid var(--gold2); background:rgba(251, 191, 36, 0.05); color:var(--text); padding:4px; border-radius:4px;" oninput="calcContainerTotals()"></td>
+        <td style="padding:8px;" class="cnt-variance mono">-</td>
+        <td style="padding:8px; text-align:center;"><button type="button" class="btn btn-sm btn-ghost" onclick="removeContainerRow(this)" style="color:var(--red); padding:2px 8px;">&#x2715;</button></td>
+    `;
+    tbody.appendChild(tr);
+    calcContainerTotals();
+}
+
+function removeContainerRow(btn) {
+    btn.closest('tr').remove();
+    calcContainerTotals();
+}
+
+function calcContainerTotals() {
+    const rows = document.querySelectorAll('#tr-container-body tr');
+    let tGross = 0, tNet = 0, tCfs = 0;
+    
+    rows.forEach(row => {
+        const gross = parseFloat(row.querySelector('.cnt-bl-gross').value) || 0;
+        const net = parseFloat(row.querySelector('.cnt-bl-net').value) || 0;
+        const cfs = parseFloat(row.querySelector('.cnt-cfs').value) || 0;
+        
+        tGross += gross; tNet += net; tCfs += cfs;
+        
+        const varianceEl = row.querySelector('.cnt-variance');
+        if (cfs > 0 && net > 0) {
+            const variance = cfs - net;
+            varianceEl.textContent = variance > 0 ? '+' + variance.toFixed(2) : variance.toFixed(2);
+            varianceEl.style.color = variance <= -50 ? 'var(--red)' : (variance > 0 ? 'var(--green)' : 'var(--text)');
+        } else {
+            varianceEl.textContent = '-';
+            varianceEl.style.color = 'var(--text)';
+        }
+    });
+    
+    document.getElementById('tr-total-bl-gross').textContent = tGross.toFixed(2);
+    document.getElementById('tr-total-bl-net').textContent = tNet.toFixed(2);
+    document.getElementById('tr-total-cfs-wt').textContent = tCfs.toFixed(2);
+    
+    const totalVar = tCfs > 0 ? (tCfs - tNet) : 0;
+    const varEl = document.getElementById('tr-total-variance');
+    varEl.textContent = totalVar > 0 ? '+' + totalVar.toFixed(2) : totalVar.toFixed(2);
+    varEl.style.color = totalVar <= -50 ? 'var(--red)' : (totalVar > 0 ? 'var(--green)' : 'var(--text)');
+    
+    // Sync to hidden textarea for legacy fallback mapping
+    const cntNos = Array.from(rows).map(r => r.querySelector('.cnt-no').value.trim()).filter(Boolean);
+    document.getElementById('tr-containers').value = cntNos.join(', ');
+}
+
+function clearContainerGrid() {
+    const tbody = document.getElementById('tr-container-body');
+    if (tbody) tbody.innerHTML = '';
+    calcContainerTotals();
+}
+
+function getContainerGridData() {
+    const rows = document.querySelectorAll('#tr-container-body tr');
+    return Array.from(rows).map(row => ({
+        container_no: row.querySelector('.cnt-no').value.trim().toUpperCase(),
+        bl_gross: parseFloat(row.querySelector('.cnt-bl-gross').value) || 0,
+        bl_net: parseFloat(row.querySelector('.cnt-bl-net').value) || 0,
+        cfs_wt: parseFloat(row.querySelector('.cnt-cfs').value) || null
+    })).filter(c => c.container_no);
 }
 
 // --- SHIPPING DOCUMENTS & PAYMENTS ---
