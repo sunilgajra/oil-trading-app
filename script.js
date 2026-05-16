@@ -5,146 +5,146 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ═══════ STATE & CONFIG ═══════ */
 var DEF_P = [
-  {name:'Crude Oil', density:0.850, hsn:'2709', other:''},
-  {name:'Diesel', density:0.832, hsn:'2710', other:'HSD'},
-  {name:'Petrol', density:0.740, hsn:'2710', other:'MS'},
-  {name:'Kerosene', density:0.810, hsn:'2710', other:'SKO'},
-  {name:'LPG', density:0.510, hsn:'2711', other:''}
+    { name: 'Crude Oil', density: 0.850, hsn: '2709', other: '' },
+    { name: 'Diesel', density: 0.832, hsn: '2710', other: 'HSD' },
+    { name: 'Petrol', density: 0.740, hsn: '2710', other: 'MS' },
+    { name: 'Kerosene', density: 0.810, hsn: '2710', other: 'SKO' },
+    { name: 'LPG', density: 0.510, hsn: '2711', other: '' }
 ];
 var DEF_S = {
-  products: JSON.parse(JSON.stringify(DEF_P)),
-  tanks: [
-    {id:'T1', name:'Main Tank 1', capacity: 100000, type: 'Static', location: 'Yard A'},
-    {id:'T2', name:'Main Tank 2', capacity: 100000, type: 'Static', location: 'Yard A'},
-    {id:'T3', name:'Service Tank', capacity: 20000, type: 'Static', location: 'Yard B'}
-  ],
-  inventory:[], // Now stores "Batches" assigned to Tanks/Containers
-  trades:[
-    {id:1,type:'Buy',product:'Diesel',party:'IndianOil Corp',vol:50000,price:91.0,date:'2025-06-20',terms:'Net 30',density:0.832, location: 'T1'},
-  ],
-  orders:[],
-  challans:[],
-  suppliers:[],
-  buyers:[],
-  nextInvId:1, nextTradeId:2, nextOrderNum:1, nextSupId:1, nextBuyId:1, nextChNum:1
+    products: JSON.parse(JSON.stringify(DEF_P)),
+    tanks: [
+        { id: 'T1', name: 'Main Tank 1', capacity: 100000, type: 'Static', location: 'Yard A' },
+        { id: 'T2', name: 'Main Tank 2', capacity: 100000, type: 'Static', location: 'Yard A' },
+        { id: 'T3', name: 'Service Tank', capacity: 20000, type: 'Static', location: 'Yard B' }
+    ],
+    inventory: [], // Now stores "Batches" assigned to Tanks/Containers
+    trades: [
+        { id: 1, type: 'Buy', product: 'Diesel', party: 'IndianOil Corp', vol: 50000, price: 91.0, date: '2025-06-20', terms: 'Net 30', density: 0.832, location: 'T1' },
+    ],
+    orders: [],
+    challans: [],
+    suppliers: [],
+    buyers: [],
+    nextInvId: 1, nextTradeId: 2, nextOrderNum: 1, nextSupId: 1, nextBuyId: 1, nextChNum: 1
 };
 
 var state;
 var currentTradeDocs = [];
 var currentShipDocs = [];
 var activeShipDocItem = null;
-async function loadState(){
-  // Initialize state with default or local first
-  try {
-    var s = localStorage.getItem('murji_oil_v12');
-    var backup = localStorage.getItem('murji_oil_backup_mirror');
-    
-    state = s ? JSON.parse(s) : (backup ? JSON.parse(backup) : JSON.parse(JSON.stringify(DEF_S)));
-    
-    // If primary was empty but backup exists, recover automatically
-    if (s && JSON.parse(s).trades.length === 0 && backup && JSON.parse(backup).trades.length > 0) {
-        state = JSON.parse(backup);
-        console.log("RECOVERY: Restored from Safety Mirror.");
-    }
-  } catch(e) {
-    state = JSON.parse(JSON.stringify(DEF_S));
-  }
+async function loadState() {
+    // Initialize state with default or local first
+    try {
+        var s = localStorage.getItem('murji_oil_v12');
+        var backup = localStorage.getItem('murji_oil_backup_mirror');
 
-  // Try Cloud Sync (Highest Priority)
-  try {
-    const { data: auth } = await supabaseClient.auth.getSession();
-    if (auth && auth.session) {
-      const { data, error } = await supabaseClient
-        .from('murji_state')
-        .select('state_data')
-        .eq('user_id', auth.session.user.id)
-        .maybeSingle();
-      
-      if (data && data.state_data) {
-        // Accept cloud state if it has products OR trades (more inclusive)
-        const hasData = (data.state_data.trades && data.state_data.trades.length > 0) || 
-                        (data.state_data.products && data.state_data.products.length > 0);
-        
-        if (hasData) {
-            state = data.state_data;
-            console.log("Cloud Data Accepted: " + (state.trades ? state.trades.length : 0) + " trades found.");
-        } else {
-            console.warn("Cloud record found but appears empty.");
+        state = s ? JSON.parse(s) : (backup ? JSON.parse(backup) : JSON.parse(JSON.stringify(DEF_S)));
+
+        // If primary was empty but backup exists, recover automatically
+        if (s && JSON.parse(s).trades.length === 0 && backup && JSON.parse(backup).trades.length > 0) {
+            state = JSON.parse(backup);
+            console.log("RECOVERY: Restored from Safety Mirror.");
         }
-      }
+    } catch (e) {
+        state = JSON.parse(JSON.stringify(DEF_S));
     }
-  } catch (e) {
-    console.error("Cloud Load Error:", e);
-  }
-  
-  // ALWAYS run migrations before showing UI
-  runMigrations();
-  initApp();
+
+    // Try Cloud Sync (Highest Priority)
+    try {
+        const { data: auth } = await supabaseClient.auth.getSession();
+        if (auth && auth.session) {
+            const { data, error } = await supabaseClient
+                .from('murji_state')
+                .select('state_data')
+                .eq('user_id', auth.session.user.id)
+                .maybeSingle();
+
+            if (data && data.state_data) {
+                // Accept cloud state if it has products OR trades (more inclusive)
+                const hasData = (data.state_data.trades && data.state_data.trades.length > 0) ||
+                    (data.state_data.products && data.state_data.products.length > 0);
+
+                if (hasData) {
+                    state = data.state_data;
+                    console.log("Cloud Data Accepted: " + (state.trades ? state.trades.length : 0) + " trades found.");
+                } else {
+                    console.warn("Cloud record found but appears empty.");
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Cloud Load Error:", e);
+    }
+
+    // ALWAYS run migrations before showing UI
+    runMigrations();
+    initApp();
 }
 
 function runMigrations() {
-  if (!state) return;
-  // 1. Convert string products to objects
-  if (state.products && state.products.length > 0 && typeof state.products[0] === 'string') {
-    state.products = state.products.map(function(p) {
-      return { name: p, density: (state.densities && state.densities[p]) || 0.850, hsn: '', other: '' };
-    });
-  }
-  
-  // 2. Ensure buyers & orders array exists
-  if (!state.buyers) state.buyers = [];
-  if (!state.orders) state.orders = [];
-  if (!state.nextBuyId) state.nextBuyId = 1;
-  if (!state.apiKey) state.apiKey = '';
-  if (!state.apiModel || state.apiModel.includes('1.5') || state.apiModel === 'gemini-pro') {
-    state.apiModel = 'gemini-3.1-flash-lite';
-  }
-  
-  if (document.getElementById('api-key')) document.getElementById('api-key').value = state.apiKey;
-  if (document.getElementById('api-model')) document.getElementById('api-model').value = state.apiModel;
-  
-  // 3. Ensure suppliers have all required fields
-  if (state.suppliers) {
-    state.suppliers.forEach(function(s) { 
-        if (!s.type) s.type = 'local'; 
-        if (s.bankName === undefined) s.bankName = '';
-        if (s.bankAc === undefined) s.bankAc = '';
-        if (s.bankIfsc === undefined) s.bankIfsc = '';
-        if (s.bankIban === undefined) s.bankIban = '';
-        if (s.bankSwift === undefined) s.bankSwift = '';
-        if (s.bankCurr === undefined) s.bankCurr = '';
-    });
-  }
+    if (!state) return;
+    // 1. Convert string products to objects
+    if (state.products && state.products.length > 0 && typeof state.products[0] === 'string') {
+        state.products = state.products.map(function (p) {
+            return { name: p, density: (state.densities && state.densities[p]) || 0.850, hsn: '', other: '' };
+        });
+    }
 
-  // 4. Ensure Tank & Yard structures exist for legacy users
-  if (!state.tanks) {
-    state.tanks = [
-      {id:'T1', name:'Main Tank 1', capacity: 100000, type: 'Static', location: 'Yard A'},
-      {id:'T2', name:'Main Tank 2', capacity: 100000, type: 'Static', location: 'Yard A'},
-      {id:'T3', name:'Service Tank', capacity: 20000, type: 'Static', location: 'Yard B'}
-    ];
-  }
-  if (!state.inventory) state.inventory = [];
+    // 2. Ensure buyers & orders array exists
+    if (!state.buyers) state.buyers = [];
+    if (!state.orders) state.orders = [];
+    if (!state.nextBuyId) state.nextBuyId = 1;
+    if (!state.apiKey) state.apiKey = '';
+    if (!state.apiModel || state.apiModel.includes('1.5') || state.apiModel === 'gemini-pro') {
+        state.apiModel = 'gemini-3.1-flash-lite';
+    }
 
-  // 5. Clean up legacy densities map if it exists
-  delete state.densities;
-  // 6. Fix numeric party IDs (Counterparty display issue)
-  if (state.trades) {
-    state.trades.forEach(function(t) {
-      const isNumeric = typeof t.party === 'number' || (typeof t.party === 'string' && t.party.trim() !== "" && !isNaN(t.party));
-      if (isNumeric) {
-        const id = parseInt(t.party);
-        let found = null;
-        if (t.type === 'Buy') found = (state.suppliers || []).find(function(s){ return s.id == id; });
-        else if (t.type === 'Sell') found = (state.buyers || []).find(function(b){ return b.id == id; });
-        if (found) t.party = found.name;
-      }
-    });
-  }
+    if (document.getElementById('api-key')) document.getElementById('api-key').value = state.apiKey;
+    if (document.getElementById('api-model')) document.getElementById('api-model').value = state.apiModel;
+
+    // 3. Ensure suppliers have all required fields
+    if (state.suppliers) {
+        state.suppliers.forEach(function (s) {
+            if (!s.type) s.type = 'local';
+            if (s.bankName === undefined) s.bankName = '';
+            if (s.bankAc === undefined) s.bankAc = '';
+            if (s.bankIfsc === undefined) s.bankIfsc = '';
+            if (s.bankIban === undefined) s.bankIban = '';
+            if (s.bankSwift === undefined) s.bankSwift = '';
+            if (s.bankCurr === undefined) s.bankCurr = '';
+        });
+    }
+
+    // 4. Ensure Tank & Yard structures exist for legacy users
+    if (!state.tanks) {
+        state.tanks = [
+            { id: 'T1', name: 'Main Tank 1', capacity: 100000, type: 'Static', location: 'Yard A' },
+            { id: 'T2', name: 'Main Tank 2', capacity: 100000, type: 'Static', location: 'Yard A' },
+            { id: 'T3', name: 'Service Tank', capacity: 20000, type: 'Static', location: 'Yard B' }
+        ];
+    }
+    if (!state.inventory) state.inventory = [];
+
+    // 5. Clean up legacy densities map if it exists
+    delete state.densities;
+    // 6. Fix numeric party IDs (Counterparty display issue)
+    if (state.trades) {
+        state.trades.forEach(function (t) {
+            const isNumeric = typeof t.party === 'number' || (typeof t.party === 'string' && t.party.trim() !== "" && !isNaN(t.party));
+            if (isNumeric) {
+                const id = parseInt(t.party);
+                let found = null;
+                if (t.type === 'Buy') found = (state.suppliers || []).find(function (s) { return s.id == id; });
+                else if (t.type === 'Sell') found = (state.buyers || []).find(function (b) { return b.id == id; });
+                if (found) t.party = found.name;
+            }
+        });
+    }
 }
 
 var isTableMissing = false;
-async function saveState(force = false){
+async function saveState(force = false) {
     if (force) isTableMissing = false;
     if (isTableMissing) return;
     const syncBadge = document.getElementById('sync-status-badge');
@@ -155,13 +155,13 @@ async function saveState(force = false){
     try {
         // 1. Save to Primary Local (Immediate Cache)
         localStorage.setItem('murji_oil_v12', JSON.stringify(state));
-        
+
         // 2. SAFETY MIRROR: Save to a secondary key as a hard backup
         // Only mirror if we actually have data to protect
         if (state.trades && state.trades.length > 5) {
             localStorage.setItem('murji_oil_backup_mirror', JSON.stringify(state));
         }
-    } catch(e) {
+    } catch (e) {
         const { data: auth } = await supabaseClient.auth.getSession();
         if (!auth.session && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
             alert('CRITICAL: Storage Limit Exceeded!\n\nYour uploaded documents are too large for the browser to save (Max 5MB).\n\nPlease LOGIN to Cloud to use unlimited storage.');
@@ -175,18 +175,18 @@ async function saveState(force = false){
             // SYNC GUARD: Check data size (Supabase limit is ~6MB per row)
             const stateSize = JSON.stringify(state).length;
             if (stateSize > 5000000) { // 5MB Warning
-                console.error("DATA TOO LARGE: " + (stateSize/1024/1024).toFixed(2) + "MB. Cloud sync might fail.");
+                console.error("DATA TOO LARGE: " + (stateSize / 1024 / 1024).toFixed(2) + "MB. Cloud sync might fail.");
                 toast("⚠️ DATA TOO LARGE! Remove old document photos to ensure cloud safety.", true);
             }
 
             const { error } = await supabaseClient
                 .from('murji_state')
-                .upsert({ 
-                    user_id: auth.session.user.id, 
-                    state_data: state, 
-                    updated_at: new Date() 
+                .upsert({
+                    user_id: auth.session.user.id,
+                    state_data: state,
+                    updated_at: new Date()
                 }, { onConflict: 'user_id' });
-            
+
             if (error) {
                 if (error.code === 'PGRST116' || error.code === 'PGRST205' || error.status === 404) {
                     console.warn("Table 'murji_state' missing. Cloud sync disabled.");
@@ -213,7 +213,7 @@ async function saveState(force = false){
         } else {
             if (syncBadge) syncBadge.textContent = 'LOCAL ONLY';
         }
-    } catch(e) {
+    } catch (e) {
         console.error('Cloud Sync Error:', e);
         if (syncBadge) syncBadge.textContent = 'SYNC ERROR';
     }
@@ -232,7 +232,7 @@ function initApp() {
     renderTradesTable();
     renderOrdersTable();
     renderChallansTable();
-    
+
     // Yard features with error safety
     try {
         if (typeof renderYardDashboard === 'function') renderYardDashboard();
@@ -246,7 +246,7 @@ function initApp() {
 function renderYardDashboard() {
     const grid = document.getElementById('yard-grid');
     if (!grid || !state) return;
-    
+
     grid.innerHTML = (state.tanks || []).map(tank => {
         const relevant = (state.inventory || []).filter(i => i.location === tank.id);
         const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
@@ -254,7 +254,7 @@ function renderYardDashboard() {
         const mainProd = products.length > 0 ? products[0] : 'EMPTY';
         const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
         const color = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#14b8a6';
-        
+
         return `
             <div class="panel" style="border-top: 4px solid ${color};">
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
@@ -280,7 +280,7 @@ function renderYardDashboard() {
 function renderTankManager() {
     const tbody = document.getElementById('tankManagerTable');
     if (!tbody || !state) return;
-    
+
     tbody.innerHTML = (state.tanks || []).map(t => `
         <tr>
             <td class="mono">${t.id}</td>
@@ -290,7 +290,7 @@ function renderTankManager() {
             <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')" style="color:var(--red)">&#x2715;</button></td>
         </tr>
     `).join('');
-    
+
     // Update Trade Storage Dropdown
     const locSelect = document.getElementById('tr-storage-loc');
     const srcSelect = document.getElementById('tr-source-loc');
@@ -311,20 +311,20 @@ function addTank() {
     const capKG = parseFloat(document.getElementById('new-tank-cap-kg').value);
     const capMT = parseFloat(document.getElementById('new-tank-cap-mt').value);
     const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
-    
+
     if (capKG && !cap) cap = capKG / 0.850;
     if (capMT && !cap) cap = (capMT * 1000) / 0.850;
 
     if (!name || !cap) return toast('Enter name and capacity', true);
-    
+
     const id = 'T' + (state.tanks.length + 1);
     state.tanks.push({ id, name, capacity: cap, location: loc });
-    
+
     document.getElementById('new-tank-name').value = '';
     document.getElementById('new-tank-cap').value = '';
     document.getElementById('new-tank-cap-kg').value = '';
     document.getElementById('new-tank-cap-mt').value = '';
-    
+
     saveState();
     renderTankManager();
     renderYardDashboard();
@@ -346,7 +346,7 @@ async function handleLogin() {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     if (!email || !password) return toast('Enter credentials', true);
-    
+
     try {
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
         if (error) {
@@ -366,7 +366,7 @@ async function handleSignUp() {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     if (!email || !password) return toast('Enter email & password to sign up', true);
-    
+
     try {
         const { error } = await supabaseClient.auth.signUp({ email, password });
         if (error) throw error;
@@ -385,7 +385,7 @@ function updateAuthState(session) {
     const loginBtn = document.getElementById('btn-login');
     const userInfo = document.getElementById('user-info');
     const emailSpan = document.getElementById('user-email');
-    
+
     if (session && session.user) {
         loginBtn.style.display = 'none';
         userInfo.style.display = 'flex';
@@ -409,17 +409,17 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
 
 loadState();
 
-var fmt=function(n){return'\u20B9'+Number(n).toLocaleString('en-IN',{maximumFractionDigits:2});};
-var fmtN=function(n){return Number(n).toLocaleString('en-IN');};
-var fmtKG=function(n){return Number(n).toLocaleString('en-IN',{maximumFractionDigits:1});};
-var today=function(){return new Date().toISOString().split('T')[0];};
-var getDensity = function(pName) {
+var fmt = function (n) { return '\u20B9' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 }); };
+var fmtN = function (n) { return Number(n).toLocaleString('en-IN'); };
+var fmtKG = function (n) { return Number(n).toLocaleString('en-IN', { maximumFractionDigits: 1 }); };
+var today = function () { return new Date().toISOString().split('T')[0]; };
+var getDensity = function (pName) {
     if (!state.products) return 0.850;
-    var found = state.products.find(function(x) { return x.name === pName; });
+    var found = state.products.find(function (x) { return x.name === pName; });
     return found ? found.density : 0.850;
 };
-var toKG=function(v,d){return v*(d||0.85);};
-var escH=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+var toKG = function (v, d) { return v * (d || 0.85); };
+var escH = function (s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
 
 function dualCalc(prefix, type) {
     const volEl = document.getElementById(prefix + '-qty') || document.getElementById(prefix + '-vol');
@@ -585,35 +585,35 @@ function downloadChallanPDF(id) {
     var typeLabel = c.type === 'in' ? 'INWARD DELIVERY CHALLAN' : 'OUTWARD DELIVERY CHALLAN';
 
     var html = '' +
-    '<div class="print-header">' +
+        '<div class="print-header">' +
         '<h1>MURJI RAVJI & CO.</h1>' +
         '<p>OIL TRADING & LOGISTICS</p>' +
-    '</div>' +
-    '<div class="print-title">' + escH(typeLabel) + '</div>' +
-    '<table class="print-table">' +
+        '</div>' +
+        '<div class="print-title">' + escH(typeLabel) + '</div>' +
+        '<table class="print-table">' +
         '<tr><th>Challan No.</th><td>' + escH(c.id) + '</td></tr>' +
         '<tr><th>Date</th><td>' + escH(c.date) + '</td></tr>' +
-    '</table>' +
-    '<table class="print-table">' +
+        '</table>' +
+        '<table class="print-table">' +
         '<tr><th>Product</th><td>' + escH(c.product) + '</td></tr>' +
         '<tr><th>Volume</th><td>' + fmtN(c.vol) + ' Litres</td></tr>' +
         '<tr><th>Weight</th><td>' + fmtKG(c.weight) + ' KG</td></tr>' +
         '<tr><th>Density</th><td>' + c.density + ' kg/L</td></tr>' +
-    '</table>' +
-    '<table class="print-table">' +
-        '<tr><th>' + (c.type==='in'?'Received From':'Dispatched From') + '</th><td>' + escH(c.from) + '</td></tr>' +
-        '<tr><th>' + (c.type==='in'?'Stored At':'Delivered To') + '</th><td>' + escH(c.to) + '</td></tr>' +
-    '</table>' +
-    '<table class="print-table">' +
+        '</table>' +
+        '<table class="print-table">' +
+        '<tr><th>' + (c.type === 'in' ? 'Received From' : 'Dispatched From') + '</th><td>' + escH(c.from) + '</td></tr>' +
+        '<tr><th>' + (c.type === 'in' ? 'Stored At' : 'Delivered To') + '</th><td>' + escH(c.to) + '</td></tr>' +
+        '</table>' +
+        '<table class="print-table">' +
         '<tr><th>Vehicle No.</th><td>' + escH(c.vehicle) + '</td></tr>' +
         '<tr><th>Driver Name</th><td>' + escH(c.driver) + '</td></tr>' +
         '<tr><th>Driver Phone</th><td>' + escH(c.driverPh) + '</td></tr>' +
-    '</table>' +
-    '<div class="print-footer">' +
+        '</table>' +
+        '<div class="print-footer">' +
         '<div class="sig-block"><div class="sig-line">Authorized Signatory</div></div>' +
         '<div class="sig-block"><div class="sig-line">Receiver Signature</div></div>' +
-    '</div>' +
-    '<div class="print-note">This is a computer-generated document from Murji Ravji & Co. \u2014 ' + new Date().toLocaleString('en-IN') + '</div>';
+        '</div>' +
+        '<div class="print-note">This is a computer-generated document from Murji Ravji & Co. \u2014 ' + new Date().toLocaleString('en-IN') + '</div>';
 
     openPrintWindow(html, c.id + '_' + c.product);
 }
@@ -621,7 +621,7 @@ function downloadChallanPDF(id) {
 /* ═══════ EXCEL — Pure Blob approach ═══════ */
 function exportInventoryExcel() {
     try {
-        var rows = state.inventory.map(function(i) {
+        var rows = state.inventory.map(function (i) {
             return [
                 i.product,
                 i.grade || '-',
@@ -658,7 +658,7 @@ function exportInventoryExcel() {
         html += '<tr style="font-weight:bold;background:#eee"><td>TOTAL</td><td></td><td></td><td></td><td class="num">' + fmtN(totalVol) + '</td><td></td><td></td><td class="num">' + fmt(totalVal) + '</td><td></td></tr>';
         html += '</table></body></html>';
 
-        var blob = new Blob([html], {type: 'application/vnd.ms-excel;charset=utf-8'});
+        var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url;
@@ -683,49 +683,49 @@ function shareWhatsApp(id) {
     if (!c) return toast('Challan not found', true);
     var text = '*MURJI RAVJI & CO.*\nChallan: ' + c.id + '\nDate: ' + c.date +
         '\nProduct: ' + c.product + '\nVol: ' + fmtN(c.vol) + ' L\nWeight: ' + fmtKG(c.weight) + ' KG' +
-        '\nFrom: ' + (c.from||'-') + '\nTo: ' + (c.to||'-') + '\nVehicle: ' + c.vehicle;
+        '\nFrom: ' + (c.from || '-') + '\nTo: ' + (c.to || '-') + '\nVehicle: ' + c.vehicle;
     window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(text), '_blank');
 }
 
 /* ═══════ CORE UI LOGIC ═══════ */
 function updateClock() {
-    document.getElementById('clockEl').textContent = new Date().toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'});
+    document.getElementById('clockEl').textContent = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }
 updateClock();
 setInterval(updateClock, 30000);
 
 var VOL_MAP = {
-    inv:{volId:'inv-vol',kgId:'inv-kg',denId:'inv-density'},
-    tr:{volId:'tr-vol',kgId:'tr-kg',denId:'tr-density'},
-    ord:{volId:'ord-qty',kgId:'ord-kg',denId:'ord-density'},
-    ch:{volId:'ch-vol',kgId:'ch-kg',denId:'ch-density'}
+    inv: { volId: 'inv-vol', kgId: 'inv-kg', denId: 'inv-density' },
+    tr: { volId: 'tr-vol', kgId: 'tr-kg', denId: 'tr-density' },
+    ord: { volId: 'ord-qty', kgId: 'ord-kg', denId: 'ord-density' },
+    ch: { volId: 'ch-vol', kgId: 'ch-kg', denId: 'ch-density' }
 };
 var PRICE_MAP = {
-    inv:{perLId:'inv-cost',perKGId:'inv-cost-kg'},
-    tr:{perLId:'tr-price',perKGId:'tr-price-kg'},
-    ord:{perLId:'ord-price',perKGId:'ord-price-kg'}
+    inv: { perLId: 'inv-cost', perKGId: 'inv-cost-kg' },
+    tr: { perLId: 'tr-price', perKGId: 'tr-price-kg' },
+    ord: { perLId: 'ord-price', perKGId: 'ord-price-kg' }
 };
 var _lk = {};
 function dualCalc(px, ch) {
     var m = VOL_MAP[px]; if (_lk[px]) return; _lk[px] = true;
     var d = parseFloat(document.getElementById(m.denId).value) || 0.85;
     var vEl = document.getElementById(m.volId), kEl = document.getElementById(m.kgId);
-    if (ch === 'vol') { var v = parseFloat(vEl.value)||0; kEl.value = v>0 ? toKG(v,d).toFixed(1) : ''; }
-    else { var kg = parseFloat(kEl.value)||0; vEl.value = kg>0 ? (kg/d).toFixed(1) : ''; }
-    setTimeout(function(){ _lk[px] = false; }, 60);
+    if (ch === 'vol') { var v = parseFloat(vEl.value) || 0; kEl.value = v > 0 ? toKG(v, d).toFixed(1) : ''; }
+    else { var kg = parseFloat(kEl.value) || 0; vEl.value = kg > 0 ? (kg / d).toFixed(1) : ''; }
+    setTimeout(function () { _lk[px] = false; }, 60);
 }
 function priceCalc(px, ch) {
-    var m = PRICE_MAP[px]; if (_lk['p_'+px]) return; _lk['p_'+px] = true;
+    var m = PRICE_MAP[px]; if (_lk['p_' + px]) return; _lk['p_' + px] = true;
     var d = parseFloat(document.getElementById(VOL_MAP[px].denId).value) || 0.85;
     var lEl = document.getElementById(m.perLId), kEl = document.getElementById(m.perKGId);
-    if (ch === 'perL') { var pl = parseFloat(lEl.value)||0; kEl.value = pl>0 ? (pl*d).toFixed(2) : ''; }
-    else { var pkg = parseFloat(kEl.value)||0; lEl.value = pkg>0 ? (pkg/d).toFixed(2) : ''; }
-    setTimeout(function(){ _lk['p_'+px] = false; }, 60);
+    if (ch === 'perL') { var pl = parseFloat(lEl.value) || 0; kEl.value = pl > 0 ? (pl * d).toFixed(2) : ''; }
+    else { var pkg = parseFloat(kEl.value) || 0; lEl.value = pkg > 0 ? (pkg / d).toFixed(2) : ''; }
+    setTimeout(function () { _lk['p_' + px] = false; }, 60);
 }
-function onDensityChangeForPrice(px) { _lk[px] = false; _lk['p_'+px] = false; }
+function onDensityChangeForPrice(px) { _lk[px] = false; _lk['p_' + px] = false; }
 function toggleCustomTerm(px) {
-    var sel = document.getElementById(px+'-terms');
-    var cust = document.getElementById(px+'-custom-term');
+    var sel = document.getElementById(px + '-terms');
+    var cust = document.getElementById(px + '-custom-term');
     if (sel.value === '__custom__') cust.classList.add('show');
     else cust.classList.remove('show');
 }
@@ -734,20 +734,20 @@ function populateTradeParties() {
     var iWrap = document.getElementById('tr-party-input-wrap');
     var sWrap = document.getElementById('tr-party-select-wrap');
     var sel = document.getElementById('tr-party-select');
-    
+
     if (type === 'Buy') {
         iWrap.style.display = 'none';
         sWrap.style.display = 'block';
-        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
-            state.suppliers.map(function(s){ return '<option>'+escH(s.name)+'</option>'; }).join('');
+        sel.innerHTML = '<option value="">-- Select Supplier --</option>' +
+            state.suppliers.map(function (s) { return '<option>' + escH(s.name) + '</option>'; }).join('');
     } else {
         iWrap.style.display = 'block';
         sWrap.style.display = 'none';
         if (state.buyers && state.buyers.length > 0) {
             iWrap.style.display = 'none';
             sWrap.style.display = 'block';
-            sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
-                state.buyers.map(function(b){ return '<option>'+escH(b.name)+'</option>'; }).join('');
+            sel.innerHTML = '<option value="">-- Select Buyer --</option>' +
+                state.buyers.map(function (b) { return '<option>' + escH(b.name) + '</option>'; }).join('');
         }
     }
 }
@@ -756,7 +756,7 @@ function calcTradeTotals() {
     var den = parseFloat(document.getElementById('tr-density').value) || 0.85;
     var unit = document.getElementById('tr-unit').value;
     var mode = document.getElementById('tr-mode').value;
-    
+
     var price = 0;
     if (mode === 'import' || mode === 'hs_sale') {
         price = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
@@ -771,7 +771,7 @@ function calcTradeTotals() {
 
     // Total INR is always Raw Quantity in box * Price per that unit
     var basicInr = rawQty * price;
-    
+
     // Add Logistics Expenses
     var logRows = document.querySelectorAll('#tr-expenses-body tr');
     var logTotal = 0;
@@ -780,7 +780,7 @@ function calcTradeTotals() {
         const amt = amtEl ? (parseFloat(amtEl.value) || 0) : 0;
         logTotal += amt;
     });
-    
+
     // Add Bank Charges from Payments
     var payRows = document.querySelectorAll('#tr-payments-body tr');
     var bankTotal = 0;
@@ -798,34 +798,34 @@ function calcTradeTotals() {
         tankCost = contCount * tankRateUSD * ex;
         document.getElementById('tr-tank-cost').value = fmtN(tankCost);
     }
-    
+
     var totalInr = basicInr + logTotal + bankTotal + tankCost;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
-    
+
     // Update Foreign Total
     if (mode === 'import' || mode === 'hs_sale') {
         var qtyFor = parseFloat(document.getElementById('tr-vol').value) || 0;
         var rateFor = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-        document.getElementById('tr-total-for').value = (qtyFor * rateFor).toLocaleString('en-US', {minimumFractionDigits:2});
+        document.getElementById('tr-total-for').value = (qtyFor * rateFor).toLocaleString('en-US', { minimumFractionDigits: 2 });
     }
-    
+
     // Toggle High Seas Purchase fields
     var isHS = document.getElementById('tr-is-hs').checked;
     var hsFields = document.getElementById('tr-hs-purchase-fields');
     if (hsFields) hsFields.style.display = isHS ? 'grid' : 'none';
-    
+
     // Update Payment Summary
     updatePaymentSummary();
-    
+
     // Dual Landed Cost calculation
     if (totalInr > 0) {
         var volL = 0;
         if (unit === 'LITRE') volL = rawQty;
         else if (unit === 'KG') volL = rawQty / den;
         else if (unit === 'MTON') volL = (rawQty * 1000) / den;
-        
+
         var volKG = volL * den;
-        
+
         if (volL > 0) document.getElementById('tr-landed-l').value = '\u20B9 ' + (totalInr / volL).toFixed(2);
         if (volKG > 0) document.getElementById('tr-landed-kg').value = '\u20B9 ' + (totalInr / volKG).toFixed(2);
     } else {
@@ -838,9 +838,9 @@ function toggleTradeModeField() {
     var type = document.getElementById('tr-type').value;
     var modeGrp = document.getElementById('tr-mode-group');
     var modeSel = document.getElementById('tr-mode');
-    
+
     populateTradeParties();
-    
+
     // Update Mode Options based on Type
     var oldVal = modeSel.value;
     if (type === 'Buy') {
@@ -849,8 +849,8 @@ function toggleTradeModeField() {
         modeSel.innerHTML = '<option value="local">Local Sale</option><option value="hs_sale">High Seas Sale</option>';
     }
     // Try to restore value if applicable
-    if (modeSel.querySelector('option[value="'+oldVal+'"]')) modeSel.value = oldVal;
-    
+    if (modeSel.querySelector('option[value="' + oldVal + '"]')) modeSel.value = oldVal;
+
     modeGrp.style.display = 'flex';
     toggleTradeDetailFields();
 }
@@ -861,7 +861,7 @@ function toggleTradeDetailFields() {
     var loc = document.querySelector('.tr-local-fields');
     var linkGrp = document.getElementById('tr-link-group');
     var srcGrp = document.getElementById('tr-source-loc-group');
-    
+
     if (srcGrp) srcGrp.style.display = (type === 'Move' || (type === 'Sell' && mode === 'local')) ? 'block' : 'none';
     if (srcGrp.style.display === 'block') populateSourceLocations();
 
@@ -905,19 +905,19 @@ function toggleTradeDetailFields() {
 function populatePurchaseLinks() {
     var sel = document.getElementById('tr-link-purchase');
     // Find Buy trades that are Import or already tagged as Buy-HS
-    var buys = state.trades.filter(function(t){ return t.type === 'Buy' && t.mode === 'import'; });
-    
-    sel.innerHTML = '<option value="">-- Link to Import Purchase --</option>' + 
-        buys.map(function(t){ 
-            return '<option value="'+t.id+'">'+escH(t.id+' | '+t.party+' | '+t.product+' ('+t.vol+'L)')+'</option>'; 
+    var buys = state.trades.filter(function (t) { return t.type === 'Buy' && t.mode === 'import'; });
+
+    sel.innerHTML = '<option value="">-- Link to Import Purchase --</option>' +
+        buys.map(function (t) {
+            return '<option value="' + t.id + '">' + escH(t.id + ' | ' + t.party + ' | ' + t.product + ' (' + t.vol + 'L)') + '</option>';
         }).join('');
 }
 function loadPurchaseDetails() {
     var id = parseInt(document.getElementById('tr-link-purchase').value);
     if (!id) return;
-    var p = state.trades.find(function(t){ return t.id === id; });
+    var p = state.trades.find(function (t) { return t.id === id; });
     if (!p) return;
-    
+
     document.getElementById('tr-product').value = p.product;
     document.getElementById('tr-vol').value = p.vol;
     document.getElementById('tr-density').value = p.density;
@@ -928,7 +928,7 @@ function calcImportTotal() {
     var isHs = document.getElementById('tr-is-hs').checked;
     var rawQty = parseFloat(document.getElementById('tr-vol').value) || 0;
     var rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-    
+
     var currEl = document.getElementById('tr-imp-curr');
     var exEl = document.getElementById('tr-ex-rate');
     var exGrp = document.getElementById('tr-ex-rate-group');
@@ -948,8 +948,8 @@ function calcImportTotal() {
     var totalFor = rawQty * rate;
     var curr = currEl.value;
 
-    document.getElementById('tr-total-for').value = curr + ' ' + totalFor.toLocaleString('en-US', {minimumFractionDigits:2});
-    
+    document.getElementById('tr-total-for').value = curr + ' ' + totalFor.toLocaleString('en-US', { minimumFractionDigits: 2 });
+
     if (rawQty > 0) {
         calcTradeTotals();
     }
@@ -961,17 +961,17 @@ function populateTradeParties() {
     var inputWrap = document.getElementById('tr-party-input-wrap');
     var sel = document.getElementById('tr-party-select');
     if (!sel || !selectWrap || !inputWrap) return;
-    
+
     if (type === 'Buy') {
         selectWrap.style.display = 'block';
         inputWrap.style.display = 'none';
-        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
-            (state.suppliers||[]).map(function(s){ return '<option value="'+escH(s.name)+'">'+escH(s.name)+'</option>'; }).join('');
+        sel.innerHTML = '<option value="">-- Select Supplier --</option>' +
+            (state.suppliers || []).map(function (s) { return '<option value="' + escH(s.name) + '">' + escH(s.name) + '</option>'; }).join('');
     } else if (type === 'Sell') {
         selectWrap.style.display = 'block';
         inputWrap.style.display = 'none';
-        sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
-            (state.buyers||[]).map(function(b){ return '<option value="'+escH(b.name)+'">'+escH(b.name)+'</option>'; }).join('');
+        sel.innerHTML = '<option value="">-- Select Buyer --</option>' +
+            (state.buyers || []).map(function (b) { return '<option value="' + escH(b.name) + '">' + escH(b.name) + '</option>'; }).join('');
     } else {
         selectWrap.style.display = 'none';
         inputWrap.style.display = 'block';
@@ -980,11 +980,11 @@ function populateTradeParties() {
 
 /* ═══════ RENDER FUNCTIONS ═══════ */
 function kpiC(label, val, sub) {
-    return '<div class="kpi"><div class="kpi-label">'+label+'</div><div class="kpi-value">'+val+'</div><div class="kpi-change">'+sub+'</div></div>';
+    return '<div class="kpi"><div class="kpi-label">' + label + '</div><div class="kpi-value">' + val + '</div><div class="kpi-change">' + sub + '</div></div>';
 }
 function statusBadge(s) {
-    var m = {'Pending':'badge-gold','Dispatched':'badge-blue','Delivered':'badge-green'};
-    return '<span class="badge '+(m[s]||'badge-gray')+'">'+s+'</span>';
+    var m = { 'Pending': 'badge-gold', 'Dispatched': 'badge-blue', 'Delivered': 'badge-green' };
+    return '<span class="badge ' + (m[s] || 'badge-gray') + '">' + s + '</span>';
 }
 
 function renderDashboardKpis() {
@@ -1006,22 +1006,22 @@ function renderDashboardKpis() {
         kpiC('Sales', fmt(sl), 'Revenue');
 }
 function renderInvLevels() {
-    document.getElementById('invLevels').innerHTML = state.inventory.map(function(i) {
+    document.getElementById('invLevels').innerHTML = state.inventory.map(function (i) {
         var p = Math.min(100, Math.round(i.vol / (i.threshold * 10) * 100));
         var c = p > 50 ? 'green' : p > 25 ? '' : 'red';
-        return '<div class="progress-wrap"><div class="progress-label"><span>'+i.product+'</span><span class="mono">'+fmtN(i.vol)+' L</span></div><div class="progress"><div class="progress-fill '+c+'" style="width:'+p+'%"></div></div></div>';
+        return '<div class="progress-wrap"><div class="progress-label"><span>' + i.product + '</span><span class="mono">' + fmtN(i.vol) + ' L</span></div><div class="progress"><div class="progress-fill ' + c + '" style="width:' + p + '%"></div></div></div>';
     }).join('');
 }
 function renderRecentTrades() {
-    document.getElementById('recentTradesTbl').innerHTML = state.trades.slice(-5).reverse().map(function(t) {
+    document.getElementById('recentTradesTbl').innerHTML = state.trades.slice(-5).reverse().map(function (t) {
         var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
         var unitSuffix = t.unit ? ' ' + t.unit : ' L';
-        return '<tr><td>'+t.product+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span></td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmtKG(toKG(t.vol,t.density))+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td></tr>';
+        return '<tr><td>' + t.product + '</td><td><span class="badge ' + (t.type === 'Buy' ? 'badge-blue' : 'badge-green') + '">' + t.type + '</span></td><td class="mono">' + fmtN(displayQty) + unitSuffix + '</td><td class="mono">' + fmtKG(toKG(t.vol, t.density)) + '</td><td class="mono">' + fmt(t.price) + '</td><td class="mono">' + fmt(displayQty * t.price) + '</td></tr>';
     }).join('');
 }
 function renderActiveOrders() {
-    document.getElementById('activeOrdersTbl').innerHTML = state.orders.filter(function(o){return o.status!=='Delivered';}).map(function(o) {
-        return '<tr><td class="mono">'+o.id+'</td><td>'+o.customer+'</td><td>'+o.product+'</td><td class="mono">'+fmtN(o.qty)+'</td><td class="mono">'+fmt(o.qty*o.price)+'</td><td>'+statusBadge(o.status)+'</td><td class="mono">'+o.due+'</td></tr>';
+    document.getElementById('activeOrdersTbl').innerHTML = state.orders.filter(function (o) { return o.status !== 'Delivered'; }).map(function (o) {
+        return '<tr><td class="mono">' + o.id + '</td><td>' + o.customer + '</td><td>' + o.product + '</td><td class="mono">' + fmtN(o.qty) + '</td><td class="mono">' + fmt(o.qty * o.price) + '</td><td>' + statusBadge(o.status) + '</td><td class="mono">' + o.due + '</td></tr>';
     }).join('');
 }
 
@@ -1029,12 +1029,12 @@ function populateOrderParties() {
     const type = document.getElementById('ord-type').value;
     const sel = document.getElementById('ord-customer');
     if (!sel) return;
-    
+
     if (type === 'PURCHASE') {
-        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
+        sel.innerHTML = '<option value="">-- Select Supplier --</option>' +
             (state.suppliers || []).map(s => `<option value="${escH(s.name)}">${escH(s.name)}</option>`).join('');
     } else {
-        sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
+        sel.innerHTML = '<option value="">-- Select Buyer --</option>' +
             (state.buyers || []).map(b => `<option value="${escH(b.name)}">${escH(b.name)}</option>`).join('');
     }
 }
@@ -1043,12 +1043,12 @@ function populateOrderParties() {
     const type = document.getElementById('ord-type').value;
     const sel = document.getElementById('ord-customer');
     if (!sel) return;
-    
+
     if (type === 'PURCHASE') {
-        sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
+        sel.innerHTML = '<option value="">-- Select Supplier --</option>' +
             (state.suppliers || []).map(s => `<option value="${escH(s.name)}">${escH(s.name)}</option>`).join('');
     } else {
-        sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
+        sel.innerHTML = '<option value="">-- Select Buyer --</option>' +
             (state.buyers || []).map(b => `<option value="${escH(b.name)}">${escH(b.name)}</option>`).join('');
     }
 }
@@ -1056,43 +1056,43 @@ function populateOrderParties() {
 function populateSelects() {
     if (!state || !state.products) return;
     populateOrderParties();
-    ['inv-product', 'tr-product', 'ord-product', 'ch-product'].forEach(function(id) {
+    ['inv-product', 'tr-product', 'ord-product', 'ch-product'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el) return;
-        el.innerHTML = state.products.map(function(p){ 
+        el.innerHTML = state.products.map(function (p) {
             var label = p.name + (p.other ? ' (' + p.other + ')' : '');
-            return '<option value="'+escH(p.name)+'">'+escH(label)+'</option>'; 
+            return '<option value="' + escH(p.name) + '">' + escH(label) + '</option>';
         }).join('');
     });
-    
+
     // Populate Sale Deal Dropdown
     var dealSel = document.getElementById('tr-sale-deal');
     if (dealSel) {
-        var activeOrders = state.orders.filter(function(o){ return o.status !== 'Delivered'; });
-        dealSel.innerHTML = '<option value="">-- Select Order / Deal --</option>' + 
-            activeOrders.map(function(o){ 
-                return '<option value="'+o.id+'">'+escH(o.id + ' | ' + o.customer + ' | ' + o.product)+'</option>'; 
+        var activeOrders = state.orders.filter(function (o) { return o.status !== 'Delivered'; });
+        dealSel.innerHTML = '<option value="">-- Select Order / Deal --</option>' +
+            activeOrders.map(function (o) {
+                return '<option value="' + o.id + '">' + escH(o.id + ' | ' + o.customer + ' | ' + o.product) + '</option>';
             }).join('');
     }
 }
 function renderProductsList() {
-    document.getElementById('productsList').innerHTML = state.products.map(function(p) {
-        var info = p.hsn ? ' [HSN: '+p.hsn+']' : '';
+    document.getElementById('productsList').innerHTML = state.products.map(function (p) {
+        var info = p.hsn ? ' [HSN: ' + p.hsn + ']' : '';
         return '<div class="product-tag">' +
-                 '<span><b>'+escH(p.name)+'</b>'+escH(info)+'</span>' +
-                 '<div style="display:flex;gap:5px;margin-left:10px;">' +
-                   '<span class="edit-prod" title="Edit" onclick="editProduct(\''+p.name.replace(/'/g,"\\'")+'\')">&#x270F;</span>' +
-                   '<span class="remove-prod" title="Delete" onclick="deleteProduct(\''+p.name.replace(/'/g,"\\'")+'\')">&#x2715;</span>' +
-                 '</div>' +
-               '</div>';
+            '<span><b>' + escH(p.name) + '</b>' + escH(info) + '</span>' +
+            '<div style="display:flex;gap:5px;margin-left:10px;">' +
+            '<span class="edit-prod" title="Edit" onclick="editProduct(\'' + p.name.replace(/'/g, "\\'") + '\')">&#x270F;</span>' +
+            '<span class="remove-prod" title="Delete" onclick="deleteProduct(\'' + p.name.replace(/'/g, "\\'") + '\')">&#x2715;</span>' +
+            '</div>' +
+            '</div>';
     }).join('');
 }
 
 function renderInventoryTable() {
     var q = document.getElementById('invSearch').value.toLowerCase();
-    document.getElementById('invTable').innerHTML = state.inventory.filter(function(i){return i.product.toLowerCase().indexOf(q) >= 0;}).map(function(i) {
+    document.getElementById('invTable').innerHTML = state.inventory.filter(function (i) { return i.product.toLowerCase().indexOf(q) >= 0; }).map(function (i) {
         var lvPct = Math.min(100, i.vol / i.threshold * 10);
-        return '<tr><td><b>'+i.product+'</b></td><td>'+i.grade+'</td><td class="mono">'+i.density+'</td><td>'+i.tank+'</td><td class="mono">'+fmtN(i.vol)+'</td><td class="mono">'+fmtKG(toKG(i.vol,i.density))+'</td><td class="mono">'+fmt(i.cost)+'</td><td class="mono">'+fmt(i.vol*i.cost)+'</td><td><div class="progress" style="width:60px"><div class="progress-fill '+(i.vol>i.threshold?'green':'red')+'" style="width:'+lvPct+'%"></div></div></td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\','+i.id+')">&#x2715;</button></td></tr>';
+        return '<tr><td><b>' + i.product + '</b></td><td>' + i.grade + '</td><td class="mono">' + i.density + '</td><td>' + i.tank + '</td><td class="mono">' + fmtN(i.vol) + '</td><td class="mono">' + fmtKG(toKG(i.vol, i.density)) + '</td><td class="mono">' + fmt(i.cost) + '</td><td class="mono">' + fmt(i.vol * i.cost) + '</td><td><div class="progress" style="width:60px"><div class="progress-fill ' + (i.vol > i.threshold ? 'green' : 'red') + '" style="width:' + lvPct + '%"></div></div></td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\',' + i.id + ')">&#x2715;</button></td></tr>';
     }).join('');
 }
 
@@ -1127,31 +1127,31 @@ function addInventory() {
 }
 
 function clearInvForm() {
-    ['inv-grade','inv-vol','inv-kg','inv-cost','inv-cost-kg','inv-tank','inv-thresh'].forEach(function(id){document.getElementById(id).value='';});
+    ['inv-grade', 'inv-vol', 'inv-kg', 'inv-cost', 'inv-cost-kg', 'inv-tank', 'inv-thresh'].forEach(function (id) { document.getElementById(id).value = ''; });
     document.getElementById('inv-slip-preview').innerHTML = '<div class="photo-placeholder">&#x1F4F7;</div>';
 }
 
 function renderTradesTable() {
-    document.getElementById('tradesTable').innerHTML = state.trades.slice().reverse().map(function(t) {
+    document.getElementById('tradesTable').innerHTML = state.trades.slice().reverse().map(function (t) {
         var modeLabel = '';
         if (t.type === 'Buy') modeLabel = t.mode === 'import' ? 'Import' : 'Local';
         else modeLabel = t.mode === 'hs_sale' ? 'HS Sale' : 'Local';
-        
+
         var modeInfo = ' <small>(' + modeLabel + ')</small>';
         var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
         var unitSuffix = t.unit ? ' ' + t.unit : ' L';
         var hasShipDocs = t.ship_docs ? (Array.isArray(t.ship_docs) ? t.ship_docs.length > 0 : Object.keys(t.ship_docs).length > 0) : false;
         var hasDocs = (t.docs && t.docs.length > 0) || hasShipDocs;
-        var boeBadge = t.boe_no ? ' <span class="badge badge-blue" style="font-size:9px; padding:1px 4px;" title="BOE: '+t.boe_no+'">BOE</span>' : '';
+        var boeBadge = t.boe_no ? ' <span class="badge badge-blue" style="font-size:9px; padding:1px 4px;" title="BOE: ' + t.boe_no + '">BOE</span>' : '';
         var docBadge = hasDocs ? ' <span title="Documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
 
-        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+boeBadge+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')" title="Edit">&#x270F;</button><button class="btn btn-ghost btn-sm" onclick="printTradeReceipt('+t.id+')" title="Print">&#x1F5B6;</button>'+(t.mode==='import'?'<button class="btn btn-teal btn-sm" onclick="generateLandedCostReport('+t.id+')" title="Landed Cost Report">&#x1F4CA;</button>':'')+'<button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')" title="Delete">&#x2715;</button></div></td></tr>';
+        return '<tr><td class="mono">' + t.date + '</td><td><span class="badge ' + (t.type === 'Buy' ? 'badge-blue' : 'badge-green') + '">' + t.type + '</span>' + modeInfo + boeBadge + docBadge + '</td><td>' + t.product + '</td><td>' + t.party + '</td><td class="mono">' + fmtN(displayQty) + unitSuffix + '</td><td class="mono">' + fmt(t.price) + '</td><td class="mono">' + fmt(displayQty * t.price) + '</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade(' + t.id + ')" title="Edit">&#x270F;</button><button class="btn btn-ghost btn-sm" onclick="printTradeReceipt(' + t.id + ')" title="Print">&#x1F5B6;</button>' + (t.mode === 'import' ? '<button class="btn btn-teal btn-sm" onclick="generateLandedCostReport(' + t.id + ')" title="Landed Cost Report">&#x1F4CA;</button>' : '') + '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\',' + t.id + ')" title="Delete">&#x2715;</button></div></td></tr>';
     }).join('');
 }
 async function handleTradeDocUpload(input) {
     const files = input.files;
     if (!files || files.length === 0) return;
-    
+
     toast("Processing Documents...");
     for (let f of files) {
         // 1. ADD TO LIST IMMEDIATELY (Placeholder)
@@ -1198,14 +1198,14 @@ async function handleTradeDocUpload(input) {
 function renderTradeDocs() {
     var list = document.getElementById('tr-docs-list');
     if (!list) return;
-    
+
     if (!currentTradeDocs || currentTradeDocs.length === 0) {
         list.innerHTML = '<div style="color:var(--muted); font-size:11px; padding:15px; border:1px dashed var(--border); border-radius:8px; text-align:center; background:rgba(0,0,0,0.1);">No documents attached for this trade.</div>';
         document.getElementById('btn-scan-ai').style.display = 'none';
         return;
     }
 
-    list.innerHTML = currentTradeDocs.map(function(d, idx) {
+    list.innerHTML = currentTradeDocs.map(function (d, idx) {
         const docUrl = d.url || d.data;
         return `
             <div class="doc-item" style="display:flex; align-items:center; background:rgba(255,255,255,0.05); padding:10px 15px; border-radius:10px; margin-bottom:8px; border:1px solid var(--border); gap:12px; transition: all 0.2s;">
@@ -1215,7 +1215,7 @@ function renderTradeDocs() {
                            style="width:100%; background:transparent; border:none; color:var(--text); font-size:13px; font-weight:600; outline:none; padding:0;" 
                            title="Click to rename">
                     <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">
-                        ${d.size ? (d.size/1024).toFixed(1) + ' KB' : 'CLOUD STORAGE'} • ${d.date || today()}
+                        ${d.size ? (d.size / 1024).toFixed(1) + ' KB' : 'CLOUD STORAGE'} • ${d.date || today()}
                     </div>
                 </div>
                 <div style="display:flex; gap:8px">
@@ -1226,7 +1226,7 @@ function renderTradeDocs() {
             </div>
         `;
     }).join('');
-    
+
     if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
 }
 function renameTradeDoc(idx, newName) {
@@ -1259,7 +1259,7 @@ async function scanTradeDocWithAI() {
     try {
         var doc = currentTradeDocs[0];
         if (!doc) return toast("No document found to scan", true);
-        
+
         document.getElementById('tr-mode').value = 'import';
         toggleTradeDetailFields();
 
@@ -1305,11 +1305,11 @@ async function scanTradeDocWithAI() {
                 const result = await Tesseract.recognize(doc.data, 'eng');
                 text = result.data.text;
             }
-            
+
             var cleanText = text.replace(/[\[\]\|]/g, ' ').replace(/\s+/g, ' ').trim();
             // Local Regex extraction... (keeping for users without API key)
-            runLocalExtract(cleanText); 
-            
+            runLocalExtract(cleanText);
+
             toast('Local OCR Complete. Add API Key for 100% accuracy.');
             btn.innerHTML = oldBtnHtml;
             btn.disabled = false;
@@ -1324,8 +1324,8 @@ async function scanTradeDocWithAI() {
 
 function runLocalExtract(cleanText) {
     var blMatch = cleanText.match(/BILL\s*OF\s*LADING\s*NO\.?[:\s]+([A-Z0-9.\s]+)/i) || cleanText.match(/TKU[\.\s][A-Z0-9\.\s]+/i);
-    if (blMatch) document.getElementById('tr-bl-no').value = (blMatch[1]||blMatch[0]).trim().replace(/\s+/g, '.');
-    
+    if (blMatch) document.getElementById('tr-bl-no').value = (blMatch[1] || blMatch[0]).trim().replace(/\s+/g, '.');
+
     var vMatch = cleanText.match(/VESSEL[:\s\n]+([A-Z0-9\s\[\]]+)/i);
     if (vMatch) document.getElementById('tr-vessel').value = vMatch[1].trim().split('\n')[0].replace(/[^A-Z0-9\s]/g, '');
 
@@ -1342,7 +1342,7 @@ function runLocalExtract(cleanText) {
 async function refineWithCloudAI(docOrText) {
     if (!state.apiKey) return;
     var btn = document.getElementById('btn-scan-ai');
-    
+
     try {
         const model = state.apiModel || 'gemini-3.1-flash-lite';
         let payload;
@@ -1362,13 +1362,14 @@ async function refineWithCloudAI(docOrText) {
                     reader.readAsDataURL(blob);
                 });
             }
-            
+
             if (!base64Data) throw new Error("Document data not found for AI scan.");
 
             payload = {
                 contents: [{
                     parts: [
-                        { text: `DOMAIN: International Oil Shipping. 
+                        {
+                            text: `DOMAIN: International Oil Shipping. 
 TASK: Extract Bill of Lading or Commercial Invoice data from this document.
 RULES: 
 1. Fix all OCR errors. Reconstruct the full list of container numbers (4 letters + 7 digits).
@@ -1403,12 +1404,12 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
         }
 
         const data = await response.json();
-        
+
         if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
             let rawJson = data.candidates[0].content.parts[0].text;
             rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
             const ai = JSON.parse(rawJson);
-            
+
             const fields = {
                 'tr-bl-no': ai.bl_no,
                 'tr-inv-no-intl': ai.inv_no,
@@ -1439,13 +1440,13 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
             for (let id in fields) {
                 const el = document.getElementById(id);
                 if (!el) continue;
-                
+
                 const newValue = (fields[id] || '').toString().trim();
                 const oldValue = el.value.trim();
-                
+
                 // 1. Skip if AI didn't find this value (to avoid clearing existing data or false warnings)
                 if (!newValue || newValue.toLowerCase() === 'null' || newValue.toLowerCase() === 'na' || newValue === '0') {
-                    continue; 
+                    continue;
                 }
 
                 // 2. Compare normalized versions (Ignore . / - and spaces)
@@ -1461,7 +1462,7 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                     el.value = newValue; // Populate if empty or matching
                 }
             }
-            
+
             if (mismatches.length > 0) {
                 toast(`Warning: Mismatch detected in: ${mismatches.join(', ')}`, true);
             } else {
@@ -1502,14 +1503,14 @@ function highlightField(id) {
     var el = document.getElementById(id);
     if (!el) return;
     el.classList.add('extracted-pulse');
-    setTimeout(function(){ el.classList.remove('extracted-pulse'); }, 5000);
+    setTimeout(function () { el.classList.remove('extracted-pulse'); }, 5000);
 }
 var editingTradeId = null;
 function editTrade(id) {
-    var t = state.trades.find(function(x){return x.id === id;});
+    var t = state.trades.find(function (x) { return x.id === id; });
     if (!t) return;
     editingTradeId = id;
-    
+
     // LOAD DOCUMENTS
     currentTradeDocs = t.docs || [];
     currentShipDocs = t.ship_docs || [];
@@ -1565,20 +1566,20 @@ function editTrade(id) {
     // Load Expenses
     clearExpenses();
     if (t.expenses && Array.isArray(t.expenses)) {
-        t.expenses.forEach(function(exp) {
+        t.expenses.forEach(function (exp) {
             addExpenseRow(exp);
         });
     }
 
     document.getElementById('tr-is-hs').checked = !!t.is_hs;
     document.getElementById('tr-hs-seller').value = t.hs_seller || '';
-    
+
     // Load Trade Docs (Documents already loaded at start of function, keeping this block clean)
     if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
     else document.getElementById('btn-scan-ai').style.display = 'none';
-    
+
     calcTradeTotals();
-    
+
     // Load Ship Docs
     clearSupplierData();
     if (t.ship_docs) {
@@ -1595,12 +1596,12 @@ function editTrade(id) {
         }
         renderShipDocs();
     }
-    
+
     // Load Payments
     if (t.payments) {
         t.payments.forEach(p => addPaymentRow(p));
     }
-    
+
     // Load Buyer Payments
     clearBuyerData();
     if (t.sale_inv_amt) document.getElementById('tr-sale-inv-amt').value = t.sale_inv_amt;
@@ -1609,10 +1610,10 @@ function editTrade(id) {
         t.buyer_payments.forEach(p => addBuyerPaymentRow(p));
     }
     updateBuyerPaymentSummary();
-    
+
     var btn = document.querySelector('button[onclick="addTrade()"]');
     if (btn) { btn.innerHTML = '&#x1F4BE; Update Trade'; btn.classList.add('btn-blue'); }
-    window.scrollTo({top:0, behavior:'smooth'});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function addTrade() {
     var type = document.getElementById('tr-type').value;
@@ -1623,11 +1624,11 @@ function addTrade() {
     var den = parseFloat(document.getElementById('tr-density').value) || getDensity(product);
     var unit = document.getElementById('tr-unit').value;
     var storageLoc = document.getElementById('tr-storage-loc').value;
-    
+
     var volInL = rawQty;
     if (unit === 'KG') volInL = rawQty / den;
     if (unit === 'MTON') volInL = (rawQty * 1000) / den;
-    
+
     var price = 0;
     if (mode === 'import') {
         var rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
@@ -1639,12 +1640,12 @@ function addTrade() {
     } else {
         price = parseFloat(document.getElementById('tr-price-local').value) || 0;
     }
-    
+
     if (!party || !rawQty || !price) return toast('Please fill all required fields', true);
-    
+
     var termsVal = document.getElementById('tr-terms').value;
     if (termsVal === '__custom__') termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
-    
+
     var trade = {
         type: type, mode: mode, product: product, party: party,
         vol: volInL, price: price, raw_qty: rawQty, unit: unit,
@@ -1661,9 +1662,9 @@ function addTrade() {
         location: storageLoc,
         source_location: document.getElementById('tr-source-loc') ? document.getElementById('tr-source-loc').value : null
     };
-    
+
     if (type === 'Sell' && mode === 'hs_sale') trade.link_purchase_id = document.getElementById('tr-link-purchase').value;
-    
+
     if (type === 'Buy') {
         if (mode === 'import') {
             trade.is_hs = document.getElementById('tr-is-hs').checked;
@@ -1715,7 +1716,7 @@ function addTrade() {
         const sourceLoc = document.getElementById('tr-source-loc') ? document.getElementById('tr-source-loc').value : '';
         if (!sourceLoc || !storageLoc) return toast('Select source and destination', true);
         if (sourceLoc === storageLoc) return toast('Source and destination cannot be same', true);
-        
+
         // Subtract from source
         state.inventory.push({
             id: 'INV' + (state.nextInvId++),
@@ -1762,35 +1763,51 @@ function addTrade() {
     }
 
     if (editingTradeId) {
-        var idx = state.trades.findIndex(function(x){return x.id === editingTradeId;});
-        if (idx>=0) { trade.id = editingTradeId; state.trades[idx] = trade; }
-        toast('Trade updated');
+        var idx = state.trades.findIndex(function (x) { return x.id === editingTradeId; });
+        if (idx >= 0) { 
+            trade.id = editingTradeId; 
+            state.trades[idx] = trade; 
+        }
+        toast('Changes Saved Successfully ✅');
+        // RE-RENDER TO ENSURE VISIBILITY
+        renderTradeDocs();
+        renderShipDocs();
     } else {
         trade.id = state.nextTradeId++;
         state.trades.push(trade);
-        toast('Trade recorded');
+        toast('New Trade Recorded ✅');
+        
+        // ONLY CLEAR FORM ON NEW RECORD
+        editingTradeId = null; 
+        currentTradeDocs = []; 
+        currentShipDocs = [];
+        renderTradeDocs();
+        renderShipDocs();
+        document.getElementById('btn-scan-ai').style.display = 'none';
+        var btn = document.querySelector('button[onclick="addTrade()"]');
+        if (btn) { btn.innerHTML = '&#x1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
+        ['tr-party', 'tr-vol', 'tr-price-local', 'tr-bl-no', 'tr-vessel', 'tr-port-load', 'tr-port-dis', 'tr-ex-rate', 'tr-inv-no', 'tr-gst', 'tr-veh', 'tr-imp-rate', 'tr-total-for', 'tr-total-inr-shared', 'tr-agent', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-containers', 'tr-storage-loc'].forEach(function (id) {
+            var el = document.getElementById(id); if (el) el.value = '';
+        });
+        document.getElementById('tr-party-select').value = '';
+        document.getElementById('tr-is-hs').checked = false;
+        document.getElementById('tr-sale-deal').value = '';
+        document.getElementById('tr-sale-inv-amt').value = '';
+        clearExpenses();
+        clearSupplierData();
+        clearBuyerData();
+        toggleTradeDetailFields();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     
-    saveState(); renderTradesTable(); renderRecentTrades(); renderDashboardKpis();
-    editingTradeId = null; currentTradeDocs = []; renderTradeDocs();
-    document.getElementById('btn-scan-ai').style.display = 'none';
-    var btn = document.querySelector('button[onclick="addTrade()"]');
-    if (btn) { btn.innerHTML = '&#x1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
-    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-agent','tr-net-weight','tr-hs-code','tr-boe-no','tr-boe-date','tr-duty-amt','tr-containers','tr-storage-loc'].forEach(function(id){
-        var el = document.getElementById(id); if (el) el.value = '';
-    });
-    document.getElementById('tr-party-select').value = '';
-    document.getElementById('tr-is-hs').checked = false;
-    document.getElementById('tr-sale-deal').value = '';
-    document.getElementById('tr-sale-inv-amt').value = '';
-    clearExpenses();
-    clearSupplierData();
-    clearBuyerData();
-    toggleTradeDetailFields();
+    saveState(); 
+    renderTradesTable(); 
+    renderRecentTrades(); 
+    renderDashboardKpis();
 }
 
 function renderOrdersTable() {
-    document.getElementById('ordersTable').innerHTML = (state.orders || []).slice().reverse().map(function(o) {
+    document.getElementById('ordersTable').innerHTML = (state.orders || []).slice().reverse().map(function (o) {
         const isKG = o.unit === 'KG';
         const den = o.density || 0.850;
         const mainQty = isKG ? (o.qty * den) : o.qty;
@@ -1798,29 +1815,29 @@ function renderOrdersTable() {
         const otherQty = isKG ? o.qty : (o.qty * den);
         const otherUnit = isKG ? 'L' : 'KG';
         const mainUnit = isKG ? 'KG' : 'L';
-        
+
         // Final values for display
         const displayQty = isKG ? (o.qty_kg || (o.qty * den)) : o.qty;
         const displayRate = isKG ? (o.price_kg || (o.price / den)) : o.price;
 
         return '<tr>' +
-            '<td class="mono">'+o.id+'</td>' +
-            '<td><span class="badge '+(o.type==='PURCHASE'?'badge-blue':'badge-green')+'">'+(o.type||'SALE')+'</span></td>' +
-            '<td><b>'+o.customer+'</b></td>' +
-            '<td>'+o.product+'</td>' +
-            '<td class="mono"><div>'+fmtN(displayQty.toFixed(1))+' '+mainUnit+'</div><small style="color:var(--muted)">'+fmtN(otherQty.toFixed(1))+' '+otherUnit+'</small></td>' +
-            '<td class="mono"><div>\u20B9 '+displayRate.toFixed(2)+'</div><small style="color:var(--muted)">per '+mainUnit+'</small></td>' +
-            '<td class="mono"><b>'+fmt(displayQty * displayRate)+'</b></td>' +
-            '<td>'+statusBadge(o.status)+'</td>' +
-            '<td class="mono">'+o.due+'</td>' +
+            '<td class="mono">' + o.id + '</td>' +
+            '<td><span class="badge ' + (o.type === 'PURCHASE' ? 'badge-blue' : 'badge-green') + '">' + (o.type || 'SALE') + '</span></td>' +
+            '<td><b>' + o.customer + '</b></td>' +
+            '<td>' + o.product + '</td>' +
+            '<td class="mono"><div>' + fmtN(displayQty.toFixed(1)) + ' ' + mainUnit + '</div><small style="color:var(--muted)">' + fmtN(otherQty.toFixed(1)) + ' ' + otherUnit + '</small></td>' +
+            '<td class="mono"><div>\u20B9 ' + displayRate.toFixed(2) + '</div><small style="color:var(--muted)">per ' + mainUnit + '</small></td>' +
+            '<td class="mono"><b>' + fmt(displayQty * displayRate) + '</b></td>' +
+            '<td>' + statusBadge(o.status) + '</td>' +
+            '<td class="mono">' + o.due + '</td>' +
             '<td style="display:flex;gap:4px">' +
-                '<select onchange="updateOrderStatus(\''+o.id+'\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)">' +
-                    '<option '+(o.status==='Pending'?'selected':'')+'>Pending</option>' +
-                    '<option '+(o.status==='Dispatched'?'selected':'')+'>Dispatched</option>' +
-                    '<option '+(o.status==='Delivered'?'selected':'')+'>Delivered</option>' +
-                '</select>' +
-                '<button class="btn btn-sm btn-ghost" onclick="editOrder(\''+o.id+'\')" style="color:var(--teal)">&#x270F;</button>' +
-                '<button class="btn btn-danger btn-sm" onclick="deleteOrder(\''+o.id+'\')">&#x2715;</button>' +
+            '<select onchange="updateOrderStatus(\'' + o.id + '\',this.value)" style="font-size:10px;background:var(--bg);color:var(--text);border:1px solid var(--border)">' +
+            '<option ' + (o.status === 'Pending' ? 'selected' : '') + '>Pending</option>' +
+            '<option ' + (o.status === 'Dispatched' ? 'selected' : '') + '>Dispatched</option>' +
+            '<option ' + (o.status === 'Delivered' ? 'selected' : '') + '>Delivered</option>' +
+            '</select>' +
+            '<button class="btn btn-sm btn-ghost" onclick="editOrder(\'' + o.id + '\')" style="color:var(--teal)">&#x270F;</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="deleteOrder(\'' + o.id + '\')">&#x2715;</button>' +
             '</td></tr>';
     }).join('');
 }
@@ -1830,29 +1847,29 @@ function editOrder(id) {
     const o = state.orders.find(x => x.id === id);
     if (!o) return;
     editingOrderId = id;
-    
+
     document.getElementById('ord-type').value = o.type || 'SALE';
     populateOrderParties();
     document.getElementById('ord-customer').value = o.customer;
     document.getElementById('ord-product').value = o.product;
     document.getElementById('ord-density').value = o.density || 0.850;
     document.getElementById('ord-unit').value = o.unit || 'LITRE';
-    
+
     document.getElementById('ord-qty').value = o.qty;
     document.getElementById('ord-price').value = o.price;
     document.getElementById('ord-date').value = o.date || today();
     document.getElementById('ord-due').value = o.due || '';
     document.getElementById('ord-priority').value = o.priority || 'Normal';
-    
+
     dualCalc('ord', 'vol');
     priceCalc('ord', 'perL');
-    
+
     const btn = document.querySelector('button[onclick="addOrder()"]');
     if (btn) {
         btn.innerHTML = '&#x1F4BE; Update Order';
         btn.classList.add('btn-blue');
     }
-    window.scrollTo({top:0, behavior:'smooth'});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function addOrder() {
@@ -1861,7 +1878,7 @@ function addOrder() {
     var product = document.getElementById('ord-product').value;
     var unit = document.getElementById('ord-unit').value;
     var density = parseFloat(document.getElementById('ord-density').value) || 0.850;
-    
+
     var qtyL = parseFloat(document.getElementById('ord-qty').value) || 0;
     var qtyKG = parseFloat(document.getElementById('ord-kg').value) || 0;
     var priceL = parseFloat(document.getElementById('ord-price').value) || 0;
@@ -1870,7 +1887,7 @@ function addOrder() {
     if (!customer || (unit === 'LITRE' ? !qtyL || !priceL : !qtyKG || !priceKG)) {
         return toast('Please fill all required fields', true);
     }
-    
+
     var orderData = {
         id: editingOrderId || ('ORD-' + String(state.nextOrderNum++).padStart(3, '0')),
         type: type,
@@ -1908,11 +1925,11 @@ function addOrder() {
         state.orders.push(orderData);
         toast('Created ' + orderData.id);
     }
-    
+
     saveState(); renderOrdersTable(); renderActiveOrders(); populateSelects();
-    
+
     // Clear form
-    ['ord-customer','ord-qty','ord-kg','ord-price','ord-price-kg','ord-due'].forEach(id => {
+    ['ord-customer', 'ord-qty', 'ord-kg', 'ord-price', 'ord-price-kg', 'ord-due'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -1926,12 +1943,12 @@ function updateOrderStatus(id, s) {
 
 function toggleChallanFields() {
     var t = document.getElementById('ch-type').value;
-    document.getElementById('ch-from-group').querySelector('label').textContent = t==='in' ? 'Received From' : 'Dispatched From';
-    document.getElementById('ch-to-group').querySelector('label').textContent = t==='in' ? 'Stored At' : 'Delivered To';
+    document.getElementById('ch-from-group').querySelector('label').textContent = t === 'in' ? 'Received From' : 'Dispatched From';
+    document.getElementById('ch-to-group').querySelector('label').textContent = t === 'in' ? 'Stored At' : 'Delivered To';
 }
 function renderChallansTable() {
-    document.getElementById('challansTable').innerHTML = state.challans.slice().reverse().map(function(c) {
-        return '<tr><td class="mono"><b>'+c.id+'</b></td><td>'+(c.type==='in'?'<span class="badge badge-teal">In</span>':'<span class="badge badge-green">Out</span>')+'</td><td class="mono">'+c.date+'</td><td>'+c.product+'</td><td class="mono">'+fmtN(c.vol)+'</td><td>'+(c.from||'-')+'</td><td>'+(c.to||'-')+'</td><td class="mono">'+c.vehicle+'</td><td style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="downloadChallanPDF(\''+c.id+'\')">PDF</button><button class="btn btn-green btn-sm" onclick="shareWhatsApp(\''+c.id+'\')">WA</button><button class="btn btn-danger btn-sm" onclick="deleteChallan(\''+c.id+'\')">&#x2715;</button></td></tr>';
+    document.getElementById('challansTable').innerHTML = state.challans.slice().reverse().map(function (c) {
+        return '<tr><td class="mono"><b>' + c.id + '</b></td><td>' + (c.type === 'in' ? '<span class="badge badge-teal">In</span>' : '<span class="badge badge-green">Out</span>') + '</td><td class="mono">' + c.date + '</td><td>' + c.product + '</td><td class="mono">' + fmtN(c.vol) + '</td><td>' + (c.from || '-') + '</td><td>' + (c.to || '-') + '</td><td class="mono">' + c.vehicle + '</td><td style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="downloadChallanPDF(\'' + c.id + '\')">PDF</button><button class="btn btn-green btn-sm" onclick="shareWhatsApp(\'' + c.id + '\')">WA</button><button class="btn btn-danger btn-sm" onclick="deleteChallan(\'' + c.id + '\')">&#x2715;</button></td></tr>';
     }).join('');
 }
 function addChallan() {
@@ -1958,23 +1975,23 @@ function addChallan() {
 }
 
 function renderSuppliersTable() {
-    document.getElementById('suppliersTable').innerHTML = state.suppliers.map(function(s) {
+    document.getElementById('suppliersTable').innerHTML = state.suppliers.map(function (s) {
         var typeBadge = s.type === 'import' ? '<span class="badge badge-teal">Import</span>' : '<span class="badge badge-gray">Local</span>';
         var bankInfo = '-';
         if (s.type === 'import') {
-            bankInfo = '<div style="font-size:10px;color:var(--muted)">' + 
-                       (s.bankIban ? 'IBAN: '+escH(s.bankIban) : (s.bankName ? escH(s.bankName) : '-')) + 
-                       (s.bankSwift ? ' <br>SWIFT: '+escH(s.bankSwift) : '') + 
-                       '</div>';
+            bankInfo = '<div style="font-size:10px;color:var(--muted)">' +
+                (s.bankIban ? 'IBAN: ' + escH(s.bankIban) : (s.bankName ? escH(s.bankName) : '-')) +
+                (s.bankSwift ? ' <br>SWIFT: ' + escH(s.bankSwift) : '') +
+                '</div>';
         } else if (s.bankName) {
-            bankInfo = '<div style="font-size:10px;color:var(--muted)">'+escH(s.bankName)+' - '+escH(s.bankAc)+'</div>';
+            bankInfo = '<div style="font-size:10px;color:var(--muted)">' + escH(s.bankName) + ' - ' + escH(s.bankAc) + '</div>';
         }
-        
-        return '<tr><td><b>'+escH(s.name)+'</b></td><td>'+typeBadge+'</td><td>'+escH(s.contact)+'</td><td class="mono">'+escH(s.phone)+'</td><td>'+escH(s.city)+'</td><td>'+bankInfo+'</td><td>' +
-               '<div style="display:flex;gap:4px">' +
-                 '<button class="btn btn-primary btn-sm" onclick="editSupplier('+s.id+')">&#x270F;</button>' +
-                 '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'suppliers\','+s.id+')">&#x2715;</button>' +
-               '</div></td></tr>';
+
+        return '<tr><td><b>' + escH(s.name) + '</b></td><td>' + typeBadge + '</td><td>' + escH(s.contact) + '</td><td class="mono">' + escH(s.phone) + '</td><td>' + escH(s.city) + '</td><td>' + bankInfo + '</td><td>' +
+            '<div style="display:flex;gap:4px">' +
+            '<button class="btn btn-primary btn-sm" onclick="editSupplier(' + s.id + ')">&#x270F;</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'suppliers\',' + s.id + ')">&#x2715;</button>' +
+            '</div></td></tr>';
     }).join('');
 }
 function toggleSupIntlFields() {
@@ -1982,16 +1999,16 @@ function toggleSupIntlFields() {
     var intl = document.querySelectorAll('.sup-intl-fields');
     var local = document.getElementById('sup-ifsc-group');
     if (type === 'import') {
-        intl.forEach(function(el){ el.style.display = 'flex'; });
+        intl.forEach(function (el) { el.style.display = 'flex'; });
         local.style.display = 'none';
     } else {
-        intl.forEach(function(el){ el.style.display = 'none'; });
+        intl.forEach(function (el) { el.style.display = 'none'; });
         local.style.display = 'flex';
     }
 }
 var editingSupId = null;
 function editSupplier(id) {
-    var s = state.suppliers.find(function(x){return x.id === id;});
+    var s = state.suppliers.find(function (x) { return x.id === id; });
     if (!s) return;
     editingSupId = id;
     document.getElementById('sup-name').value = s.name;
@@ -2005,17 +2022,17 @@ function editSupplier(id) {
     document.getElementById('sup-bank-iban').value = s.bankIban || '';
     document.getElementById('sup-bank-swift').value = s.bankSwift || '';
     document.getElementById('sup-bank-curr').value = s.bankCurr || 'USD';
-    
+
     toggleSupIntlFields();
-    
+
     var btn = document.getElementById('btn-add-supplier');
     btn.innerHTML = '&#x1F4BE; Update Supplier';
     btn.classList.add('btn-blue');
-    window.scrollTo({top:0, behavior:'smooth'});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function clearSupForm() {
     editingSupId = null;
-    ['sup-name','sup-contact','sup-phone','sup-city','sup-bank-name','sup-bank-ac','sup-bank-ifsc','sup-bank-iban','sup-bank-swift'].forEach(function(id){
+    ['sup-name', 'sup-contact', 'sup-phone', 'sup-city', 'sup-bank-name', 'sup-bank-ac', 'sup-bank-ifsc', 'sup-bank-iban', 'sup-bank-swift'].forEach(function (id) {
         var el = document.getElementById(id); if (el) el.value = '';
     });
     toggleSupIntlFields();
@@ -2027,7 +2044,7 @@ function addSupplier() {
     var n = document.getElementById('sup-name').value;
     var t = document.getElementById('sup-type').value;
     if (!n) return toast('Enter company name', true);
-    
+
     var supData = {
         name: n, type: t,
         contact: document.getElementById('sup-contact').value,
@@ -2042,8 +2059,8 @@ function addSupplier() {
     };
 
     if (editingSupId) {
-        var idx = state.suppliers.findIndex(function(x){return x.id === editingSupId;});
-        if (idx>=0) state.suppliers[idx] = Object.assign(state.suppliers[idx], supData);
+        var idx = state.suppliers.findIndex(function (x) { return x.id === editingSupId; });
+        if (idx >= 0) state.suppliers[idx] = Object.assign(state.suppliers[idx], supData);
         toast('Supplier updated');
     } else {
         supData.id = state.nextSupId++;
@@ -2055,18 +2072,18 @@ function addSupplier() {
 
 /* ═══════ BUYERS ═══════ */
 function renderBuyersTable() {
-    document.getElementById('buyersTable').innerHTML = state.buyers.map(function(b) {
-        var bankInfo = b.bankName ? '<div style="font-size:10px;color:var(--muted)">'+escH(b.bankName)+' - '+escH(b.bankAc)+'</div>' : '-';
-        return '<tr><td><b>'+escH(b.name)+'</b></td><td>'+escH(b.contact)+'</td><td class="mono">'+escH(b.phone)+'</td><td>'+escH(b.city)+'</td><td>'+bankInfo+'</td><td>' +
-               '<div style="display:flex;gap:4px">' +
-                 '<button class="btn btn-primary btn-sm" onclick="editBuyer('+b.id+')">&#x270F;</button>' +
-                 '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'buyers\','+b.id+')">&#x2715;</button>' +
-               '</div></td></tr>';
+    document.getElementById('buyersTable').innerHTML = state.buyers.map(function (b) {
+        var bankInfo = b.bankName ? '<div style="font-size:10px;color:var(--muted)">' + escH(b.bankName) + ' - ' + escH(b.bankAc) + '</div>' : '-';
+        return '<tr><td><b>' + escH(b.name) + '</b></td><td>' + escH(b.contact) + '</td><td class="mono">' + escH(b.phone) + '</td><td>' + escH(b.city) + '</td><td>' + bankInfo + '</td><td>' +
+            '<div style="display:flex;gap:4px">' +
+            '<button class="btn btn-primary btn-sm" onclick="editBuyer(' + b.id + ')">&#x270F;</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'buyers\',' + b.id + ')">&#x2715;</button>' +
+            '</div></td></tr>';
     }).join('');
 }
 var editingBuyId = null;
 function editBuyer(id) {
-    var b = state.buyers.find(function(x){return x.id === id;});
+    var b = state.buyers.find(function (x) { return x.id === id; });
     if (!b) return;
     editingBuyId = id;
     document.getElementById('buy-name').value = b.name;
@@ -2076,15 +2093,15 @@ function editBuyer(id) {
     document.getElementById('buy-bank-name').value = b.bankName || '';
     document.getElementById('buy-bank-ac').value = b.bankAc || '';
     document.getElementById('buy-bank-ifsc').value = b.bankIfsc || '';
-    
+
     var btn = document.getElementById('btn-add-buyer');
     btn.innerHTML = '&#x1F4BE; Update Buyer';
     btn.classList.add('btn-blue');
-    window.scrollTo({top:0, behavior:'smooth'});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function clearBuyForm() {
     editingBuyId = null;
-    ['buy-name','buy-contact','buy-phone','buy-city','buy-bank-name','buy-bank-ac','buy-bank-ifsc'].forEach(function(id){document.getElementById(id).value='';});
+    ['buy-name', 'buy-contact', 'buy-phone', 'buy-city', 'buy-bank-name', 'buy-bank-ac', 'buy-bank-ifsc'].forEach(function (id) { document.getElementById(id).value = ''; });
     var btn = document.getElementById('btn-add-buyer');
     btn.innerHTML = '&#x1F464; Add Buyer';
     btn.classList.remove('btn-blue');
@@ -2092,7 +2109,7 @@ function clearBuyForm() {
 function addBuyer() {
     var n = document.getElementById('buy-name').value;
     if (!n) return toast('Enter company name', true);
-    
+
     var buyData = {
         name: n,
         contact: document.getElementById('buy-contact').value,
@@ -2104,8 +2121,8 @@ function addBuyer() {
     };
 
     if (editingBuyId) {
-        var idx = state.buyers.findIndex(function(x){return x.id === editingBuyId;});
-        if (idx>=0) state.buyers[idx] = Object.assign(state.buyers[idx], buyData);
+        var idx = state.buyers.findIndex(function (x) { return x.id === editingBuyId; });
+        if (idx >= 0) state.buyers[idx] = Object.assign(state.buyers[idx], buyData);
         toast('Buyer updated');
     } else {
         buyData.id = state.nextBuyId++;
@@ -2130,18 +2147,18 @@ function renderReports() {
         kpiC('Profit', fmt(profit), '');
     document.getElementById('plSummary').innerHTML =
         '<div class="form-group"><label>Order Type</label><select id="ord-type" onchange="populateOrderParties()"><option value="SALE">Sale Order</option><option value="PURCHASE">Purchase Order</option></select></div><div class="form-group"><label>Party / Customer</label><select id="ord-customer"></select></div>' +
-        '<div class="stat-row"><span>Total Revenue</span><span class="stat-val up">'+fmt(sales)+'</span></div>' +
-        '<div class="stat-row"><span>Total Expenses</span><span class="stat-val down">'+fmt(buys)+'</span></div>' +
-        '<div class="stat-row"><span>Net Profit</span><span class="stat-val '+(profit>=0?'up':'down')+'">'+fmt(profit)+'</span></div>';
+        '<div class="stat-row"><span>Total Revenue</span><span class="stat-val up">' + fmt(sales) + '</span></div>' +
+        '<div class="stat-row"><span>Total Expenses</span><span class="stat-val down">' + fmt(buys) + '</span></div>' +
+        '<div class="stat-row"><span>Net Profit</span><span class="stat-val ' + (profit >= 0 ? 'up' : 'down') + '">' + fmt(profit) + '</span></div>';
     var cust = {};
     for (var i = 0; i < state.trades.length; i++) {
         var t = state.trades[i];
         var displayQty = t.raw_qty !== undefined ? t.raw_qty : t.vol;
-        if (t.type === 'Sell') cust[t.party] = (cust[t.party]||0) + (displayQty * t.price);
+        if (t.type === 'Sell') cust[t.party] = (cust[t.party] || 0) + (displayQty * t.price);
     }
-    var top = Object.keys(cust).map(function(k){return [k, cust[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0, 5);
-    document.getElementById('topCustomers').innerHTML = top.map(function(c) {
-        return '<div class="stat-row"><span>'+c[0]+'</span><span class="stat-val">'+fmt(c[1])+'</span></div>';
+    var top = Object.keys(cust).map(function (k) { return [k, cust[k]]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 5);
+    document.getElementById('topCustomers').innerHTML = top.map(function (c) {
+        return '<div class="stat-row"><span>' + c[0] + '</span><span class="stat-val">' + fmt(c[1]) + '</span></div>';
     }).join('') || '<div class="empty">No sales data yet</div>';
 }
 
@@ -2150,21 +2167,21 @@ var _confirmResolve = null;
 function customConfirm(msg) {
     document.getElementById('confirmMsg').textContent = msg;
     document.getElementById('confirmModal').classList.add('show');
-    return new Promise(function(r){ _confirmResolve = r; });
+    return new Promise(function (r) { _confirmResolve = r; });
 }
-document.getElementById('confirmYes').onclick = function() {
+document.getElementById('confirmYes').onclick = function () {
     document.getElementById('confirmModal').classList.remove('show');
     if (_confirmResolve) _confirmResolve(true);
 };
-document.getElementById('confirmNo').onclick = function() {
+document.getElementById('confirmNo').onclick = function () {
     document.getElementById('confirmModal').classList.remove('show');
     if (_confirmResolve) _confirmResolve(false);
 };
 
 function deleteItem(arr, id) {
-    customConfirm('Remove this item?').then(function(ok) {
+    customConfirm('Remove this item?').then(function (ok) {
         if (!ok) return;
-        state[arr] = state[arr].filter(function(x){ return x.id !== id; });
+        state[arr] = state[arr].filter(function (x) { return x.id !== id; });
         saveState();
         if (arr === 'inventory') { renderInventoryTable(); renderDashboardKpis(); renderInvLevels(); }
         if (arr === 'trades') { renderTradesTable(); renderRecentTrades(); renderDashboardKpis(); }
@@ -2173,38 +2190,38 @@ function deleteItem(arr, id) {
     });
 }
 function deleteOrder(id) {
-    customConfirm('Delete order ' + id + '?').then(function(ok) {
+    customConfirm('Delete order ' + id + '?').then(function (ok) {
         if (!ok) return;
-        state.orders = state.orders.filter(function(o){ return o.id !== id; });
+        state.orders = state.orders.filter(function (o) { return o.id !== id; });
         saveState(); renderOrdersTable(); renderActiveOrders(); populateSelects(); toast('Order removed');
     });
 }
 function deleteChallan(id) {
-    customConfirm('Delete challan ' + id + '?').then(function(ok) {
+    customConfirm('Delete challan ' + id + '?').then(function (ok) {
         if (!ok) return;
-        state.challans = state.challans.filter(function(c){ return c.id !== id; });
+        state.challans = state.challans.filter(function (c) { return c.id !== id; });
         saveState(); renderChallansTable(); toast('Challan removed');
     });
 }
 function deleteProduct(n) {
-    customConfirm('Delete product "' + n + '"?').then(function(ok) {
+    customConfirm('Delete product "' + n + '"?').then(function (ok) {
         if (!ok) return;
-        state.products = state.products.filter(function(p){ return p !== n; });
+        state.products = state.products.filter(function (p) { return p !== n; });
         saveState(); populateSelects(); renderProductsList(); toast('Product removed');
     });
 }
 var editingProductName = null;
 
 function editProduct(n) {
-    var p = state.products.find(function(x) { return x.name === n; });
+    var p = state.products.find(function (x) { return x.name === n; });
     if (!p) return;
-    
+
     editingProductName = n;
     document.getElementById('pm-name').value = p.name;
     document.getElementById('pm-other').value = p.other || '';
     document.getElementById('pm-hsn').value = p.hsn || '';
     document.getElementById('pm-density').value = p.density;
-    
+
     var btn = document.querySelector('.page.active button[onclick="addProductMaster()"]');
     if (btn) {
         btn.innerHTML = '&#x1F4BE; Update Product';
@@ -2221,10 +2238,10 @@ function addProductMaster() {
     var density = parseFloat(document.getElementById('pm-density').value) || 0.85;
 
     if (!n) return toast('Enter product name', true);
-    
+
     if (editingProductName) {
         // Update existing
-        var idx = state.products.findIndex(function(p) { return p.name === editingProductName; });
+        var idx = state.products.findIndex(function (p) { return p.name === editingProductName; });
         if (idx >= 0) {
             state.products[idx] = { name: n, other: other, hsn: hsn, density: density };
             toast('Updated: ' + n);
@@ -2237,7 +2254,7 @@ function addProductMaster() {
         }
     } else {
         // Add new
-        var exists = state.products.some(function(p) { return p.name.toLowerCase() === n.toLowerCase(); });
+        var exists = state.products.some(function (p) { return p.name.toLowerCase() === n.toLowerCase(); });
         if (exists) return toast('Product already exists', true);
 
         state.products.push({
@@ -2250,7 +2267,7 @@ function addProductMaster() {
     }
 
     saveState(); populateSelects(); renderProductsList();
-    
+
     document.getElementById('pm-name').value = '';
     document.getElementById('pm-other').value = '';
     document.getElementById('pm-hsn').value = '';
@@ -2264,13 +2281,13 @@ function toast(msg, isErr) {
     el.textContent = msg;
     el.className = 'toast show' + (isErr ? ' err' : '');
     clearTimeout(_toastTimer);
-    _toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 4000);
+    _toastTimer = setTimeout(function () { el.classList.remove('show'); }, 4000);
 }
 
 /* ═══════ PAGE SWITCH ═══════ */
 function switchPage(name) {
-    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-    document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active'); });
+    document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
+    document.querySelectorAll('.nav-tab').forEach(function (t) { t.classList.remove('active'); });
     if (event && event.target) event.target.classList.add('active');
     document.getElementById('page-' + name).classList.add('active');
     if (name === 'reports') renderReports();
@@ -2279,12 +2296,12 @@ function switchPage(name) {
 
 /* ═══════ TICKER ═══════ */
 function renderTicker() {
-    var prices = {'Crude Oil':6250,'Diesel':92.5,'Petrol':104.2,'Kerosene':78.3,'LPG':58.1};
-    var changes = {'Crude Oil':'+1.2%','Diesel':'-0.3%','Petrol':'+0.5%','Kerosene':'-0.1%','LPG':'+0.8%'};
-    document.getElementById('tickerEl').innerHTML = Object.keys(prices).map(function(p) {
+    var prices = { 'Crude Oil': 6250, 'Diesel': 92.5, 'Petrol': 104.2, 'Kerosene': 78.3, 'LPG': 58.1 };
+    var changes = { 'Crude Oil': '+1.2%', 'Diesel': '-0.3%', 'Petrol': '+0.5%', 'Kerosene': '-0.1%', 'LPG': '+0.8%' };
+    document.getElementById('tickerEl').innerHTML = Object.keys(prices).map(function (p) {
         var ch = changes[p];
         var cls = ch.indexOf('+') >= 0 ? 'up' : 'down';
-        return '<div class="ticker-item"><div class="ticker-name">'+p+'</div><div class="ticker-price">'+(p==='Crude Oil'?'$'+fmtN(prices[p]):fmt(prices[p]))+'</div><div class="ticker-chg '+cls+'">'+ch+'</div></div>';
+        return '<div class="ticker-item"><div class="ticker-name">' + p + '</div><div class="ticker-price">' + (p === 'Crude Oil' ? '$' + fmtN(prices[p]) : fmt(prices[p])) + '</div><div class="ticker-chg ' + cls + '">' + ch + '</div></div>';
     }).join('');
 }
 
@@ -2299,12 +2316,12 @@ var currentTradeExpenses = [];
 function addExpenseRow(data) {
     const tbody = document.getElementById('tr-expenses-body');
     const rowId = 'exp_' + Date.now() + Math.random().toString(36).substr(2, 5);
-    
+
     const row = document.createElement('tr');
     row.id = rowId;
     row.className = 'expense-row';
     row.style.borderBottom = '1px solid var(--border)';
-    
+
     const mode = document.getElementById('tr-mode').value;
     let types = [];
     if (mode === 'local') {
@@ -2312,18 +2329,18 @@ function addExpenseRow(data) {
     } else {
         types = ['Line Charges', 'CFS Charges', 'LOLO Charges', 'Customs Duty', 'THC Fees', 'Agency Fees', 'Transportation', 'Truck Hire', 'Insurance', 'Survey', 'Other'];
     }
-    
+
     const defaultType = data ? data.type : (mode === 'local' ? 'Truck Hire' : 'Line Charges');
     const isOther = !types.includes(defaultType) && defaultType !== 'Other';
     const finalType = isOther ? 'Other' : defaultType;
-    
+
     const defaultAmount = data ? data.amount : 0;
     const defaultStatus = data ? data.status : 'Pending';
     const defaultRef = data ? data.ref : '';
     const defaultDoc = data ? data.doc : null;
-    
+
     const defaultDate = data ? (data.date || today()) : today();
-    
+
     row.innerHTML = `
         <td style="padding:8px;"><input type="date" class="exp-date" value="${defaultDate}" oninput="updateExpenseData('${rowId}')"></td>
         <td style="padding:8px;">
@@ -2361,7 +2378,7 @@ function addExpenseRow(data) {
             <button class="btn btn-sm btn-ghost btn-remove" onclick="removeExpenseRow('${rowId}')" style="color:var(--red)">&#x2715;</button>
         </td>
     `;
-    
+
     tbody.appendChild(row);
     row.dataset.doc = defaultDoc || '';
     updateExpenseData(rowId);
@@ -2389,7 +2406,7 @@ function toggleExpenseLock(rowId) {
     const isLocked = row.classList.toggle('locked');
     const btn = row.querySelector('.btn-edit-toggle');
     const icon = btn.querySelector('.lock-icon');
-    
+
     if (isLocked) {
         icon.innerHTML = '&#x270F;'; // Pencil (Edit)
         btn.classList.remove('btn-blue');
@@ -2410,21 +2427,21 @@ function uploadExpenseDoc(rowId) {
 async function handleExpenseFileUpload(rowId, input) {
     const file = input.files[0];
     if (!file) return;
-    
+
     try {
         const uploadBtn = document.getElementById('btn-upload-' + rowId);
         uploadBtn.innerHTML = '...';
-        
+
         const url = await uploadFileToSupabase(file, 'expenses');
         const row = document.getElementById(rowId);
         row.dataset.doc = url;
-        
+
         uploadBtn.innerHTML = '&#x1F4CE;';
         uploadBtn.classList.add('btn-teal');
-        
+
         const viewBtn = document.getElementById('btn-view-' + rowId);
         viewBtn.style.display = 'inline-block';
-        
+
         toast('Bill uploaded to Cloud');
     } catch (e) {
         toast("Upload Failed: " + e.message, true);
@@ -2435,7 +2452,7 @@ function viewExpenseDoc(rowId) {
     const row = document.getElementById(rowId);
     const data = row.dataset.doc;
     if (!data) return toast('No document found', true);
-    
+
     openDocPreview(data, 'Expense Receipt Preview');
 }
 
@@ -2445,10 +2462,10 @@ function getTradeExpenses() {
     rows.forEach(row => {
         const selects = row.querySelectorAll('select');
         const customType = row.querySelector('.exp-custom-type');
-        
+
         let type = selects[0].value;
         if (type === 'Other') type = customType.value || 'Other Expense';
-        
+
         const net = parseFloat(row.querySelector('.exp-net').value) || 0;
         const tax = parseFloat(row.querySelector('.exp-tax').value) || 0;
         const total = parseFloat(row.querySelector('.exp-total').value) || 0;
@@ -2485,8 +2502,8 @@ function updateTotalExpenses() {
         const amt = amtEl ? (parseFloat(amtEl.value) || 0) : 0;
         total += amt;
     });
-    document.getElementById('tr-total-expenses').innerHTML = '&#x20B9; ' + total.toLocaleString('en-IN', {minimumFractionDigits:2});
-    
+    document.getElementById('tr-total-expenses').innerHTML = '&#x20B9; ' + total.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
     // Also trigger the main trade total update to show Landed Cost
     if (typeof calcTradeTotals === 'function') calcTradeTotals();
 }
@@ -2507,7 +2524,7 @@ function uploadShipDoc(btn) {
 async function handleShipDocUpload(input) {
     const files = input.files;
     if (!files || files.length === 0) return;
-    
+
     toast("Uploading Shipping Docs...");
     for (let f of files) {
         try {
@@ -2530,15 +2547,15 @@ function updateShipDocType(select) {
 function renderShipDocs() {
     const list = document.getElementById('tr-ship-docs-list');
     if (!list) return;
-    
+
     // Reset highlights
     document.querySelectorAll('.ship-doc-item').forEach(i => i.classList.remove('active'));
-    
+
     list.innerHTML = currentShipDocs.map((doc, idx) => {
         // Highlight checklist item
         const checklistItem = document.querySelector(`.ship-doc-item[data-type="${doc.type}"]`);
         if (checklistItem) checklistItem.classList.add('active');
-        
+
         const docUrl = doc.data || doc.url;
         const icon = doc.type === 'Bill of Lading' ? '🚢' : doc.type === 'Bill of Entry' ? '📝' : '📄';
 
@@ -2573,16 +2590,16 @@ function openDocPreview(data, title) {
     const modal = document.getElementById('docPreviewModal');
     const container = document.getElementById('docPreviewContainer');
     const titleEl = document.getElementById('previewDocTitle');
-    
+
     if (!modal || !container) {
         window.open(data, "_blank");
         return;
     }
-    
+
     titleEl.textContent = title || 'Document Preview';
     if (container.dataset.previewUrl) URL.revokeObjectURL(container.dataset.previewUrl);
     container.innerHTML = '';
-    
+
     const isPdf = data.startsWith('data:application/pdf') || (typeof data === 'string' && data.toLowerCase().endsWith('.pdf'));
     const isUrl = typeof data === 'string' && data.startsWith('http');
 
@@ -2610,13 +2627,13 @@ function dataUriToBlob(dataURI) {
     for (let i = 0; i < byteString.length; i++) {
         ia[i] = byteString.charCodeAt(i);
     }
-    return new Blob([ab], {type: mimeString});
+    return new Blob([ab], { type: mimeString });
 }
 
 function closeDocPreview() {
     const modal = document.getElementById('docPreviewModal');
     if (modal) modal.classList.remove('show');
-    
+
     const container = document.getElementById('docPreviewContainer');
     // Clear container to stop any playing media/iframes
     setTimeout(() => {
@@ -2643,14 +2660,14 @@ function addPaymentRow(data) {
     row.id = rowId;
     row.className = 'payment-row';
     row.style.borderBottom = '1px solid var(--border)';
-    
+
     const dDate = data ? data.date : today();
     const dAmtInr = data ? data.amount_inr : 0;
     const dEx = data ? data.ex_rate : (parseFloat(document.getElementById('tr-ex-rate').value) || 83.5);
     const dBank = data ? data.bank_chg : 0;
     const dType = data ? data.type : 'Bank';
     const dRem = data ? data.remarks : '';
-    
+
     row.innerHTML = `
         <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updatePaymentSummary()"></td>
         <td style="padding:8px;"><input type="number" value="${dAmtInr}" placeholder="Amt INR" oninput="updatePaymentSummary()"></td>
@@ -2658,8 +2675,8 @@ function addPaymentRow(data) {
         <td style="padding:8px;"><input type="number" value="${dBank}" placeholder="Charges" oninput="calcTradeTotals()"></td>
         <td style="padding:8px;">
             <select onchange="updatePaymentSummary()">
-                <option ${dType==='Bank'?'selected':''}>Bank</option>
-                <option ${dType==='Yard'?'selected':''}>Yard</option>
+                <option ${dType === 'Bank' ? 'selected' : ''}>Bank</option>
+                <option ${dType === 'Yard' ? 'selected' : ''}>Yard</option>
             </select>
         </td>
         <td style="padding:8px;"><input type="text" value="${dRem}" placeholder="Ref/Remark" style="width:100%"></td>
@@ -2680,10 +2697,10 @@ function updatePaymentSummary() {
     const rows = document.querySelectorAll('#tr-payments-body tr');
     const mainCurr = document.getElementById('tr-imp-curr').value;
     const univRate = parseFloat(document.getElementById('tr-pay-univ-rate').value) || 3.6725;
-    
+
     let totalInMainCurr = 0;
     let totalBankINR = 0;
-    
+
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
         const amtInr = parseFloat(inputs[1].value) || 0;
@@ -2692,7 +2709,7 @@ function updatePaymentSummary() {
         totalBankINR += bank;
         if (exRate > 0) totalInMainCurr += (amtInr / exRate);
     });
-    
+
     // Calculate Dual Totals
     let totalUSD = 0, totalAED = 0;
     if (mainCurr === 'USD') {
@@ -2702,19 +2719,19 @@ function updatePaymentSummary() {
         totalAED = totalInMainCurr;
         totalUSD = totalAED / univRate;
     }
-    
+
     document.getElementById('tr-pay-total-dual').innerHTML = `
-        <span style="color:var(--text)">USD ${totalUSD.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
-        <span style="color:var(--muted)">AED ${totalAED.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+        <span style="color:var(--text)">USD ${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+        <span style="color:var(--muted)">AED ${totalAED.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
     `;
     document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBankINR.toLocaleString('en-IN');
-    
+
     // Balance calculation
     const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
     const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
     const totalDueInMain = qty * rate;
     const balInMain = totalDueInMain - totalInMainCurr;
-    
+
     let balUSD = 0, balAED = 0;
     if (mainCurr === 'USD') {
         balUSD = balInMain;
@@ -2723,13 +2740,13 @@ function updatePaymentSummary() {
         balAED = balInMain;
         balUSD = balAED / univRate;
     }
-    
+
     const balEl = document.getElementById('tr-pay-balance-dual');
     balEl.innerHTML = `
-        <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US',{minimumFractionDigits:2}) : '0.00'}</span>
-        <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US',{minimumFractionDigits:2}) : '0.00'}</span>
+        <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
+        <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
     `;
-    
+
     if (balInMain <= 0.05 && totalDueInMain > 0) {
         document.getElementById('tr-payment-status').style.display = 'block';
     } else {
@@ -2777,19 +2794,19 @@ function addBuyerPaymentRow(data) {
     row.id = rowId;
     row.className = 'buyer-payment-row';
     row.style.borderBottom = '1px solid var(--border)';
-    
+
     const dDate = data ? data.date : today();
     const dAmt = data ? data.amount : 0;
     const dType = data ? data.type : 'Bank';
     const dRem = data ? data.remarks : '';
-    
+
     row.innerHTML = `
         <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updateBuyerPaymentSummary()"></td>
         <td style="padding:8px;"><input type="number" value="${dAmt}" placeholder="Amount" oninput="updateBuyerPaymentSummary()"></td>
         <td style="padding:8px;">
             <select onchange="updateBuyerPaymentSummary()">
-                <option ${dType==='Bank'?'selected':''}>Bank</option>
-                <option ${dType==='Yard'?'selected':''}>Yard</option>
+                <option ${dType === 'Bank' ? 'selected' : ''}>Bank</option>
+                <option ${dType === 'Yard' ? 'selected' : ''}>Yard</option>
             </select>
         </td>
         <td style="padding:8px;"><input type="text" value="${dRem}" placeholder="Ref/Remark" style="width:100%"></td>
@@ -2810,16 +2827,16 @@ function updateBuyerPaymentSummary() {
     const invAmtEl = document.getElementById('tr-sale-inv-amt');
     if (!invAmtEl) return;
     const invAmt = parseFloat(invAmtEl.value) || 0;
-    
+
     let totalRec = 0;
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
         totalRec += parseFloat(inputs[1].value) || 0;
     });
-    
+
     const recEl = document.getElementById('tr-buy-total-rec');
     if (recEl) recEl.textContent = '₹ ' + totalRec.toLocaleString('en-IN');
-    
+
     const balEl = document.getElementById('tr-buy-balance');
     if (balEl) {
         const balance = invAmt - totalRec;
@@ -2855,32 +2872,32 @@ function clearBuyerData() {
 function loadDealDetails() {
     var id = document.getElementById('tr-sale-deal').value;
     if (!id) return;
-    var order = state.orders.find(function(o){ return o.id === id; });
+    var order = state.orders.find(function (o) { return o.id === id; });
     if (!order) return;
-    
+
     // Fill basic fields
     document.getElementById('tr-product').value = order.product;
     document.getElementById('tr-density').value = order.density || 0.850;
-    
+
     // Sync Unit and Values
     const unitEl = document.getElementById('tr-unit');
     const isKG = order.unit === 'KG';
     if (unitEl) unitEl.value = isKG ? 'KG' : 'LITRE';
-    
+
     document.getElementById('tr-vol').value = isKG ? (order.qty_kg || (order.qty * (order.density || 0.850))) : order.qty;
-    
+
     // Fill Sale Rate (Local Sale specific)
     const rateEl = document.getElementById('tr-price-local');
     if (rateEl) {
         rateEl.value = isKG ? (order.price_kg || (order.price / (order.density || 0.850))) : order.price;
     }
-    
+
     // Select the correct party
     const partySel = document.getElementById('tr-party-select');
     if (partySel) {
         // Find option by text matching customer name
         const options = Array.from(partySel.options);
-        const target = options.find(function(o){ return o.text === order.customer; });
+        const target = options.find(function (o) { return o.text === order.customer; });
         if (target) {
             partySel.value = target.value;
         } else {
@@ -2889,7 +2906,7 @@ function loadDealDetails() {
             if (partyInput) partyInput.value = order.customer;
         }
     }
-    
+
     // Set Sale Invoice Amount
     const invAmtEl = document.getElementById('tr-sale-inv-amt');
     if (invAmtEl) {
@@ -2897,12 +2914,12 @@ function loadDealDetails() {
         const rate = isKG ? (order.price_kg || (order.price / (order.density || 0.850))) : order.price;
         invAmtEl.value = (qty * rate).toFixed(2);
     }
-    
+
     // Trigger UI updates
     populateSourceLocations();
     calcTradeTotals();
     updateBuyerPaymentSummary();
-    
+
     toast('Loaded Order: ' + id + ' (' + (isKG ? 'KG' : 'Litre') + ' basis)');
 }
 
@@ -2910,19 +2927,19 @@ function populateSourceLocations() {
     const sel = document.getElementById('tr-source-loc');
     const product = document.getElementById('tr-product').value;
     if (!sel || !product) return;
-    
+
     // Get unique locations from inventory for this product
     const locations = state.inventory
         .filter(i => i.product === product)
         .map(i => i.location);
-    
+
     const uniqueLocs = [...new Set(locations)].filter(l => l);
-    
-    sel.innerHTML = '<option value="">-- Select Source --</option>' + 
+
+    sel.innerHTML = '<option value="">-- Select Source --</option>' +
         uniqueLocs.map(l => {
             const tank = state.tanks.find(t => t.id === l);
             const label = tank ? (tank.name + ' (' + tank.location + ')') : l;
-            return '<option value="'+l+'">'+escH(label)+'</option>';
+            return '<option value="' + l + '">' + escH(label) + '</option>';
         }).join('');
 }
 
@@ -2930,18 +2947,18 @@ function checkSourceStock() {
     const loc = document.getElementById('tr-source-loc').value;
     const product = document.getElementById('tr-product').value;
     const infoEl = document.getElementById('tr-avail-stock');
-    
+
     if (!loc || !product) {
         infoEl.style.display = 'none';
         return;
     }
-    
+
     const relevant = state.inventory.filter(i => i.product === product && i.location === loc);
     const total = relevant.reduce((sum, i) => sum + i.vol, 0);
-    
+
     infoEl.textContent = 'Avail: ' + fmtN(total.toFixed(0)) + ' L';
     infoEl.style.display = 'block';
-    
+
     if (total <= 0) infoEl.style.color = 'var(--red)';
     else infoEl.style.color = 'var(--teal)';
 }
@@ -2952,7 +2969,7 @@ function syncWeightToQty() {
     var density = parseFloat(document.getElementById('tr-density').value) || 0.850;
     var unit = document.getElementById('tr-unit').value;
     var qtyInput = document.getElementById('tr-vol');
-    
+
     if (netWeight === 0) return;
 
     if (unit === 'KG') {
@@ -2964,7 +2981,7 @@ function syncWeightToQty() {
     } else if (unit === 'MTON') {
         qtyInput.value = (netWeight / 1000).toFixed(3);
     }
-    
+
     // Trigger total calculations
     if (typeof calcTradeTotals === 'function') calcTradeTotals();
     if (typeof calcImportTotal === 'function') calcImportTotal();
@@ -2977,7 +2994,7 @@ function openHssModal() {
     if (buyer) {
         document.getElementById('hss-p-iec').value = buyer.iec || '';
     }
-     // Prepare Trade Object
+    // Prepare Trade Object
     var trade = {
         id: state.nextTradeId++,
         type: type,
@@ -3040,7 +3057,7 @@ function renderHssPreviews() {
     const product = document.getElementById('tr-prod').value;
     const seller = document.getElementById('tr-hs-seller').value;
     const buyerId = document.getElementById('tr-party').value;
-    const buyerObj = state.buyers.find(b => b.id === buyerId) || {name: buyerId, address: ''};
+    const buyerObj = state.buyers.find(b => b.id === buyerId) || { name: buyerId, address: '' };
     const vessel = document.getElementById('tr-vessel').value;
     const blNo = document.getElementById('tr-bl-no').value;
     const curr = document.getElementById('tr-imp-curr').value;
@@ -3062,7 +3079,7 @@ function renderHssPreviews() {
                 <tr><td>3. NAME & ADDRESS OF PURCHASER</td><td>: ${buyerObj.name}</td></tr>
                 <tr><td>4. IMPORT EXPORT CODE NUMBER</td><td>: ${pIec}</td></tr>
                 <tr><td>5. DESCRIPTION OF GOODS SOLD</td><td>: ${product}</td></tr>
-                <tr><td>6. QUANTITY</td><td>: ${(qty/1000).toFixed(2)} MT</td></tr>
+                <tr><td>6. QUANTITY</td><td>: ${(qty / 1000).toFixed(2)} MT</td></tr>
                 <tr><td>7. NAME & ADDRESS OF SUPPLIER</td><td>: ${seller}</td></tr>
                 <tr><td>8. INVOICE NO & DATE</td><td>: ${invNo} DT: ${today()}</td></tr>
                 <tr><td>9. NAME OF THE VESSEL</td><td>: ${vessel}</td></tr>
@@ -3092,7 +3109,7 @@ function renderHssPreviews() {
             <table>
                 <thead><tr style="background:#f4f4f4;"><th>Description of Goods</th><th>Quantity</th><th>Rate</th><th>Amount (INR)</th></tr></thead>
                 <tbody>
-                    <tr><td>${product}<br><small>FOR INDUSTRIAL USE ONLY</small></td><td>${qty.toLocaleString()} KG</td><td>${(saleConsideration/qty).toFixed(2)}</td><td>${saleConsideration.toLocaleString()}</td></tr>
+                    <tr><td>${product}<br><small>FOR INDUSTRIAL USE ONLY</small></td><td>${qty.toLocaleString()} KG</td><td>${(saleConsideration / qty).toFixed(2)}</td><td>${saleConsideration.toLocaleString()}</td></tr>
                     <tr style="font-weight:bold;"><td colspan="3" style="text-align:right;">High Seas Commission (Round Off)</td><td>INC.</td></tr>
                     <tr style="font-weight:bold; background:#f4f4f4;"><td colspan="3" style="text-align:right;">Total Value</td><td>INR ${saleConsideration.toLocaleString()}</td></tr>
                 </tbody>
@@ -3126,7 +3143,7 @@ function renderHssPreviews() {
 async function downloadAllHssDocs() {
     const container = document.getElementById('hss-print-container');
     container.innerHTML = document.getElementById('hss-previews').innerHTML;
-    
+
     const opt = {
         margin: [10, 5],
         filename: 'High_Seas_Docs_' + Date.now() + '.pdf',
@@ -3145,12 +3162,12 @@ async function downloadAllHssDocs() {
 }
 
 /* ═══════ YARD & TANK MANAGEMENT ═══════ */
-    
+
 /* ═══════ YARD MANAGER & TANK LOGIC ═══════ */
 function renderYardDashboard() {
     const grid = document.getElementById('yard-grid');
     if (!grid || !state) return;
-    
+
     grid.innerHTML = (state.tanks || []).map(tank => {
         const relevant = (state.inventory || []).filter(i => i.location === tank.id);
         const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
@@ -3158,7 +3175,7 @@ function renderYardDashboard() {
         const mainProd = products.length > 0 ? products[0] : 'EMPTY';
         const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
         const color = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#14b8a6';
-        
+
         return `
             <div class="panel" style="border-top: 4px solid ${color};">
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
@@ -3184,7 +3201,7 @@ function renderYardDashboard() {
 function renderTankManager() {
     const tbody = document.getElementById('tankManagerTable');
     if (!tbody || !state) return;
-    
+
     tbody.innerHTML = (state.tanks || []).map(t => `
         <tr>
             <td class="mono">${t.id}</td>
@@ -3194,7 +3211,7 @@ function renderTankManager() {
             <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')" style="color:var(--red)">&#x2715;</button></td>
         </tr>
     `).join('');
-    
+
     // Update Trade Storage Dropdown
     const locSelect = document.getElementById('tr-storage-loc');
     const srcSelect = document.getElementById('tr-source-loc');
@@ -3215,20 +3232,20 @@ function addTank() {
     const capKG = parseFloat(document.getElementById('new-tank-cap-kg').value);
     const capMT = parseFloat(document.getElementById('new-tank-cap-mt').value);
     const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
-    
+
     if (capKG && !cap) cap = capKG / 0.850;
     if (capMT && !cap) cap = (capMT * 1000) / 0.850;
 
     if (!name || !cap) return toast('Enter name and capacity', true);
-    
+
     const id = 'T' + (state.tanks.length + 1);
     state.tanks.push({ id, name, capacity: cap, location: loc });
-    
+
     document.getElementById('new-tank-name').value = '';
     document.getElementById('new-tank-cap').value = '';
     document.getElementById('new-tank-cap-kg').value = '';
     document.getElementById('new-tank-cap-mt').value = '';
-    
+
     saveState();
     renderTankManager();
     renderYardDashboard();
@@ -3245,10 +3262,10 @@ function deleteTank(id) {
 
 async function forceCloudResync() {
     if (!confirm('This will clear your local cache and reload ALL data from the Cloud. Any unsaved local changes will be lost. Proceed?')) return;
-    
+
     toast('Clearing cache and re-syncing...');
     localStorage.removeItem('murji_oil_v12');
-    
+
     // Force reload
     window.location.reload();
 }
@@ -3257,20 +3274,20 @@ async function inspectCloudData() {
     try {
         const { data: auth } = await supabaseClient.auth.getSession();
         if (!auth.session) return alert("Please Login first to inspect cloud data.");
-        
+
         toast("Checking cloud database...");
         const { data, error } = await supabaseClient
             .from('murji_state')
             .select('state_data')
             .eq('user_id', auth.session.user.id)
             .maybeSingle();
-            
+
         if (error) throw error;
         if (!data || !data.state_data) return alert("No cloud data found for this user account.");
-        
+
         const tradeCount = data.state_data.trades ? data.state_data.trades.length : 0;
         const tankCount = data.state_data.tanks ? data.state_data.tanks.length : 0;
-        
+
         alert(`CLOUD DATABASE CHECK:\n\n✅ Data Found!\n- Total Trades: ${tradeCount}\n- Storage Tanks: ${tankCount}\n- Products: ${data.state_data.products.length}\n\nIf you see your trades here, your data is SAFE. Click 'FORCE CLOUD RESYNC' to restore them to your screen.`);
     } catch (e) {
         console.error(e);
@@ -3297,7 +3314,7 @@ async function deepRecoveryScan() {
                     }
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     if (foundData) {
@@ -3321,7 +3338,7 @@ async function initializeStorage(isManual = false) {
             fileSizeLimit: 5242880, // 5MB
             allowedMimeTypes: ['image/jpeg', 'image/png', 'application/pdf']
         });
-        
+
         if (error) {
             console.warn("Storage Init Note:", error.message);
             if (isManual && !error.message.includes('already exists')) {
@@ -3341,28 +3358,28 @@ async function initializeStorage(isManual = false) {
 async function uploadFileToSupabase(file, path) {
     const { data: auth } = await supabaseClient.auth.getSession();
     if (!auth.session) throw new Error("Please Login to upload documents.");
-    
+
     const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
     const fullPath = `${auth.session.user.id}/${path}/${fileName}`;
-    
+
     const { data, error } = await supabaseClient.storage
         .from('murji_docs')
         .upload(fullPath, file);
-        
+
     if (error) throw error;
-    
+
     const { data: urlData } = supabaseClient.storage
         .from('murji_docs')
         .getPublicUrl(fullPath);
-        
+
     return urlData.publicUrl;
 }
 
 function dataURLtoFile(dataurl, filename) {
     var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
-    bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-    while(n--){ u8arr[n] = bstr.charCodeAt(n); }
-    return new File([u8arr], filename, {type:mime});
+        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+    return new File([u8arr], filename, { type: mime });
 }
 
 function exportStateToFile() {
@@ -3383,7 +3400,7 @@ function importStateFromFile(input) {
     const file = input.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             const imported = JSON.parse(e.target.result);
             if (!imported.trades) throw new Error("Invalid backup file format.");
@@ -3415,22 +3432,22 @@ function generateLandedCostReport(tradeId) {
     // Calculate Financials correctly
     const foreignAmt = q * usdRate;
     const basicInr = q * (usdRate * exRate);
-    
+
     const expenses = t.expenses || [];
     const expNetTotal = expenses.reduce((s, e) => s + (parseFloat(e.net_amount) || 0), 0);
     const expTaxTotal = expenses.reduce((s, e) => s + (parseFloat(e.tax_amount) || 0), 0);
     const expGrandTotal = expenses.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
-    
+
     // Also include Bank Charges from payments if any
     const bankCharges = (t.payments || []).reduce((s, p) => s + (parseFloat(p.bank_charges) || 0), 0);
     const tankCost = parseFloat(t.tank_cost) || 0;
-    
+
     // Total INR should be the exact sum of all components
     const totalPurchaseCost = basicInr + expGrandTotal + bankCharges + tankCost;
-    
+
     // Total KG for Landed Rate calculation
     const totalKG = (unit === 'KG') ? q : (unit === 'MTON' ? q * 1000 : q * (t.density || 0.85));
-    
+
     const basicRateKG = totalKG > 0 ? (basicInr / totalKG) : 0;
     const expRateKG = totalKG > 0 ? ((expGrandTotal + bankCharges + tankCost) / totalKG) : 0;
     const finalLandedKG = basicRateKG + expRateKG;
@@ -3488,7 +3505,7 @@ function generateLandedCostReport(tradeId) {
                     <tr>
                         <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">${q.toLocaleString()} ${unit}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${usdRate.toLocaleString()}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">${foreignAmt.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">${foreignAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${exRate}</td>
                         <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #14b8a6;">${fmt(basicInr)}</td>
                     </tr>
@@ -3575,7 +3592,7 @@ function generateLandedCostReport(tradeId) {
 }
 
 // Global listener to clear mismatch warnings
-document.addEventListener('input', function(e) {
+document.addEventListener('input', function (e) {
     if (e.target && e.target.style && (e.target.style.border.includes('239') || e.target.style.border.includes('ef4444'))) {
         e.target.style.border = '';
         e.target.style.boxShadow = '';
