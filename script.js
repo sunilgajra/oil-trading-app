@@ -3300,16 +3300,18 @@ function generateLandedCostReport(tradeId) {
     const expTaxTotal = expenses.reduce((s, e) => s + (parseFloat(e.tax_amount) || 0), 0);
     const expGrandTotal = expenses.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
     
-    // Total INR should match the dashboard's calculated total (including bank charges)
-    const totalInrStr = t.total_inr || '₹0';
-    const totalPurchaseCost = parseFloat(totalInrStr.replace(/[^0-9.]/g, '')) || (basicInr + expGrandTotal);
+    // Also include Bank Charges from payments if any
+    const bankCharges = (t.payments || []).reduce((s, p) => s + (parseFloat(p.bank_charges) || 0), 0);
+    
+    // Total INR should be the exact sum of all components
+    const totalPurchaseCost = basicInr + expGrandTotal + bankCharges;
     
     // Total KG for Landed Rate calculation
     const totalKG = (unit === 'KG') ? q : (unit === 'MTON' ? q * 1000 : q * (t.density || 0.85));
     
     const basicRateKG = totalKG > 0 ? (basicInr / totalKG) : 0;
-    const expRateKG = totalKG > 0 ? (expGrandTotal / totalKG) : 0;
-    const finalLandedKG = totalKG > 0 ? (totalPurchaseCost / totalKG) : 0;
+    const expRateKG = totalKG > 0 ? ((expGrandTotal + bankCharges) / totalKG) : 0;
+    const finalLandedKG = basicRateKG + expRateKG;
 
     const html = `
         <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; padding: 10px;">
@@ -3404,7 +3406,7 @@ function generateLandedCostReport(tradeId) {
             <!-- Final Summary Card -->
             <div style="background: #1e293b; color: #fff; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                 <span style="font-size: 16px; font-weight: bold; letter-spacing: 1px; color: #94a3b8;">TOTAL PURCHASE COST (INR)</span>
-                <span style="font-size: 24px; font-weight: bold; color: #fbbf24;">${t.total_inr || fmt(totalPurchaseCost)}</span>
+                <span style="font-size: 24px; font-weight: bold; color: #fbbf24;">${fmt(totalPurchaseCost)}</span>
             </div>
 
             <!-- Landed Rate Per KG Footer -->
