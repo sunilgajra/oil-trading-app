@@ -1312,8 +1312,9 @@ RULES:
 1. Fix all OCR errors. Reconstruct the full list of container numbers (4 letters + 7 digits).
 2. Format weights as 0.00. 
 3. Identify Vessel, Ports, Agent, and HS Code.
-4. If this is an Invoice, extract the "Invoice Number".
-Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "net_weight": "", "containers": [] }` },
+4. Extract "Invoice Number" if scanning an Invoice.
+5. Extract "Number of Containers" (Total count).
+Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "net_weight": "", "container_count": 0, "containers": [] }` },
                         { inlineData: { mimeType: docOrText.type || "application/pdf", data: base64Data } }
                     ]
                 }]
@@ -1333,49 +1334,62 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
             body: JSON.stringify(payload)
         });
 
-
-
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             const msg = errData.error ? errData.error.message : await response.text();
-            
-            if (response.status === 404) {
-                throw new Error("Gemini Model Not Found (404). This usually means the model ID or API version is incorrect. Message: " + msg);
-            }
-            if (response.status === 403) {
-                throw new Error("403 Forbidden: API Key invalid or restricted. Message: " + msg);
-            }
-            throw new Error("Gemini API Error (" + response.status + "): " + msg.substring(0, 150));
+            throw new Error("Gemini API Error: " + msg);
         }
 
         const data = await response.json();
         
-        // Defensive check for Gemini response structure
         if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
             let rawJson = data.candidates[0].content.parts[0].text;
-            
-            // Clean up JSON if AI wrapped it in markdown code blocks
             rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-            
             const ai = JSON.parse(rawJson);
             
-            if (ai.bl_no) document.getElementById('tr-bl-no').value = ai.bl_no;
-            if (ai.inv_no) document.getElementById('tr-inv-no-intl').value = ai.inv_no;
-            if (ai.vessel) document.getElementById('tr-vessel').value = ai.vessel;
-            if (ai.port_load) document.getElementById('tr-port-load').value = ai.port_load;
-            if (ai.port_dis) document.getElementById('tr-port-dis').value = ai.port_dis;
-            if (ai.dest_agent) document.getElementById('tr-agent').value = ai.dest_agent;
-            if (ai.hs_code) document.getElementById('tr-hs-code').value = ai.hs_code;
-            if (ai.net_weight) {
-                document.getElementById('tr-net-weight').value = ai.net_weight;
-                syncWeightToQty();
+            const fields = {
+                'tr-bl-no': ai.bl_no,
+                'tr-inv-no-intl': ai.inv_no,
+                'tr-vessel': ai.vessel,
+                'tr-port-load': ai.port_load,
+                'tr-port-dis': ai.port_dis,
+                'tr-agent': ai.dest_agent,
+                'tr-hs-code': ai.hs_code,
+                'tr-net-weight': ai.net_weight,
+                'tr-container-count': ai.container_count,
+                'tr-containers': Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers
+            };
+
+            let mismatches = [];
+            for (let id in fields) {
+                const el = document.getElementById(id);
+                if (!el || !fields[id]) continue;
+                
+                const newValue = fields[id].toString().trim();
+                const oldValue = el.value.trim();
+                
+                // Only warn if the field was already filled and the new value is different
+                if (oldValue && oldValue !== newValue && newValue !== '0' && newValue !== '' && newValue !== 'null') {
+                    el.style.border = '2px solid #ef4444';
+                    el.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.3)';
+                    el.title = `Mismatch detected! Existing: "${oldValue}" | New Scan: "${newValue}"`;
+                    mismatches.push(el.previousElementSibling ? el.previousElementSibling.textContent : id);
+                } else {
+                    el.style.border = '';
+                    el.style.boxShadow = '';
+                    el.title = '';
+                    el.value = newValue; // Populate if empty or matching
+                }
             }
-            if (ai.containers) document.getElementById('tr-containers').value = Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers;
             
+            if (mismatches.length > 0) {
+                toast(`Warning: Mismatch detected in: ${mismatches.join(', ')}`, true);
+            } else {
+                toast('&#x2728; Documents Verified & Synced!');
+            }
+
+            if (ai.net_weight) syncWeightToQty();
             calcTradeTotals();
-            toast('&#x2728; Gemini AI Scan Perfected!');
-        } else {
-            throw new Error("Gemini API returned an unexpected data structure. Please try again.");
         }
     } catch (e) {
         console.error("Cloud AI Error:", e);
