@@ -2366,12 +2366,32 @@ function updateShipDocType(select) {
 function renderShipDocs() {
     const list = document.getElementById('tr-ship-docs-list');
     if (!list) return;
+    
+    // Reset highlights
+    document.querySelectorAll('.ship-doc-item').forEach(i => i.classList.remove('active'));
+    
     list.innerHTML = currentShipDocs.map((doc, idx) => {
+        // Highlight checklist item
+        const checklistItem = document.querySelector(`.ship-doc-item[data-type="${doc.type}"]`);
+        if (checklistItem) checklistItem.classList.add('active');
+        
+        const docUrl = doc.data || doc.url;
+        const icon = doc.type === 'Bill of Lading' ? '🚢' : doc.type === 'Bill of Entry' ? '📝' : '📄';
+
         return `
             <div class="ship-doc-badge">
-                <span>${doc.type}: ${doc.name}</span>
-                <button onclick="openDocPreview('${doc.data || doc.url}', '${doc.name} Preview')">&#x1F441;</button>
-                <button onclick="currentShipDocs.splice(${idx},1); renderShipDocs()" style="color:var(--red)">&#x2715;</button>
+                <div class="doc-info">
+                    <div class="doc-icon">${icon}</div>
+                    <div class="doc-text">
+                        <span class="doc-type">${doc.type}</span>
+                        <span class="doc-name">${doc.name}</span>
+                    </div>
+                </div>
+                <div class="doc-actions">
+                    <button class="doc-btn" onclick="openDocPreview('${docUrl}', '${doc.name} Preview')" title="View">&#x1F441;</button>
+                    <button class="doc-btn" onclick="window.open('${docUrl}','_blank')" title="Download">&#x2913;</button>
+                    <button class="doc-btn del" onclick="currentShipDocs.splice(${idx},1); renderShipDocs()" title="Delete">&#x2715;</button>
+                </div>
             </div>
         `;
     }).join('');

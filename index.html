@@ -232,28 +232,28 @@
         
         <!-- Shipping Documents Checklist -->
         <div class="form-group full" style="border-top:1px solid var(--border); padding-top:15px; margin-top:10px;">
-            <label style="color:var(--gold2); font-size:12px; margin-bottom:10px; display:block;">Shipping Documents Checklist</label>
-            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+            <label style="color:var(--gold2); font-size:12px; margin-bottom:15px; display:block;">Shipping Documents Checklist</label>
+            <div class="ship-checklist">
                 <div class="ship-doc-item" data-type="Bill of Lading">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">🚢 BL</button>
+                    <button type="button" onclick="uploadShipDoc(this)"><i>🚢</i> BL</button>
                 </div>
                 <div class="ship-doc-item" data-type="Commercial Invoice">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">📄 INVOICE</button>
+                    <button type="button" onclick="uploadShipDoc(this)"><i>📄</i> INVOICE</button>
                 </div>
                 <div class="ship-doc-item" data-type="Packing List">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">📦 P.LIST</button>
+                    <button type="button" onclick="uploadShipDoc(this)"><i>📦</i> P.LIST</button>
                 </div>
                 <div class="ship-doc-item" data-type="COO">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">📜 COO</button>
-                </div>
-                <div class="ship-doc-item" data-type="Other">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">🛠️ OTHER</button>
+                    <button type="button" onclick="uploadShipDoc(this)"><i>📜</i> COO</button>
                 </div>
                 <div class="ship-doc-item" data-type="Bill of Entry">
-                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">📝 BOE</button>
+                    <button type="button" onclick="uploadShipDoc(this)"><i>📝</i> BOE</button>
+                </div>
+                <div class="ship-doc-item" data-type="Other">
+                    <button type="button" onclick="uploadShipDoc(this)"><i>🛠️</i> OTHER</button>
                 </div>
             </div>
-            <div id="tr-ship-docs-list" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:15px;"></div>
+            <div id="tr-ship-docs-list" class="ship-docs-container"></div>
             <input type="file" id="tr-ship-doc-upload" style="display:none" multiple onchange="handleShipDocUpload(this)">
         </div>
       </div>

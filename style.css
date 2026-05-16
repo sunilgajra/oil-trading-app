@@ -136,4 +136,40 @@ td.mono{font-family:'DM Mono',monospace;}
 .print-note{text-align:center;margin-top:20px;font-size:9px;color:#999;border-top:1px solid #ddd;padding-top:8px;}
 .print-tip{text-align:center;color:var(--muted);font-size:11px;margin-top:6px;font-style:italic;}
 
-@media(max-width:700px){.container{padding:14px;}.topbar{padding:0 14px;}.kpi-value{font-size:22px;}th,td{padding:7px 8px;font-size:11px;}.dual{grid-template-columns:1fr;}.dual-arrow{display:none;}.terms-row{flex-direction:column;}.export-bar{gap:6px;}}
+
+/* --- NEW PREMIUM DOCUMENT STYLES --- */
+.ship-checklist { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.ship-doc-item { flex: 1; min-width: 120px; }
+.ship-doc-item button { 
+    width: 100%; height: 50px; background: rgba(255,255,255,0.03); 
+    border: 1px solid var(--border); border-radius: 10px; 
+    color: var(--muted); font-size: 11px; font-weight: 600; 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;
+}
+.ship-doc-item button i { font-size: 16px; transition: 0.3s; }
+.ship-doc-item button:hover { background: rgba(255,255,255,0.06); border-color: var(--gold); color: var(--text); transform: translateY(-2px); }
+.ship-doc-item.active button { border-color: var(--teal); background: rgba(20, 184, 166, 0.1); color: var(--teal); box-shadow: 0 0 15px rgba(20, 184, 166, 0.1); }
+.ship-doc-item.active button i { transform: scale(1.1); }
+
+.ship-docs-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-top: 15px; }
+.ship-doc-badge { 
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; 
+    padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
+    transition: 0.2s; position: relative; overflow: hidden;
+}
+.ship-doc-badge:hover { border-color: var(--teal); background: var(--surface); }
+.ship-doc-badge::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--teal); }
+.ship-doc-badge .doc-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.ship-doc-badge .doc-icon { color: var(--teal); font-size: 18px; }
+.ship-doc-badge .doc-text { display: flex; flex-direction: column; min-width: 0; }
+.ship-doc-badge .doc-type { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.ship-doc-badge .doc-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ship-doc-badge .doc-actions { display: flex; gap: 6px; }
+.ship-doc-badge .doc-btn { 
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; background: var(--bg);
+    color: var(--muted); cursor: pointer; transition: 0.2s; font-size: 12px;
+}
+.ship-doc-badge .doc-btn:hover { color: var(--text); border-color: var(--gold); background: var(--surface2); }
+.ship-doc-badge .doc-btn.del:hover { color: var(--red); border-color: var(--red); }
