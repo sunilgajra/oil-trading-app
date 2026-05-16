@@ -2646,11 +2646,12 @@ async function scanCfsSlipWithAI(input) {
         const payload = {
             contents: [{
                 parts: [
-                    { text: `DOMAIN: Logistics and Shipping Weighbridge.
-TASK: Extract the Container Number and the Actual Weight (CFS Weight / Gross Weight at destination) from this weighbridge/CFS slip.
+                    { text: `DOMAIN: Logistics and Shipping - CFS Weighing Slip.
+TASK: Extract the Container Number and the Actual Cargo Net Weight from this slip.
 RULES:
-1. Container number is usually 4 letters and 7 digits (e.g. TCNU1234567). Ignore spaces or hyphens.
-2. Find the total/actual weight of the container in KG.
+1. Container number: Look for 'Container No.' (e.g., ABCD1234567). Ignore spaces/slashes.
+2. Weight: Look specifically for 'Cargo Weight' or 'Net Weight'. If those aren't found, look for 'Gross Weight' but subtract any 'Tare Weight' if possible. We want the weight of the OIL inside.
+3. Return the weight as a clean number (e.g., 17330.00).
 Return ONLY JSON: { "container_no": "...", "cfs_weight": 0.00 }` },
                     { inlineData: { mimeType: file.type || "application/pdf", data: base64Data } }
                 ]
@@ -2672,9 +2673,21 @@ Return ONLY JSON: { "container_no": "...", "cfs_weight": 0.00 }` },
         rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
         const ai = JSON.parse(rawJson);
 
-        if (!ai.container_no || !ai.cfs_weight) {
-            throw new Error("Could not definitively extract container number or weight from the slip.");
+        if (!ai.container_no || ai.container_no.trim() === '') {
+            throw new Error(`Could not extract container number. AI parsed: ${JSON.stringify(ai)}`);
         }
+
+        let parsedWeight = 0;
+        if (ai.cfs_weight !== undefined && ai.cfs_weight !== null) {
+            parsedWeight = parseFloat(ai.cfs_weight.toString().replace(/,/g, ''));
+        }
+
+        if (isNaN(parsedWeight) || parsedWeight <= 0) {
+            throw new Error(`Could not definitively extract a valid weight. AI parsed: ${JSON.stringify(ai)}`);
+        }
+        
+        // Re-assign the cleaned parsed weight back to the object for UI injection
+        ai.cfs_weight = parsedWeight;
 
         const targetContainer = ai.container_no.replace(/[^A-Z0-9]/gi, '').toUpperCase();
         let matched = false;
