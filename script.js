@@ -2204,7 +2204,10 @@ function addExpenseRow(data) {
     const defaultRef = data ? data.ref : '';
     const defaultDoc = data ? data.doc : null;
     
+    const defaultDate = data ? (data.date || today()) : today();
+    
     row.innerHTML = `
+        <td style="padding:8px;"><input type="date" class="exp-date" value="${defaultDate}" oninput="updateExpenseData('${rowId}')"></td>
         <td style="padding:8px;">
             <select onchange="handleExpenseTypeChange('${rowId}', this.value)" style="width:100%;">
                 ${types.map(t => `<option ${finalType === t ? 'selected' : ''}>${t}</option>`).join('')}
@@ -2233,7 +2236,12 @@ function addExpenseRow(data) {
             </div>
             <input type="file" id="file-${rowId}" style="display:none" onchange="handleExpenseFileUpload('${rowId}', this)">
         </td>
-        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removeExpenseRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
+        <td style="padding:8px; text-align:center; white-space:nowrap;">
+            <button class="btn btn-sm btn-blue btn-edit-toggle" onclick="toggleExpenseLock('${rowId}')" title="Lock/Edit">
+                <span class="lock-icon">&#x1F4BE;</span>
+            </button>
+            <button class="btn btn-sm btn-ghost btn-remove" onclick="removeExpenseRow('${rowId}')" style="color:var(--red)">&#x2715;</button>
+        </td>
     `;
     
     tbody.appendChild(row);
@@ -2255,6 +2263,26 @@ function calcExpTotal(rowId) {
     const tax = parseFloat(row.querySelector('.exp-tax').value) || 0;
     row.querySelector('.exp-total').value = (net + tax).toFixed(2);
     updateExpenseData(rowId);
+}
+
+function toggleExpenseLock(rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    const isLocked = row.classList.toggle('locked');
+    const btn = row.querySelector('.btn-edit-toggle');
+    const icon = btn.querySelector('.lock-icon');
+    
+    if (isLocked) {
+        icon.innerHTML = '&#x270F;'; // Pencil (Edit)
+        btn.classList.remove('btn-blue');
+        btn.classList.add('btn-ghost');
+        toast('Record Locked');
+    } else {
+        icon.innerHTML = '&#x1F4BE;'; // Diskette (Save)
+        btn.classList.remove('btn-ghost');
+        btn.classList.add('btn-blue');
+        toast('Editing Enabled');
+    }
 }
 
 function uploadExpenseDoc(rowId) {

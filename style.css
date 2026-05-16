@@ -173,3 +173,17 @@ td.mono{font-family:'DM Mono',monospace;}
 }
 .ship-doc-badge .doc-btn:hover { color: var(--text); border-color: var(--gold); background: var(--surface2); }
 .ship-doc-badge .doc-btn.del:hover { color: var(--red); border-color: var(--red); }
+
+/* Readonly Inputs as Labels */
+.expense-row.locked input, .expense-row.locked select { 
+    background: transparent !important; 
+    border-color: transparent !important; 
+    padding-left: 0 !important; 
+    pointer-events: none; 
+    box-shadow: none !important;
+    color: var(--text);
+}
+.expense-row.locked .btn-ghost { opacity: 0.5; pointer-events: none; }
+.expense-row.locked .btn-edit-toggle { opacity: 1 !important; pointer-events: auto !important; }
+.expense-row.locked .btn-remove { opacity: 1 !important; pointer-events: auto !important; }
+.ship-doc-badge .doc-btn.del:hover { color: var(--red); border-color: var(--red); }
