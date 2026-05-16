@@ -128,6 +128,19 @@ function runMigrations() {
 
   // 5. Clean up legacy densities map if it exists
   delete state.densities;
+  // 6. Fix numeric party IDs (Counterparty display issue)
+  if (state.trades) {
+    state.trades.forEach(function(t) {
+      const isNumeric = typeof t.party === 'number' || (typeof t.party === 'string' && t.party.trim() !== "" && !isNaN(t.party));
+      if (isNumeric) {
+        const id = parseInt(t.party);
+        let found = null;
+        if (t.type === 'Buy') found = (state.suppliers || []).find(function(s){ return s.id == id; });
+        else if (t.type === 'Sell') found = (state.buyers || []).find(function(b){ return b.id == id; });
+        if (found) t.party = found.name;
+      }
+    });
+  }
 }
 
 var isTableMissing = false;
@@ -942,12 +955,12 @@ function populateTradeParties() {
         selectWrap.style.display = 'block';
         inputWrap.style.display = 'none';
         sel.innerHTML = '<option value="">-- Select Supplier --</option>' + 
-            (state.suppliers||[]).map(function(s){ return '<option value="'+s.id+'">'+escH(s.name)+'</option>'; }).join('');
+            (state.suppliers||[]).map(function(s){ return '<option value="'+escH(s.name)+'">'+escH(s.name)+'</option>'; }).join('');
     } else if (type === 'Sell') {
         selectWrap.style.display = 'block';
         inputWrap.style.display = 'none';
         sel.innerHTML = '<option value="">-- Select Buyer --</option>' + 
-            (state.buyers||[]).map(function(b){ return '<option value="'+b.id+'">'+escH(b.name)+'</option>'; }).join('');
+            (state.buyers||[]).map(function(b){ return '<option value="'+escH(b.name)+'">'+escH(b.name)+'</option>'; }).join('');
     } else {
         selectWrap.style.display = 'none';
         inputWrap.style.display = 'block';
