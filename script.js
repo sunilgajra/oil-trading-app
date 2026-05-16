@@ -3057,14 +3057,35 @@ function updatePaymentSummary() {
     let totalInMainCurr = 0;
     let totalBankINR = 0;
 
+    let totalINRForAvg = 0;
+    let totalForeignForAvg = 0;
+    let lastValidRate = 0;
+
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
         const amtInr = parseFloat(inputs[1].value) || 0;
-        const exRate = parseFloat(inputs[2].value) || 1;
+        const exRate = parseFloat(inputs[2].value) || 0;
         const bank = parseFloat(inputs[3].value) || 0;
         totalBankINR += bank;
-        if (exRate > 0) totalInMainCurr += (amtInr / exRate);
+        
+        if (exRate > 0) {
+            totalInMainCurr += (amtInr / exRate);
+            totalINRForAvg += amtInr;
+            totalForeignForAvg += (amtInr / exRate);
+            lastValidRate = exRate;
+        }
     });
+
+    // Update the main Ex. Rate field with the weighted average
+    const mainExField = document.getElementById('tr-ex-rate');
+    if (mainExField && document.activeElement !== mainExField) {
+        const avgEx = totalForeignForAvg > 0 ? (totalINRForAvg / totalForeignForAvg) : lastValidRate;
+        if (avgEx > 0) {
+            mainExField.value = avgEx.toFixed(3);
+            // Trigger trade total recalculation since exchange rate changed
+            if (typeof calcTradeTotals === 'function') calcTradeTotals();
+        }
+    }
 
     // Calculate Dual Totals
     let totalUSD = 0, totalAED = 0;
