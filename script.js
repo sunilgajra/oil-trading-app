@@ -3049,51 +3049,60 @@ function removePaymentRow(id) {
     calcTradeTotals();
 }
 
-function updatePaymentSummary() {
-    const rows = document.querySelectorAll('#tr-payments-body tr');
-    const mainCurr = document.getElementById('tr-imp-curr').value;
-    const univRate = parseFloat(document.getElementById('tr-pay-univ-rate').value) || 3.6725;
+    // 1. Calculate Total Foreign Due
+    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
+    const purRate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+    const totalForeignDue = qty * purRate;
 
-    let totalInMainCurr = 0;
+    // 2. Sum actual payments and identify Yard target rate
+    let actualInrPaid = 0;
+    let actualForeignPaid = 0;
+    let yardTargetRate = 0;
     let totalBankINR = 0;
-
-    let totalINRForAvg = 0;
-    let totalForeignForAvg = 0;
-    let lastValidRate = 0;
 
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
         const amtInr = parseFloat(inputs[1].value) || 0;
         const exRate = parseFloat(inputs[2].value) || 0;
         const bank = parseFloat(inputs[3].value) || 0;
+        const type = row.querySelector('select').value;
         totalBankINR += bank;
         
         if (exRate > 0) {
-            totalInMainCurr += (amtInr / exRate);
-            totalINRForAvg += amtInr;
-            totalForeignForAvg += (amtInr / exRate);
-            lastValidRate = exRate;
+            actualInrPaid += amtInr;
+            actualForeignPaid += (amtInr / exRate);
+            if (type === 'Yard') yardTargetRate = exRate;
         }
     });
 
-    // Update the main Ex. Rate field with the weighted average
+    // 3. Planned Average Rate Logic
     const mainExField = document.getElementById('tr-ex-rate');
-    if (mainExField && document.activeElement !== mainExField) {
-        const avgEx = totalForeignForAvg > 0 ? (totalINRForAvg / totalForeignForAvg) : lastValidRate;
-        if (avgEx > 0) {
-            mainExField.value = avgEx.toFixed(3);
-            // Trigger trade total recalculation since exchange rate changed
+    const tradeDefaultEx = parseFloat(mainExField.dataset.prevVal) || parseFloat(mainExField.value) || 83.5;
+    const targetRateForBalance = yardTargetRate || tradeDefaultEx;
+
+    if (totalForeignDue > 0 && document.activeElement !== mainExField) {
+        const remainingForeign = Math.max(0, totalForeignDue - actualForeignPaid);
+        const plannedRemainingInr = remainingForeign * targetRateForBalance;
+        const totalPlannedInr = actualInrPaid + plannedRemainingInr;
+        const plannedAvgEx = totalPlannedInr / totalForeignDue;
+        
+        if (plannedAvgEx > 0) {
+            mainExField.value = plannedAvgEx.toFixed(4);
+            // Trigger UI updates for total INR based on this new planned average
             if (typeof calcTradeTotals === 'function') calcTradeTotals();
         }
     }
 
-    // Calculate Dual Totals
+    // 4. Update Dual Totals & Balance (using main currency logic)
+    const mainCurr = document.getElementById('tr-imp-curr').value;
+    const univRate = parseFloat(document.getElementById('tr-pay-univ-rate').value) || 3.6725;
+    
     let totalUSD = 0, totalAED = 0;
     if (mainCurr === 'USD') {
-        totalUSD = totalInMainCurr;
+        totalUSD = actualForeignPaid;
         totalAED = totalUSD * univRate;
     } else {
-        totalAED = totalInMainCurr;
+        totalAED = actualForeignPaid;
         totalUSD = totalAED / univRate;
     }
 
@@ -3103,12 +3112,7 @@ function updatePaymentSummary() {
     `;
     document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBankINR.toLocaleString('en-IN');
 
-    // Balance calculation
-    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
-    const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-    const totalDueInMain = qty * rate;
-    const balInMain = totalDueInMain - totalInMainCurr;
-
+    const balInMain = totalForeignDue - actualForeignPaid;
     let balUSD = 0, balAED = 0;
     if (mainCurr === 'USD') {
         balUSD = balInMain;
@@ -3124,7 +3128,7 @@ function updatePaymentSummary() {
         <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
     `;
 
-    if (balInMain <= 0.05 && totalDueInMain > 0) {
+    if (balInMain <= 0.05 && totalForeignDue > 0) {
         document.getElementById('tr-payment-status').style.display = 'block';
     } else {
         document.getElementById('tr-payment-status').style.display = 'none';
