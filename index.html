@@ -677,6 +677,48 @@
     </div>
 </div>
 
+<!-- Yard Transfer / Move to Yard Modal -->
+<div class="modal" id="moveToYardModal">
+    <div class="modal-content" style="max-width:600px; background:var(--surface); border:1px solid var(--border); padding:25px; border-radius:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:15px;">
+            <h2 style="color:var(--gold2); margin:0;"><i class="fas fa-truck-loading"></i> Move to Yard / Unload</h2>
+            <span class="close" onclick="closeMoveToYardModal()" style="font-size:24px; cursor:pointer; color:var(--muted);">&times;</span>
+        </div>
+        
+        <div style="margin-bottom:20px;">
+            <p style="font-size:13px; color:var(--muted); margin-bottom:15px;">Select which containers to clear and where to store the material.</p>
+            <div id="mty-container-list" style="background:rgba(0,0,0,0.2); border-radius:8px; padding:10px; border:1px solid var(--border); max-height:200px; overflow-y:auto; margin-bottom:20px;">
+                <!-- Container checkboxes will be rendered here -->
+            </div>
+            
+            <div class="form-grid" style="grid-template-columns: 1fr; gap:15px;">
+                <div class="form-group">
+                    <label>Destination Storage</label>
+                    <select id="mty-dest-type" onchange="toggleMtyDest(this.value)">
+                        <option value="tank">Empty into Storage Tank</option>
+                        <option value="iso">Keep in ISO Tank / Container (On-Wheels)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="mty-tank-group">
+                    <label>Select Tank</label>
+                    <select id="mty-tank-id"></select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Transfer Date</label>
+                    <input type="date" id="mty-date">
+                </div>
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-gold" onclick="confirmYardTransfer()" style="flex:1; font-weight:bold;">CONFIRM TRANSFER</button>
+            <button class="btn btn-ghost" onclick="closeMoveToYardModal()" style="flex:1;">CANCEL</button>
+        </div>
+    </div>
+</div>
+
 <!-- High Seas Document Center Modal -->
 <div class="modal" id="hssModal">
     <div class="modal-content" style="width:95%; max-width:900px; max-height:90vh; overflow-y:auto; background:var(--surface); border:1px solid var(--border); padding:25px; border-radius:15px; position:relative;">

@@ -1145,8 +1145,128 @@ function renderTradesTable() {
         var boeBadge = t.boe_no ? ' <span class="badge badge-blue" style="font-size:9px; padding:1px 4px;" title="BOE: ' + t.boe_no + '">BOE</span>' : '';
         var docBadge = hasDocs ? ' <span title="Documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
 
-        return '<tr><td class="mono">' + t.date + '</td><td><span class="badge ' + (t.type === 'Buy' ? 'badge-blue' : 'badge-green') + '">' + t.type + '</span>' + modeInfo + boeBadge + docBadge + '</td><td>' + t.product + '</td><td>' + t.party + '</td><td class="mono">' + fmtN(displayQty) + unitSuffix + '</td><td class="mono">' + fmt(t.price) + '</td><td class="mono">' + fmt(displayQty * t.price) + '</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade(' + t.id + ')" title="Edit">&#x270F;</button><button class="btn btn-ghost btn-sm" onclick="printTradeReceipt(' + t.id + ')" title="Print">&#x1F5B6;</button>' + (t.mode === 'import' ? '<button class="btn btn-teal btn-sm" onclick="generateLandedCostReport(' + t.id + ')" title="Landed Cost Report">&#x1F4CA;</button>' : '') + '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\',' + t.id + ')" title="Delete">&#x2715;</button></div></td></tr>';
+        const moveBtn = t.mode === 'import' ? `<button class="btn btn-blue btn-sm" onclick="openMoveToYardModal(${t.id})" title="Move to Yard">&#x1F69A;</button>` : '';
+
+        return '<tr><td class="mono">' + t.date + '</td><td><span class="badge ' + (t.type === 'Buy' ? 'badge-blue' : 'badge-green') + '">' + t.type + '</span>' + modeInfo + boeBadge + docBadge + '</td><td>' + t.product + '</td><td>' + t.party + '</td><td class="mono">' + fmtN(displayQty) + unitSuffix + '</td><td class="mono">' + fmt(t.price) + '</td><td class="mono">' + fmt(displayQty * t.price) + '</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade(' + t.id + ')" title="Edit">&#x270F;</button><button class="btn btn-ghost btn-sm" onclick="printTradeReceipt(' + t.id + ')" title="Print">&#x1F5B6;</button>' + (t.mode === 'import' ? '<button class="btn btn-teal btn-sm" onclick="generateLandedCostReport(' + t.id + ')" title="Landed Cost Report">&#x1F4CA;</button>' : '') + moveBtn + '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\',' + t.id + ')" title="Delete">&#x2715;</button></div></td></tr>';
     }).join('');
+}
+
+let currentMtyTradeId = null;
+function openMoveToYardModal(tradeId) {
+    const t = state.trades.find(x => x.id === tradeId);
+    if (!t) return;
+    currentMtyTradeId = tradeId;
+    
+    document.getElementById('mty-date').value = today();
+    
+    // Render containers with checkboxes
+    const list = document.getElementById('mty-container-list');
+    const tally = t.container_tally || [];
+    
+    if (tally.length === 0) {
+        list.innerHTML = '<div style="padding:15px; color:var(--red); text-align:center; font-size:12px;">No container data found for this trade.<br>Please update the Trade Grid with Container IDs and Weights first.</div>';
+    } else {
+        list.innerHTML = tally.map((c, i) => {
+            const isTransferred = c.status === 'Transferred';
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <label style="display:flex; align-items:center; gap:12px; cursor:${isTransferred ? 'default' : 'pointer'}; opacity:${isTransferred ? 0.5 : 1}; margin:0; flex:1;">
+                        <input type="checkbox" class="mty-cnt-check" value="${i}" ${isTransferred ? 'disabled' : 'checked'} style="width:16px; height:16px;">
+                        <div>
+                            <div style="font-family:monospace; font-weight:bold; color:var(--text);">${c.container_no}</div>
+                            <div style="font-size:10px; color:var(--muted);">${isTransferred ? `Unloaded on ${c.transfer_date}` : 'Awaiting Yard Transfer'}</div>
+                        </div>
+                    </label>
+                    <div style="text-align:right;">
+                        <div style="font-size:13px; font-weight:bold; color:var(--teal);">${fmtN(c.cfs_weight)} KG</div>
+                        <div style="font-size:9px; color:var(--muted);">ACTUAL CFS WT</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // Populate Tanks
+    const tankSel = document.getElementById('mty-tank-id');
+    tankSel.innerHTML = (state.tanks || []).filter(tk => tk.type !== 'Mobile').map(tank => `<option value="${tank.id}">${tank.name} (${tank.location})</option>`).join('');
+    
+    document.getElementById('moveToYardModal').classList.add('show');
+}
+
+function toggleMtyDest(val) {
+    document.getElementById('mty-tank-group').style.display = val === 'tank' ? 'block' : 'none';
+}
+
+function closeMoveToYardModal() {
+    document.getElementById('moveToYardModal').classList.remove('show');
+}
+
+async function confirmYardTransfer() {
+    const t = state.trades.find(x => x.id === currentMtyTradeId);
+    if (!t) return;
+    
+    const selectedIndices = Array.from(document.querySelectorAll('.mty-cnt-check:checked')).map(el => parseInt(el.value));
+    if (selectedIndices.length === 0) return toast('Please select at least one container to transfer', true);
+    
+    const destType = document.getElementById('mty-dest-type').value;
+    const tankId = document.getElementById('mty-tank-id').value;
+    const date = document.getElementById('mty-date').value || today();
+    
+    let totalTransferred = 0;
+    
+    selectedIndices.forEach(idx => {
+        const c = t.container_tally[idx];
+        const weight = parseFloat(c.cfs_weight) || 0;
+        if (weight <= 0) return;
+        
+        totalTransferred += weight;
+        c.status = 'Transferred';
+        c.transfer_date = date;
+        c.transfer_dest = destType === 'tank' ? tankId : 'ISO_' + c.container_no;
+        
+        // Add to Inventory
+        state.inventory.push({
+            id: 'INV' + (state.nextInvId++),
+            trade_id: t.id,
+            container_no: c.container_no,
+            product: t.product,
+            vol: weight / (t.density || 0.850),
+            weight_kg: weight,
+            density: t.density || 0.850,
+            location: destType === 'tank' ? tankId : ('ISO_' + c.container_no),
+            date: date,
+            type: destType === 'tank' ? 'Unload to Tank' : 'Yard Receipt (ISO)',
+            status: 'In Yard'
+        });
+        
+        // If it's a virtual ISO tank, register it as a temporary storage if not exists
+        if (destType === 'iso') {
+            const exists = (state.tanks || []).find(tk => tk.id === ('ISO_' + c.container_no));
+            if (!exists) {
+                if (!state.tanks) state.tanks = [];
+                state.tanks.push({
+                    id: 'ISO_' + c.container_no,
+                    name: 'ISO: ' + c.container_no,
+                    location: 'Yard - On Wheels',
+                    capacity: 30000, 
+                    type: 'Mobile'
+                });
+            }
+        }
+    });
+    
+    // Check if ALL containers in this trade are transferred
+    const allDone = t.container_tally.every(c => c.status === 'Transferred');
+    if (allDone) {
+        t.status = 'Completed';
+    }
+    
+    saveState();
+    closeMoveToYardModal();
+    renderTradesTable();
+    if (typeof renderYardDashboard === 'function') renderYardDashboard();
+    if (typeof renderTankManager === 'function') renderTankManager();
+    toast(`✨ Successfully transferred ${fmtN(totalTransferred)} KG to your yard!`);
 }
 async function handleTradeDocUpload(input) {
     const files = input.files;
