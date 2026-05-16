@@ -2624,6 +2624,101 @@ function getContainerGridData() {
     })).filter(c => c.container_no);
 }
 
+async function scanCfsSlipWithAI(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    if (!state.apiKey) return toast('Please configure AI API Key first', true);
+    
+    const btn = document.getElementById('btn-cfs-scan');
+    const oldBtnHtml = btn.innerHTML;
+    btn.innerHTML = '&#x23F3; Scanning Slip...';
+    btn.disabled = true;
+
+    try {
+        const base64Data = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(file);
+        });
+
+        const model = state.apiModel || 'gemini-3.1-flash-lite';
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: `DOMAIN: Logistics and Shipping Weighbridge.
+TASK: Extract the Container Number and the Actual Weight (CFS Weight / Gross Weight at destination) from this weighbridge/CFS slip.
+RULES:
+1. Container number is usually 4 letters and 7 digits (e.g. TCNU1234567). Ignore spaces or hyphens.
+2. Find the total/actual weight of the container in KG.
+Return ONLY JSON: { "container_no": "...", "cfs_weight": 0.00 }` },
+                    { inlineData: { mimeType: file.type || "application/pdf", data: base64Data } }
+                ]
+            }]
+        };
+
+        const response = await fetch('https://generativelanguage.googleapis.com/v1/models/' + model + ':generateContent?key=' + state.apiKey, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error("API Error " + response.status);
+        const data = await response.json();
+        
+        if (!data || !data.candidates || !data.candidates[0]) throw new Error("Empty AI Response");
+        
+        let rawJson = data.candidates[0].content.parts[0].text;
+        rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
+        const ai = JSON.parse(rawJson);
+
+        if (!ai.container_no || !ai.cfs_weight) {
+            throw new Error("Could not definitively extract container number or weight from the slip.");
+        }
+
+        const targetContainer = ai.container_no.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        let matched = false;
+        
+        const rows = document.querySelectorAll('#tr-container-body tr');
+        rows.forEach(row => {
+            const rowCnt = row.querySelector('.cnt-no').value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            
+            // Match logic: identical, or strong partial match if OCR missed a character
+            if (rowCnt && targetContainer && (rowCnt === targetContainer || (rowCnt.length >= 8 && targetContainer.includes(rowCnt)))) {
+                const cfsInput = row.querySelector('.cnt-cfs');
+                cfsInput.value = ai.cfs_weight;
+                
+                // Visual feedback pulse
+                const origBg = cfsInput.style.background;
+                const origBorder = cfsInput.style.border;
+                cfsInput.style.background = 'rgba(45, 212, 191, 0.3)'; // Teal pulse
+                cfsInput.style.border = '2px solid var(--teal)';
+                setTimeout(() => {
+                    cfsInput.style.background = origBg;
+                    cfsInput.style.border = origBorder;
+                }, 3000);
+                
+                matched = true;
+            }
+        });
+
+        if (matched) {
+            toast('&#x2728; CFS Slip matched and weight updated!');
+            calcContainerTotals();
+        } else {
+            toast(`Warning: Found container ${ai.container_no} but it doesn't match any row in the grid.`, true);
+        }
+
+    } catch (e) {
+        console.error("CFS Scan Error:", e);
+        toast(e.message, true);
+    } finally {
+        btn.innerHTML = oldBtnHtml;
+        btn.disabled = false;
+        input.value = ''; 
+    }
+}
+
 // --- SHIPPING DOCUMENTS & PAYMENTS ---
 
 function uploadShipDoc(btn) {

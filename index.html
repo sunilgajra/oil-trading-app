@@ -235,7 +235,11 @@
         <div class="form-group full">
             <label style="display:flex; justify-content:space-between; align-items:center;">
                 <span>Container Weight Tally (BL vs CFS)</span>
-                <button type="button" class="btn btn-sm btn-ghost" onclick="addContainerRow()">+ Add Container</button>
+                <div style="display:flex; gap:10px;">
+                    <input type="file" id="tr-cfs-slip-file" style="display:none" accept=".pdf,image/*" onchange="scanCfsSlipWithAI(this)">
+                    <button type="button" class="btn btn-sm btn-gold" onclick="document.getElementById('tr-cfs-slip-file').click()" id="btn-cfs-scan">&#x2728; Scan CFS Slip</button>
+                    <button type="button" class="btn btn-sm btn-ghost" onclick="addContainerRow()">+ Add Container</button>
+                </div>
             </label>
             <!-- Hidden original textarea to preserve legacy logic and AI extraction mapping -->
             <textarea id="tr-containers" style="display:none;"></textarea>
