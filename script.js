@@ -1307,12 +1307,13 @@ async function refineWithCloudAI(docOrText) {
                 contents: [{
                     parts: [
                         { text: `DOMAIN: International Oil Shipping. 
-TASK: Extract Bill of Lading data from this document.
+TASK: Extract Bill of Lading or Commercial Invoice data from this document.
 RULES: 
 1. Fix all OCR errors. Reconstruct the full list of container numbers (4 letters + 7 digits).
 2. Format weights as 0.00. 
 3. Identify Vessel, Ports, Agent, and HS Code.
-Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "net_weight": "", "containers": [] }` },
+4. If this is an Invoice, extract the "Invoice Number".
+Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "net_weight": "", "containers": [] }` },
                         { inlineData: { mimeType: docOrText.type || "application/pdf", data: base64Data } }
                     ]
                 }]
@@ -1359,6 +1360,7 @@ Return ONLY JSON: { "bl_no": "", "vessel": "", "port_load": "", "port_dis": "", 
             const ai = JSON.parse(rawJson);
             
             if (ai.bl_no) document.getElementById('tr-bl-no').value = ai.bl_no;
+            if (ai.inv_no) document.getElementById('tr-inv-no-intl').value = ai.inv_no;
             if (ai.vessel) document.getElementById('tr-vessel').value = ai.vessel;
             if (ai.port_load) document.getElementById('tr-port-load').value = ai.port_load;
             if (ai.port_dis) document.getElementById('tr-port-dis').value = ai.port_dis;
@@ -1436,6 +1438,7 @@ function editTrade(id) {
     // Trade Docs handled below in specific section
     if (t.mode === 'import') {
         document.getElementById('tr-is-hs').checked = !!t.is_hs;
+        document.getElementById('tr-inv-no-intl').value = t.inv_no_intl || '';
         document.getElementById('tr-bl-no').value = t.bl_no || '';
         document.getElementById('tr-vessel').value = t.vessel || '';
         document.getElementById('tr-port-load').value = t.port_load || '';
@@ -1569,6 +1572,7 @@ function addTrade() {
     if (type === 'Buy') {
         if (mode === 'import') {
             trade.is_hs = document.getElementById('tr-is-hs').checked;
+            trade.inv_no_intl = document.getElementById('tr-inv-no-intl').value;
             trade.bl_no = document.getElementById('tr-bl-no').value;
             trade.vessel = document.getElementById('tr-vessel').value;
             trade.port_load = document.getElementById('tr-port-load').value;
@@ -3348,14 +3352,16 @@ function generateLandedCostReport(tradeId) {
                 <tr>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">EXPORTER NAME</td>
                     <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${escH(t.party) || 'NA'}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">MATERIAL</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${escH(t.product)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">INVOICE NO</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${escH(t.inv_no_intl) || 'NA'}</td>
                 </tr>
                 <tr>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/L NO</td>
                     <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.bl_no) || 'NA'}</td>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">VESSEL</td>
                     <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.vessel) || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">MATERIAL</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.product)}</td>
                 </tr>
                 <tr>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/E NO</td>
