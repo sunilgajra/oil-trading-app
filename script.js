@@ -2212,7 +2212,9 @@ function addExpenseRow(data) {
             <input type="text" class="exp-custom-type" value="${isOther ? defaultType : ''}" 
                    placeholder="Name..." style="display:${isOther ? 'block' : 'none'}; margin-top:5px; border-bottom:1px solid var(--border) !important;">
         </td>
-        <td style="padding:8px;"><input type="number" value="${defaultAmount}" placeholder="0.00" oninput="updateExpenseData('${rowId}')"></td>
+        <td style="padding:8px;"><input type="number" class="exp-net" value="${data ? (data.net_amount || data.amount) : defaultAmount}" placeholder="0.00" oninput="calcExpTotal('${rowId}')"></td>
+        <td style="padding:8px;"><input type="number" class="exp-tax" value="${data ? (data.tax_amount || 0) : 0}" placeholder="0.00" oninput="calcExpTotal('${rowId}')"></td>
+        <td style="padding:8px;"><input type="number" class="exp-total" value="${data ? (data.total_amount || data.amount) : defaultAmount}" placeholder="0.00" readonly style="background:var(--surface2); color:var(--teal); font-weight:bold;"></td>
         <td style="padding:8px;">
             <select onchange="updateExpenseData('${rowId}')" style="width:auto;">
                 <option ${defaultStatus === 'Paid' ? 'selected' : ''}>Paid</option>
@@ -2243,6 +2245,15 @@ function handleExpenseTypeChange(rowId, val) {
     const row = document.getElementById(rowId);
     const customInput = row.querySelector('.exp-custom-type');
     customInput.style.display = (val === 'Other') ? 'block' : 'none';
+    updateExpenseData(rowId);
+}
+
+function calcExpTotal(rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    const net = parseFloat(row.querySelector('.exp-net').value) || 0;
+    const tax = parseFloat(row.querySelector('.exp-tax').value) || 0;
+    row.querySelector('.exp-total').value = (net + tax).toFixed(2);
     updateExpenseData(rowId);
 }
 
@@ -2287,17 +2298,23 @@ function getTradeExpenses() {
     const expenses = [];
     rows.forEach(row => {
         const selects = row.querySelectorAll('select');
-        const inputs = row.querySelectorAll('input');
         const customType = row.querySelector('.exp-custom-type');
         
         let type = selects[0].value;
         if (type === 'Other') type = customType.value || 'Other Expense';
         
+        const net = parseFloat(row.querySelector('.exp-net').value) || 0;
+        const tax = parseFloat(row.querySelector('.exp-tax').value) || 0;
+        const total = parseFloat(row.querySelector('.exp-total').value) || 0;
+
         expenses.push({
             type: type,
-            amount: parseFloat(inputs[1].value) || 0,
+            net_amount: net,
+            tax_amount: tax,
+            total_amount: total,
+            amount: total, // Legacy compatibility
             status: selects[1].value,
-            ref: inputs[2].value,
+            ref: row.querySelector('input[placeholder="Ref No"]').value,
             doc: row.dataset.doc || null
         });
     });
@@ -2318,7 +2335,8 @@ function updateTotalExpenses() {
     const rows = document.querySelectorAll('#tr-expenses-body tr');
     let total = 0;
     rows.forEach(row => {
-        const amt = parseFloat(row.querySelectorAll('input')[1].value) || 0;
+        const amtEl = row.querySelector('.exp-total');
+        const amt = amtEl ? (parseFloat(amtEl.value) || 0) : 0;
         total += amt;
     });
     document.getElementById('tr-total-expenses').innerHTML = '&#x20B9; ' + total.toLocaleString('en-IN', {minimumFractionDigits:2});
