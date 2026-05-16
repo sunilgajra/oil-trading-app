@@ -3677,6 +3677,50 @@ async function deepRecoveryScan() {
     }
 }
 
+/* ═══════ CLOUD AUTH ═══════ */
+function openLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) modal.classList.add('show');
+}
+
+function closeLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) modal.classList.remove('show');
+}
+
+async function handleLogin() {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return toast('Enter email and password', true);
+
+    toast('Logging into Cloud...');
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) return toast(error.message, true);
+
+    closeLoginModal();
+    toast('Cloud Access Granted');
+    initApp();
+}
+
+async function handleSignUp() {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return toast('Enter email and password', true);
+
+    toast('Creating Cloud Account...');
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) return toast(error.message, true);
+
+    toast('Sign up successful! Please check your email for confirmation.', false);
+}
+
+async function handleLogout() {
+    if (!confirm('Logout from Cloud?')) return;
+    await supabaseClient.auth.signOut();
+    toast('Logged out from Cloud');
+    initApp();
+}
+
 /* ═══════ STORAGE & BACKUP ═══════ */
 async function initializeStorage(isManual = false) {
     try {
@@ -3766,6 +3810,16 @@ function importStateFromFile(input) {
 }
 
 /* ═══════ LANDED COST REPORT (EXCEL STYLE) ═══════ */
+function generateLandedCostReport(tradeId) {
+    const t = state.trades.find(x => x.id === tradeId);
+    if (!t) return toast('Trade not found', true);
+
+    const q = parseFloat(t.raw_qty) || (t.vol / (t.density || 0.85)); 
+    const unit = t.unit || 'L';
+    const usdRate = parseFloat(t.imp_rate) || 0;
+    const exRate = parseFloat(t.ex_rate) || 1;
+    const foreignLabel = t.currency || 'USD';
+
     // DUAL SETTLEMENT CALCULATION (Bank vs Yard)
     const payments = t.payments || [];
     let bankForeign = 0, bankInr = 0;
