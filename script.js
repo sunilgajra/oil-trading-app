@@ -1152,10 +1152,15 @@ async function handleTradeDocUpload(input) {
     const files = input.files;
     if (!files || files.length === 0) return;
     
-    toast("Uploading Documents...");
+    toast("Processing Documents...");
     for (let f of files) {
+        // 1. ADD TO LIST IMMEDIATELY (Placeholder)
+        const tempIdx = currentTradeDocs.length;
+        currentTradeDocs.push({ name: f.name, data: '', size: f.size, date: today(), status: 'Uploading...' });
+        renderTradeDocs();
+
         try {
-            // Try cloud upload first
+            // 2. TRY CLOUD UPLOAD
             let url = null;
             if (window.supabaseClient) {
                 const { data: auth } = await supabaseClient.auth.getSession();
@@ -1163,15 +1168,18 @@ async function handleTradeDocUpload(input) {
             }
 
             if (url) {
-                currentTradeDocs.push({ name: f.name, url: url, size: f.size, date: today() });
+                currentTradeDocs[tempIdx].url = url;
+                currentTradeDocs[tempIdx].data = url;
+                currentTradeDocs[tempIdx].status = 'Ready';
             } else {
-                // Fallback to local Base64 if not logged in
+                // LOCAL FALLBACK
                 const reader = new FileReader();
                 const fileData = await new Promise((resolve) => {
                     reader.onload = (e) => resolve(e.target.result);
                     reader.readAsDataURL(f);
                 });
-                currentTradeDocs.push({ name: f.name, data: fileData, size: f.size, date: today() });
+                currentTradeDocs[tempIdx].data = fileData;
+                currentTradeDocs[tempIdx].status = 'Ready (Local)';
             }
         } catch (e) {
             console.warn("Upload Error, using local fallback:", e);
@@ -1180,10 +1188,11 @@ async function handleTradeDocUpload(input) {
                 reader.onload = (e) => resolve(e.target.result);
                 reader.readAsDataURL(f);
             });
-            currentTradeDocs.push({ name: f.name, data: fileData, size: f.size, date: today() });
+            currentTradeDocs[tempIdx].data = fileData;
+            currentTradeDocs[tempIdx].status = 'Ready (Local)';
         }
+        renderTradeDocs(); // RE-RENDER AFTER EACH SUCCESS
     }
-    renderTradeDocs();
     if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
 }
 function renderTradeDocs() {
