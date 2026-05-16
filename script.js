@@ -1131,9 +1131,10 @@ function renderTradesTable() {
         var unitSuffix = t.unit ? ' ' + t.unit : ' L';
         var hasShipDocs = t.ship_docs ? (Array.isArray(t.ship_docs) ? t.ship_docs.length > 0 : Object.keys(t.ship_docs).length > 0) : false;
         var hasDocs = (t.docs && t.docs.length > 0) || hasShipDocs;
+        var boeBadge = t.boe_no ? ' <span class="badge badge-blue" style="font-size:9px; padding:1px 4px;" title="BOE: '+t.boe_no+'">BOE</span>' : '';
         var docBadge = hasDocs ? ' <span title="Documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
 
-        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
+        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+boeBadge+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
     }).join('');
 }
 async function handleTradeDocUpload(input) {
@@ -1434,6 +1435,9 @@ function editTrade(id) {
         document.getElementById('tr-agent').value = t.dest_agent || '';
         document.getElementById('tr-net-weight').value = t.net_weight || '';
         document.getElementById('tr-hs-code').value = t.hs_code || '';
+        document.getElementById('tr-boe-no').value = t.boe_no || '';
+        document.getElementById('tr-boe-date').value = t.boe_date || '';
+        document.getElementById('tr-duty-amt').value = t.duty_amt || '';
         document.getElementById('tr-containers').value = t.containers || '';
         calcImportTotal();
     } else if (t.mode === 'hs_sale') {
@@ -1565,6 +1569,9 @@ function addTrade() {
             trade.dest_agent = document.getElementById('tr-agent').value;
             trade.net_weight = document.getElementById('tr-net-weight').value;
             trade.hs_code = document.getElementById('tr-hs-code').value;
+            trade.boe_no = document.getElementById('tr-boe-no').value;
+            trade.boe_date = document.getElementById('tr-boe-date').value;
+            trade.duty_amt = document.getElementById('tr-duty-amt').value;
             trade.containers = document.getElementById('tr-containers').value;
         } else {
             trade.inv_no = document.getElementById('tr-inv-no').value;
@@ -1651,7 +1658,7 @@ function addTrade() {
     document.getElementById('btn-scan-ai').style.display = 'none';
     var btn = document.querySelector('button[onclick="addTrade()"]');
     if (btn) { btn.innerHTML = '&#x1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
-    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-agent','tr-net-weight','tr-hs-code','tr-containers','tr-storage-loc'].forEach(function(id){
+    ['tr-party','tr-vol','tr-price-local','tr-bl-no','tr-vessel','tr-port-load','tr-port-dis','tr-ex-rate','tr-inv-no','tr-gst','tr-veh','tr-imp-rate','tr-total-for','tr-total-inr-shared','tr-agent','tr-net-weight','tr-hs-code','tr-boe-no','tr-boe-date','tr-duty-amt','tr-containers','tr-storage-loc'].forEach(function(id){
         var el = document.getElementById(id); if (el) el.value = '';
     });
     document.getElementById('tr-party-select').value = '';

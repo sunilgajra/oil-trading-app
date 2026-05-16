@@ -216,6 +216,9 @@
         <div class="form-group"><label>Agent @ Dest.</label><input id="tr-agent" placeholder="Agent Name"></div>
         <div class="form-group"><label>Net Weight (KG)</label><input id="tr-net-weight" type="number" step="0.01" placeholder="0.00" oninput="syncWeightToQty()"></div>
         <div class="form-group"><label>HS Code</label><input id="tr-hs-code" placeholder="27101980"></div>
+        <div class="form-group"><label>BOE Number</label><input id="tr-boe-no" placeholder="BOE/2024/..."></div>
+        <div class="form-group"><label>BOE Date</label><input id="tr-boe-date" type="date"></div>
+        <div class="form-group"><label>Duty Amount (&#x20B9;)</label><input id="tr-duty-amt" type="number" step="0.01" placeholder="0.00"></div>
         
         <!-- High Seas Purchase Details -->
         <div id="tr-hs-purchase-fields" class="form-group full" style="display:none; background:rgba(245,158,11,0.05); padding:10px; border-radius:8px; border:1px dashed var(--gold); margin-top:10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
@@ -245,6 +248,9 @@
                 </div>
                 <div class="ship-doc-item" data-type="Other">
                     <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">🛠️ OTHER</button>
+                </div>
+                <div class="ship-doc-item" data-type="Bill of Entry">
+                    <button class="btn btn-sm btn-ghost" onclick="uploadShipDoc(this)" style="border:1px solid var(--border)">📝 BOE</button>
                 </div>
             </div>
             <div id="tr-ship-docs-list" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:15px;"></div>
