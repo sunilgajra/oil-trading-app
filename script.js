@@ -1189,20 +1189,36 @@ async function handleTradeDocUpload(input) {
 function renderTradeDocs() {
     var list = document.getElementById('tr-docs-list');
     if (!list) return;
+    
+    if (!currentTradeDocs || currentTradeDocs.length === 0) {
+        list.innerHTML = '<div style="color:var(--muted); font-size:11px; padding:15px; border:1px dashed var(--border); border-radius:8px; text-align:center; background:rgba(0,0,0,0.1);">No documents attached for this trade.</div>';
+        document.getElementById('btn-scan-ai').style.display = 'none';
+        return;
+    }
+
     list.innerHTML = currentTradeDocs.map(function(d, idx) {
         const docUrl = d.url || d.data;
-        return '<div class="doc-item">' +
-                 '<div style="flex:1; display:flex; flex-direction:column;">' +
-                    '<input class="doc-name-input" value="'+escH(d.name)+'" onchange="renameTradeDoc('+idx+', this.value)">' +
-                    '<small>' + (d.size ? (d.size/1024).toFixed(1) + ' KB' : 'Cloud File') + '</small>' +
-                 '</div>' +
-                 '<div style="display:flex; gap:5px">' +
-                    '<button class="btn btn-sm btn-blue" onclick="openDocPreview(\''+docUrl+'\', \''+escH(d.name)+'\')">&#x1F441;</button>' +
-                    '<button class="btn btn-sm btn-gray" onclick="window.open(\''+docUrl+'\',\'_blank\')">&#x2913;</button>' +
-                    '<button class="btn btn-sm btn-danger" onclick="removeTradeDoc('+idx+')">&#x2715;</button>' +
-                 '</div>' +
-               '</div>';
+        return `
+            <div class="doc-item" style="display:flex; align-items:center; background:rgba(255,255,255,0.05); padding:10px 15px; border-radius:10px; margin-bottom:8px; border:1px solid var(--border); gap:12px; transition: all 0.2s;">
+                <div style="font-size:20px; color:var(--gold2);">&#x1F4C4;</div>
+                <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;">
+                    <input class="doc-name-input" value="${escH(d.name)}" onchange="renameTradeDoc(${idx}, this.value)" 
+                           style="width:100%; background:transparent; border:none; color:var(--text); font-size:13px; font-weight:600; outline:none; padding:0;" 
+                           title="Click to rename">
+                    <div style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">
+                        ${d.size ? (d.size/1024).toFixed(1) + ' KB' : 'CLOUD STORAGE'} • ${d.date || today()}
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px">
+                    <button class="btn btn-sm btn-ghost" onclick="openDocPreview('${docUrl}', '${escH(d.name)}')" title="Preview" style="color:var(--teal); padding:5px; background:rgba(20,184,166,0.1);">&#x1F441;</button>
+                    <button class="btn btn-sm btn-ghost" onclick="window.open('${docUrl}','_blank')" title="Download" style="color:var(--gold2); padding:5px; background:rgba(251,191,36,0.1);">&#x2913;</button>
+                    <button class="btn btn-sm btn-ghost" onclick="removeTradeDoc(${idx})" title="Remove" style="color:var(--red); padding:5px; background:rgba(239,68,68,0.1);">&#x2715;</button>
+                </div>
+            </div>
+        `;
     }).join('');
+    
+    if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
 }
 function renameTradeDoc(idx, newName) {
     if (!newName.trim()) return;
