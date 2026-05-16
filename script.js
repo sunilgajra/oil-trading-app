@@ -1155,8 +1155,8 @@ async function handleTradeDocUpload(input) {
     toast("Processing Documents...");
     for (let f of files) {
         // 1. ADD TO LIST IMMEDIATELY (Placeholder)
-        const tempIdx = currentTradeDocs.length;
-        currentTradeDocs.push({ name: f.name, data: '', size: f.size, date: today(), status: 'Uploading...' });
+        const newDoc = { name: f.name, data: '', size: f.size, date: today(), status: 'Uploading...' };
+        currentTradeDocs.push(newDoc);
         renderTradeDocs();
 
         try {
@@ -1168,9 +1168,9 @@ async function handleTradeDocUpload(input) {
             }
 
             if (url) {
-                currentTradeDocs[tempIdx].url = url;
-                currentTradeDocs[tempIdx].data = url;
-                currentTradeDocs[tempIdx].status = 'Ready';
+                newDoc.url = url;
+                newDoc.data = url;
+                newDoc.status = 'Ready';
             } else {
                 // LOCAL FALLBACK
                 const reader = new FileReader();
@@ -1178,8 +1178,8 @@ async function handleTradeDocUpload(input) {
                     reader.onload = (e) => resolve(e.target.result);
                     reader.readAsDataURL(f);
                 });
-                currentTradeDocs[tempIdx].data = fileData;
-                currentTradeDocs[tempIdx].status = 'Ready (Local)';
+                newDoc.data = fileData;
+                newDoc.status = 'Ready (Local)';
             }
         } catch (e) {
             console.warn("Upload Error, using local fallback:", e);
@@ -1188,13 +1188,15 @@ async function handleTradeDocUpload(input) {
                 reader.onload = (e) => resolve(e.target.result);
                 reader.readAsDataURL(f);
             });
-            currentTradeDocs[tempIdx].data = fileData;
-            currentTradeDocs[tempIdx].status = 'Ready (Local)';
+            newDoc.data = fileData;
+            newDoc.status = 'Ready (Local)';
         }
         renderTradeDocs(); // RE-RENDER AFTER EACH SUCCESS
+        saveState(); // FORCE SAVE TO PREVENT DATA LOSS ON REFRESH
     }
     if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
 }
+
 function renderTradeDocs() {
     var list = document.getElementById('tr-docs-list');
     if (!list) return;
@@ -1233,6 +1235,7 @@ function renameTradeDoc(idx, newName) {
     if (!newName.trim()) return;
     currentTradeDocs[idx].name = newName.trim();
     toast('Document renamed');
+    saveState();
 }
 function previewDoc(idx) {
     var d = currentTradeDocs[idx];
@@ -1241,6 +1244,7 @@ function previewDoc(idx) {
 function removeTradeDoc(idx) {
     currentTradeDocs.splice(idx, 1);
     renderTradeDocs();
+    saveState();
     if (currentTradeDocs.length === 0) document.getElementById('btn-scan-ai').style.display = 'none';
 }
 function downloadDoc(idx) {
@@ -1273,6 +1277,7 @@ async function scanTradeDocWithAI() {
                         const cloudUrl = await uploadFileToSupabase(dataURLtoFile(doc.data, doc.name), 'trade_docs');
                         doc.url = cloudUrl;
                         doc.data = cloudUrl; // Use URL instead of Base64 to save space
+                        saveState(); // PREVENT URL LOSS ON REFRESH
                     }
                 }
             } catch (cloudErr) {
