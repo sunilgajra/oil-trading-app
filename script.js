@@ -3932,18 +3932,30 @@ function generateLandedCostReport(tradeId) {
             </div>
 
             <!-- Top Details Grid -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
                 <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">EXPORTER</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; width: 35%;">${escH(t.party) || 'NA'}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">INVOICE NO</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; width: 35%;">${escH(t.inv_no_intl) || 'NA'}</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">EXPORTER</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; width: 35%;">${escH(t.party) || 'NA'}</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">INVOICE NO</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; width: 35%;">${escH(t.inv_no_intl) || 'NA'}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/L NO</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.bl_no) || 'NA'}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">MATERIAL</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.product)}</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/L NO</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.bl_no) || 'NA'}</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">BOE NO</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.boe_no) || 'NA'}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">VESSEL</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.vessel) || 'NA'}</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">BOE DATE</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.boe_date) || 'NA'}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">PORT LOAD</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.port_load) || 'NA'}</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">MATERIAL</td>
+                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; color: #14b8a6;">${escH(t.product)}</td>
                 </tr>
             </table>
 
