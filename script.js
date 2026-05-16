@@ -3057,8 +3057,6 @@ function updatePaymentSummary() {
     let bankINR = 0, bankForeign = 0;
     let yardINR = 0, yardForeign = 0;
     let yardRateFound = 0;
-    let totalInMainCurr = 0;
-    let totalBankINR = 0;
 
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
@@ -3121,9 +3119,11 @@ function updatePaymentSummary() {
     `;
     document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBankINR.toLocaleString('en-IN');
 
-    // Balance calculation (Reusing qty and purchaseRateUSD from above)
-    const totalDueInMain = totalDealUSD;
-    const balInMain = balanceUSD;
+    // Balance calculation
+    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
+    const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+    const totalDueInMain = qty * rate;
+    const balInMain = totalDueInMain - totalInMainCurr;
 
     let balUSD = 0, balAED = 0;
     if (mainCurr === 'USD') {
@@ -3135,20 +3135,15 @@ function updatePaymentSummary() {
     }
 
     const balEl = document.getElementById('tr-pay-balance-dual');
-    if (balEl) {
-        balEl.innerHTML = `
-            <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
-            <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
-        `;
-    }
+    balEl.innerHTML = `
+        <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
+        <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
+    `;
 
-    const statusEl = document.getElementById('tr-payment-status');
-    if (statusEl) {
-        if (balInMain <= 0.05 && totalDueInMain > 0) {
-            statusEl.style.display = 'block';
-        } else {
-            statusEl.style.display = 'none';
-        }
+    if (balInMain <= 0.05 && totalDueInMain > 0) {
+        document.getElementById('tr-payment-status').style.display = 'block';
+    } else {
+        document.getElementById('tr-payment-status').style.display = 'none';
     }
 }
 
@@ -3937,30 +3932,18 @@ function generateLandedCostReport(tradeId) {
             </div>
 
             <!-- Top Details Grid -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
                 <tr>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">EXPORTER</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; width: 35%;">${escH(t.party) || 'NA'}</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">INVOICE NO</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; width: 35%;">${escH(t.inv_no_intl) || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">EXPORTER</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; width: 35%;">${escH(t.party) || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">INVOICE NO</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; width: 35%;">${escH(t.inv_no_intl) || 'NA'}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/L NO</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.bl_no) || 'NA'}</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">BOE NO</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.boe_no) || 'NA'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">VESSEL</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.vessel) || 'NA'}</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">BOE DATE</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.boe_date) || 'NA'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">PORT LOAD</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd;">${escH(t.port_load) || 'NA'}</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">MATERIAL</td>
-                    <td style="padding: 6px 10px; border: 1px solid #ddd; font-weight: bold; color: #14b8a6;">${escH(t.product)}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/L NO</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.bl_no) || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">MATERIAL</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.product)}</td>
                 </tr>
             </table>
 
