@@ -2671,60 +2671,58 @@ Return ONLY JSON: { "container_no": "...", "cfs_weight": 0.00 }` },
         
         let rawJson = data.candidates[0].content.parts[0].text;
         rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-        const ai = JSON.parse(rawJson);
+        const aiResponse = JSON.parse(rawJson);
 
-        if (!ai.container_no || ai.container_no.trim() === '') {
-            throw new Error(`Could not extract container number. AI parsed: ${JSON.stringify(ai)}`);
-        }
-
-        let parsedWeight = 0;
-        if (ai.cfs_weight !== undefined && ai.cfs_weight !== null) {
-            parsedWeight = parseFloat(ai.cfs_weight.toString().replace(/,/g, ''));
-        }
-
-        if (isNaN(parsedWeight) || parsedWeight <= 0) {
-            throw new Error(`Could not definitively extract a valid weight. AI parsed: ${JSON.stringify(ai)}`);
-        }
+        // Normalize to array so we can handle both single slips and summary lists
+        const results = Array.isArray(aiResponse) ? aiResponse : [aiResponse];
+        let matchCount = 0;
         
-        // Re-assign the cleaned parsed weight back to the object for UI injection
-        ai.cfs_weight = parsedWeight;
+        results.forEach(item => {
+            if (!item.container_no) return;
 
-        const targetContainer = ai.container_no.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        let matched = false;
-        
-        const rows = document.querySelectorAll('#tr-container-body tr');
-        rows.forEach(row => {
-            const rowCnt = row.querySelector('.cnt-no').value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-            
-            // Match logic: identical, or strong partial match if OCR missed a character
-            if (rowCnt && targetContainer && (rowCnt === targetContainer || (rowCnt.length >= 8 && targetContainer.includes(rowCnt)))) {
-                const cfsInput = row.querySelector('.cnt-cfs');
-                cfsInput.value = ai.cfs_weight;
-                
-                // Visual feedback pulse
-                const origBg = cfsInput.style.background;
-                const origBorder = cfsInput.style.border;
-                cfsInput.style.background = 'rgba(45, 212, 191, 0.3)'; // Teal pulse
-                cfsInput.style.border = '2px solid var(--teal)';
-                setTimeout(() => {
-                    cfsInput.style.background = origBg;
-                    cfsInput.style.border = origBorder;
-                }, 3000);
-                
-                matched = true;
+            let parsedWeight = 0;
+            if (item.cfs_weight !== undefined && item.cfs_weight !== null) {
+                parsedWeight = parseFloat(item.cfs_weight.toString().replace(/,/g, ''));
             }
+
+            if (isNaN(parsedWeight) || parsedWeight <= 0) return;
+
+            const targetContainer = item.container_no.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            
+            const rows = document.querySelectorAll('#tr-container-body tr');
+            rows.forEach(row => {
+                const rowCnt = row.querySelector('.cnt-no').value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                
+                // Match logic: identical, or strong partial match
+                if (rowCnt && targetContainer && (rowCnt === targetContainer || (rowCnt.length >= 8 && targetContainer.includes(rowCnt)) || (targetContainer.length >= 8 && rowCnt.includes(targetContainer)))) {
+                    const cfsInput = row.querySelector('.cnt-cfs');
+                    cfsInput.value = parsedWeight;
+                    
+                    // Visual feedback pulse
+                    const origBg = cfsInput.style.background;
+                    const origBorder = cfsInput.style.border;
+                    cfsInput.style.background = 'rgba(45, 212, 191, 0.4)'; // Teal pulse
+                    cfsInput.style.border = '2px solid var(--teal)';
+                    setTimeout(() => {
+                        cfsInput.style.background = origBg;
+                        cfsInput.style.border = origBorder;
+                    }, 4000);
+                    
+                    matchCount++;
+                }
+            });
         });
 
-        if (matched) {
-            toast('&#x2728; CFS Slip matched and weight updated!');
+        if (matchCount > 0) {
+            toast(`&#x2728; Success: Matched and updated ${matchCount} container weights!`);
             calcContainerTotals();
         } else {
-            toast(`Warning: Found container ${ai.container_no} but it doesn't match any row in the grid.`, true);
+            toast(`Warning: Found data for ${results.length} containers but none matched your grid.`, true);
         }
 
     } catch (e) {
         console.error("CFS Scan Error:", e);
-        toast(e.message, true);
+        toast("Scan Error: Check Console for details", true);
     } finally {
         btn.innerHTML = oldBtnHtml;
         btn.disabled = false;
