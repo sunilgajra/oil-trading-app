@@ -1155,10 +1155,32 @@ async function handleTradeDocUpload(input) {
     toast("Uploading Documents...");
     for (let f of files) {
         try {
-            const url = await uploadFileToSupabase(f, 'trades');
-            currentTradeDocs.push({ name: f.name, url: url, size: f.size, date: today() });
+            // Try cloud upload first
+            let url = null;
+            if (window.supabaseClient) {
+                const { data: auth } = await supabaseClient.auth.getSession();
+                if (auth.session) url = await uploadFileToSupabase(f, 'trades');
+            }
+
+            if (url) {
+                currentTradeDocs.push({ name: f.name, url: url, size: f.size, date: today() });
+            } else {
+                // Fallback to local Base64 if not logged in
+                const reader = new FileReader();
+                const fileData = await new Promise((resolve) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(f);
+                });
+                currentTradeDocs.push({ name: f.name, data: fileData, size: f.size, date: today() });
+            }
         } catch (e) {
-            toast("Failed to upload " + f.name, true);
+            console.warn("Upload Error, using local fallback:", e);
+            const reader = new FileReader();
+            const fileData = await new Promise((resolve) => {
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(f);
+            });
+            currentTradeDocs.push({ name: f.name, data: fileData, size: f.size, date: today() });
         }
     }
     renderTradeDocs();
@@ -1526,13 +1548,7 @@ function editTrade(id) {
     document.getElementById('tr-is-hs').checked = !!t.is_hs;
     document.getElementById('tr-hs-seller').value = t.hs_seller || '';
     
-    // Load Trade Docs (Cloud attachments)
-    if (t.docs && Array.isArray(t.docs)) {
-        currentTradeDocs = JSON.parse(JSON.stringify(t.docs));
-    } else {
-        currentTradeDocs = [];
-    }
-    renderTradeDocs();
+    // Load Trade Docs (Documents already loaded at start of function, keeping this block clean)
     if (currentTradeDocs.length > 0) document.getElementById('btn-scan-ai').style.display = 'inline-block';
     else document.getElementById('btn-scan-ai').style.display = 'none';
     
