@@ -786,13 +786,20 @@ function calcTradeTotals() {
     var bankTotal = 0;
     payRows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        // Bank charges is the 4th input (index 3)
-        if (inputs && inputs.length > 3) {
-            bankTotal += parseFloat(inputs[3].value) || 0;
-        }
+        if (inputs && inputs.length > 3) bankTotal += parseFloat(inputs[3].value) || 0;
     });
+
+    // Add Tank/Extra Cost if import (calculated in USD converted to INR)
+    var tankCost = 0;
+    if (mode === 'import') {
+        var contCount = parseFloat(document.getElementById('tr-container-count').value) || 0;
+        var tankRateUSD = parseFloat(document.getElementById('tr-tank-rate').value) || 0;
+        var ex = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
+        tankCost = contCount * tankRateUSD * ex;
+        document.getElementById('tr-tank-cost').value = fmtN(tankCost);
+    }
     
-    var totalInr = basicInr + logTotal + bankTotal;
+    var totalInr = basicInr + logTotal + bankTotal + tankCost;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
     
     // Update Foreign Total
@@ -1442,6 +1449,8 @@ function editTrade(id) {
         document.getElementById('tr-boe-no').value = t.boe_no || '';
         document.getElementById('tr-boe-date').value = t.boe_date || '';
         document.getElementById('tr-duty-amt').value = t.duty_amt || '';
+        document.getElementById('tr-container-count').value = t.container_count || '';
+        document.getElementById('tr-tank-rate').value = t.tank_rate || '';
         document.getElementById('tr-containers').value = t.containers || '';
         calcImportTotal();
     } else if (t.mode === 'hs_sale') {
@@ -1576,6 +1585,12 @@ function addTrade() {
             trade.boe_no = document.getElementById('tr-boe-no').value;
             trade.boe_date = document.getElementById('tr-boe-date').value;
             trade.duty_amt = document.getElementById('tr-duty-amt').value;
+            trade.container_count = document.getElementById('tr-container-count').value;
+            trade.tank_rate = document.getElementById('tr-tank-rate').value;
+            var cCount = parseFloat(trade.container_count) || 0;
+            var tRateUSD = parseFloat(trade.tank_rate) || 0;
+            var exR = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
+            trade.tank_cost = cCount * tRateUSD * exR;
             trade.containers = document.getElementById('tr-containers').value;
         } else {
             trade.inv_no = document.getElementById('tr-inv-no').value;
@@ -3302,20 +3317,21 @@ function generateLandedCostReport(tradeId) {
     
     // Also include Bank Charges from payments if any
     const bankCharges = (t.payments || []).reduce((s, p) => s + (parseFloat(p.bank_charges) || 0), 0);
+    const tankCost = parseFloat(t.tank_cost) || 0;
     
     // Total INR should be the exact sum of all components
-    const totalPurchaseCost = basicInr + expGrandTotal + bankCharges;
+    const totalPurchaseCost = basicInr + expGrandTotal + bankCharges + tankCost;
     
     // Total KG for Landed Rate calculation
     const totalKG = (unit === 'KG') ? q : (unit === 'MTON' ? q * 1000 : q * (t.density || 0.85));
     
     const basicRateKG = totalKG > 0 ? (basicInr / totalKG) : 0;
-    const expRateKG = totalKG > 0 ? ((expGrandTotal + bankCharges) / totalKG) : 0;
+    const expRateKG = totalKG > 0 ? ((expGrandTotal + bankCharges + tankCost) / totalKG) : 0;
     const finalLandedKG = basicRateKG + expRateKG;
 
     const html = `
         <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; padding: 10px;">
-            <!-- Header -->
+            <!-- Header (kept same) -->
             <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #14b8a6; padding-bottom: 10px; margin-bottom: 20px;">
                 <div>
                     <h1 style="margin: 0; color: #14b8a6; font-size: 24px;">MURJI RAVJI & COMPANY</h1>
@@ -3327,7 +3343,7 @@ function generateLandedCostReport(tradeId) {
                 </div>
             </div>
 
-            <!-- Top Details Grid -->
+            <!-- Top Details Grid (kept same) -->
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
                 <tr>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">EXPORTER NAME</td>
@@ -3349,7 +3365,7 @@ function generateLandedCostReport(tradeId) {
                 </tr>
             </table>
 
-            <!-- Purchase Calculation -->
+            <!-- Purchase Calculation (kept same) -->
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; text-align: right;">
                 <thead>
                     <tr style="background: #333; color: #fff;">
@@ -3391,14 +3407,30 @@ function generateLandedCostReport(tradeId) {
                             <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fmtN(e.total_amount || e.amount)}</td>
                         </tr>
                     `).join('')}
-                    ${expenses.length === 0 ? '<tr><td colspan="4" style="padding: 30px; text-align: center; color: #999; font-style: italic;">No logistics expenses recorded for this trade.</td></tr>' : ''}
+                    ${tankCost > 0 ? `
+                        <tr style="text-align: right;">
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: 500;">Flexi / ISO Tank Cost (${t.container_count || 0} Tanks @ $${fmtN(t.tank_rate || 0)} x ${t.ex_rate || exRate})</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${fmtN(tankCost)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">0.00</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fmtN(tankCost)}</td>
+                        </tr>
+                    ` : ''}
+                    ${bankCharges > 0 ? `
+                        <tr style="text-align: right;">
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: 500;">Bank Charges (Payments)</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${fmtN(bankCharges)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">0.00</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fmtN(bankCharges)}</td>
+                        </tr>
+                    ` : ''}
+                    ${(expenses.length === 0 && tankCost === 0 && bankCharges === 0) ? '<tr><td colspan="4" style="padding: 30px; text-align: center; color: #999; font-style: italic;">No logistics expenses recorded for this trade.</td></tr>' : ''}
                 </tbody>
                 <tfoot>
                     <tr style="background: #f9f9f9; font-weight: bold; text-align: right; font-size: 12px; color: #14b8a6;">
                         <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">EXPENSES GRAND TOTAL</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(expNetTotal)}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(expNetTotal + tankCost + bankCharges)}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(expTaxTotal)}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; border-left: 2px solid #14b8a6;">${fmt(expGrandTotal)}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; border-left: 2px solid #14b8a6;">${fmt(expGrandTotal + tankCost + bankCharges)}</td>
                     </tr>
                 </tfoot>
             </table>
