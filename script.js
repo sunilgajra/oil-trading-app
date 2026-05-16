@@ -1360,16 +1360,24 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                 'tr-containers': Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers
             };
 
+            // Helper to compare without special characters (dots, slashes, etc.)
+            const norm = (s) => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
             let mismatches = [];
             for (let id in fields) {
                 const el = document.getElementById(id);
-                if (!el || !fields[id]) continue;
+                if (!el) continue;
                 
-                const newValue = fields[id].toString().trim();
+                const newValue = (fields[id] || '').toString().trim();
                 const oldValue = el.value.trim();
                 
-                // Only warn if the field was already filled and the new value is different
-                if (oldValue && oldValue !== newValue && newValue !== '0' && newValue !== '' && newValue !== 'null') {
+                // 1. Skip if AI didn't find this value (to avoid clearing existing data or false warnings)
+                if (!newValue || newValue.toLowerCase() === 'null' || newValue.toLowerCase() === 'na' || newValue === '0') {
+                    continue; 
+                }
+
+                // 2. Compare normalized versions (Ignore . / - and spaces)
+                if (oldValue && norm(oldValue) !== norm(newValue)) {
                     el.style.border = '2px solid #ef4444';
                     el.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.3)';
                     el.title = `Mismatch detected! Existing: "${oldValue}" | New Scan: "${newValue}"`;
@@ -3485,3 +3493,12 @@ function generateLandedCostReport(tradeId) {
 
     openPrintWindow(html, `Landed_Cost_${t.bl_no || t.id}`);
 }
+
+// Global listener to clear mismatch warnings
+document.addEventListener('input', function(e) {
+    if (e.target && e.target.style && (e.target.style.border.includes('239') || e.target.style.border.includes('ef4444'))) {
+        e.target.style.border = '';
+        e.target.style.boxShadow = '';
+        e.target.title = '';
+    }
+});
