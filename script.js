@@ -3049,6 +3049,8 @@ function removePaymentRow(id) {
     calcTradeTotals();
 }
 
+function updatePaymentSummary() {
+    const rows = document.querySelectorAll('#tr-payments-body tr');
     // 1. Calculate Total Foreign Due
     const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
     const purRate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
@@ -3093,7 +3095,7 @@ function removePaymentRow(id) {
         }
     }
 
-    // 4. Update Dual Totals & Balance (using main currency logic)
+    // 4. Update Dual Totals & Balance
     const mainCurr = document.getElementById('tr-imp-curr').value;
     const univRate = parseFloat(document.getElementById('tr-pay-univ-rate').value) || 3.6725;
     
