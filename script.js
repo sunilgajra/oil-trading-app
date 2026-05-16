@@ -776,7 +776,8 @@ function calcTradeTotals() {
     var logRows = document.querySelectorAll('#tr-expenses-body tr');
     var logTotal = 0;
     logRows.forEach(row => {
-        const amt = parseFloat(row.querySelectorAll('input')[1].value) || 0;
+        const amtEl = row.querySelector('.exp-total');
+        const amt = amtEl ? (parseFloat(amtEl.value) || 0) : 0;
         logTotal += amt;
     });
     
@@ -785,7 +786,10 @@ function calcTradeTotals() {
     var bankTotal = 0;
     payRows.forEach(row => {
         const inputs = row.querySelectorAll('input');
-        bankTotal += parseFloat(inputs[2].value) || 0;
+        // Bank charges is the 4th input (index 3)
+        if (inputs && inputs.length > 3) {
+            bankTotal += parseFloat(inputs[3].value) || 0;
+        }
     });
     
     var totalInr = basicInr + logTotal + bankTotal;
