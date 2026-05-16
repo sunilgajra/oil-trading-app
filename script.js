@@ -1217,7 +1217,22 @@ async function scanTradeDocWithAI() {
         toggleTradeDetailFields();
 
         if (state.apiKey) {
-            // DIRECT AI SCAN (Best accuracy, skips local OCR)
+            // AUTO-UPLOAD TO CLOUD IF LOGGED IN (Ensures persistence)
+            try {
+                if (window.supabaseClient) {
+                    const { data: auth } = await supabaseClient.auth.getSession();
+                    if (auth.session && !doc.url) {
+                        btn.innerHTML = '&#x2601; Uploading to Cloud...';
+                        const cloudUrl = await uploadFileToSupabase(dataURLtoFile(doc.data, doc.name), 'trade_docs');
+                        doc.url = cloudUrl;
+                        doc.data = cloudUrl; // Use URL instead of Base64 to save space
+                    }
+                }
+            } catch (cloudErr) {
+                console.warn("Cloud Upload Skip:", cloudErr.message);
+            }
+
+            // DIRECT AI SCAN
             btn.innerHTML = '&#x2601; AI Vision Scanning...';
             await refineWithCloudAI(doc);
             btn.innerHTML = oldBtnHtml;
@@ -1360,8 +1375,18 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                 'tr-containers': Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers
             };
 
-            // Helper to compare without special characters (dots, slashes, etc.)
-            const norm = (s) => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            // Helper to compare values accurately (handles numbers vs strings, units like KGS, and dots/slashes)
+            const norm = (s) => {
+                if (!s) return '';
+                let raw = s.toString().trim().toUpperCase();
+                // 1. If it looks like a number/weight (e.g. "153,735.00 KGS" -> "153735")
+                let numericPart = raw.replace(/[^0-9.]/g, '');
+                if (numericPart && !isNaN(numericPart) && !/[A-Z]/.test(raw.replace(/[.KGS|MT|LTR]/g, ''))) {
+                    return parseFloat(numericPart).toString();
+                }
+                // 2. Otherwise use alphanumeric normalization (e.g. "TKU.BEN" -> "TKUBEN")
+                return raw.replace(/[^A-Z0-9]/g, '');
+            };
 
             let mismatches = [];
             for (let id in fields) {
@@ -1437,6 +1462,13 @@ function editTrade(id) {
     var t = state.trades.find(function(x){return x.id === id;});
     if (!t) return;
     editingTradeId = id;
+    
+    // LOAD DOCUMENTS
+    currentTradeDocs = t.docs || [];
+    currentShipDocs = t.ship_docs || [];
+    renderTradeDocs();
+    renderShipDocs();
+
     document.getElementById('tr-type').value = t.type;
     toggleTradeModeField();
     document.getElementById('tr-mode').value = t.mode || 'local';
@@ -3283,6 +3315,13 @@ async function uploadFileToSupabase(file, path) {
         .getPublicUrl(fullPath);
         
     return urlData.publicUrl;
+}
+
+function dataURLtoFile(dataurl, filename) {
+    var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+    bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+    return new File([u8arr], filename, {type:mime});
 }
 
 function exportStateToFile() {
