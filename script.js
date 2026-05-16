@@ -3766,20 +3766,35 @@ function importStateFromFile(input) {
 }
 
 /* ═══════ LANDED COST REPORT (EXCEL STYLE) ═══════ */
-function generateLandedCostReport(tradeId) {
-    const t = state.trades.find(x => x.id === tradeId);
-    if (!t) return toast('Trade not found', true);
+    // DUAL SETTLEMENT CALCULATION (Bank vs Yard)
+    const payments = t.payments || [];
+    let bankForeign = 0, bankInr = 0;
+    let yardForeign = 0, yardInr = 0;
 
-    // FIX: Use raw quantity and correct import rates
-    const q = parseFloat(t.raw_qty) || (t.vol / (t.density || 0.85)); // Fallback to calculation if raw_qty missing
-    const unit = t.unit || 'L';
-    const usdRate = parseFloat(t.imp_rate) || 0;
-    const exRate = parseFloat(t.ex_rate) || 1;
-    const foreignLabel = t.currency || 'USD';
+    payments.forEach(p => {
+        const foreign = (p.ex_rate > 0) ? (p.amount_inr / p.ex_rate) : 0;
+        if (p.type === 'Bank') {
+            bankForeign += foreign;
+            bankInr += p.amount_inr;
+        } else {
+            yardForeign += foreign;
+            yardInr += p.amount_inr;
+        }
+    });
 
-    // Calculate Financials correctly
-    const foreignAmt = q * usdRate;
-    const basicInr = q * (usdRate * exRate);
+    const totalForeignVal = q * usdRate;
+    
+    // If not fully paid, assign remaining balance to Yard by default (per user workflow)
+    const totalPaidForeign = bankForeign + yardForeign;
+    if (totalForeignVal > totalPaidForeign) {
+        const balance = totalForeignVal - totalPaidForeign;
+        yardForeign += balance;
+        yardInr += (balance * exRate); // Use the trade's default ex_rate for unpaid portion
+    }
+
+    const basicInr = bankInr + yardInr;
+    const avgBankEx = bankForeign > 0 ? (bankInr / bankForeign) : exRate;
+    const avgYardEx = yardForeign > 0 ? (yardInr / yardForeign) : exRate;
 
     const expenses = t.expenses || [];
     const expNetTotal = expenses.reduce((s, e) => s + (parseFloat(e.net_amount) || 0), 0);
@@ -3787,7 +3802,7 @@ function generateLandedCostReport(tradeId) {
     const expGrandTotal = expenses.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
 
     // Also include Bank Charges from payments if any
-    const bankCharges = (t.payments || []).reduce((s, p) => s + (parseFloat(p.bank_charges) || 0), 0);
+    const bankCharges = (t.payments || []).reduce((s, p) => s + (parseFloat(p.bank_chg) || 0), 0);
     const tankCost = parseFloat(t.tank_cost) || 0;
 
     // Total INR should be the exact sum of all components
@@ -3802,7 +3817,7 @@ function generateLandedCostReport(tradeId) {
 
     const html = `
         <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; padding: 10px;">
-            <!-- Header (kept same) -->
+            <!-- Header -->
             <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #14b8a6; padding-bottom: 10px; margin-bottom: 20px;">
                 <div>
                     <h1 style="margin: 0; color: #14b8a6; font-size: 24px;">MURJI RAVJI & COMPANY</h1>
@@ -3814,48 +3829,53 @@ function generateLandedCostReport(tradeId) {
                 </div>
             </div>
 
-            <!-- Top Details Grid (kept same) -->
+            <!-- Top Details Grid -->
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
                 <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">EXPORTER NAME</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${escH(t.party) || 'NA'}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">INVOICE NO</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${escH(t.inv_no_intl) || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">EXPORTER</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; width: 35%;">${escH(t.party) || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 15%;">INVOICE NO</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; width: 35%;">${escH(t.inv_no_intl) || 'NA'}</td>
                 </tr>
                 <tr>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/L NO</td>
                     <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.bl_no) || 'NA'}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">VESSEL</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.vessel) || 'NA'}</td>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">MATERIAL</td>
                     <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.product)}</td>
                 </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/E NO</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.boe_no) || 'NA'}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">PORT</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.port_dis) || 'NA'}</td>
-                </tr>
             </table>
 
-            <!-- Purchase Calculation (kept same) -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; text-align: right;">
+            <!-- Purchase Calculation (Split between Bank and Yard) -->
+            <h3 style="font-size: 13px; color: #14b8a6; margin-bottom: 10px;">PURCHASE SETTLEMENT BREAKDOWN</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; text-align: right;">
                 <thead>
                     <tr style="background: #333; color: #fff;">
-                        <th style="padding: 10px; text-align: left; border: 1px solid #333;">QUANTITY</th>
-                        <th style="padding: 10px; border: 1px solid #333;">RATE (${foreignLabel})</th>
-                        <th style="padding: 10px; border: 1px solid #333;">${foreignLabel} AMT</th>
-                        <th style="padding: 10px; border: 1px solid #333;">EX RT</th>
+                        <th style="padding: 10px; text-align: left; border: 1px solid #333;">PORTION</th>
+                        <th style="padding: 10px; border: 1px solid #333;">${foreignLabel} VALUE</th>
+                        <th style="padding: 10px; border: 1px solid #333;">AVG EX RT</th>
                         <th style="padding: 10px; border: 1px solid #333;">INR AMT</th>
                     </tr>
                 </thead>
                 <tbody>
+                    ${bankForeign > 0 ? `
                     <tr>
-                        <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">${q.toLocaleString()} ${unit}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${usdRate.toLocaleString()}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">${foreignAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${exRate}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #14b8a6;">${fmt(basicInr)}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight:bold;">Bank Settlement</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${bankForeign.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${avgBankEx.toFixed(4)}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${fmt(bankInr)}</td>
+                    </tr>` : ''}
+                    ${yardForeign > 0 ? `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight:bold;">Yard / Other Settlement</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${yardForeign.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${avgYardEx.toFixed(4)}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${fmt(yardInr)}</td>
+                    </tr>` : ''}
+                    <tr style="background:#f0fdfa; font-weight:bold; color:#14b8a6;">
+                        <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">BASIC PURCHASE TOTAL</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${totalForeignVal.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${(basicInr / totalForeignVal).toFixed(4)}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${fmt(basicInr)}</td>
                     </tr>
                 </tbody>
             </table>
