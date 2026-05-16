@@ -3284,15 +3284,7 @@ function generateLandedCostReport(tradeId) {
     const t = state.trades.find(x => x.id === tradeId);
     if (!t) return toast('Trade not found', true);
 
-    const container = document.getElementById('hss-print-container');
-    if (!container) return toast('Print container missing', true);
     
-    toast('Generating Landed Cost Report...');
-    
-    // Make container visible for capture (off-screen)
-    container.style.left = '0';
-    container.style.opacity = '1';
-    container.style.zIndex = '9999';
 
     const foreignLabel = t.currency === 'AED' ? 'AED' : (t.currency || 'USD');
     const foreignAmt = (parseFloat(t.qty_foreign) || t.vol) * (parseFloat(t.price_foreign) || t.price);
@@ -3310,8 +3302,8 @@ function generateLandedCostReport(tradeId) {
     const expRateKG = totalKG > 0 ? (expGrandTotal / totalKG) : 0;
     const finalLandedKG = totalKG > 0 ? (totalPurchaseCost / totalKG) : 0;
 
-    container.innerHTML = `
-        <div style="padding: 40px; font-family: 'Segoe UI', Arial, sans-serif; color: #333; background: #fff; min-height: 297mm;">
+    const html = `
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333;">
             <!-- Header -->
             <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #14b8a6; padding-bottom: 10px; margin-bottom: 20px;">
                 <div>
@@ -3328,21 +3320,21 @@ function generateLandedCostReport(tradeId) {
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
                 <tr>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">EXPORTER NAME</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${t.party || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${escH(t.party) || 'NA'}</td>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">MATERIAL</td>
-                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${t.product}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${escH(t.product)}</td>
                 </tr>
                 <tr>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/L NO</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${t.bl_no || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.bl_no) || 'NA'}</td>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">VESSEL</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${t.vessel || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.vessel) || 'NA'}</td>
                 </tr>
                 <tr>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/E NO</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${t.boe_no || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.boe_no) || 'NA'}</td>
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">PORT</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${t.port_dis || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.port_dis) || 'NA'}</td>
                 </tr>
             </table>
 
@@ -3382,7 +3374,7 @@ function generateLandedCostReport(tradeId) {
                 <tbody>
                     ${expenses.map(e => `
                         <tr style="text-align: right;">
-                            <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: 500;">${e.type} ${e.ref ? `<br><small style="color:#888;">Ref: ${e.ref}</small>` : ''}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: 500;">${escH(e.type)} ${e.ref ? `<br><small style="color:#888;">Ref: ${escH(e.ref)}</small>` : ''}</td>
                             <td style="padding: 8px; border: 1px solid #ddd;">${fmtN(e.net_amount || e.amount)}</td>
                             <td style="padding: 8px; border: 1px solid #ddd;">${fmtN(e.tax_amount || 0)}</td>
                             <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fmtN(e.total_amount || e.amount)}</td>
@@ -3401,7 +3393,7 @@ function generateLandedCostReport(tradeId) {
             </table>
 
             <!-- Final Summary Card -->
-            <div style="background: #1e293b; color: #fff; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+            <div style="background: #1e293b; color: #fff; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                 <span style="font-size: 16px; font-weight: bold; letter-spacing: 1px; color: #94a3b8;">TOTAL PURCHASE COST (INR)</span>
                 <span style="font-size: 24px; font-weight: bold; color: #fbbf24;">${fmt(totalPurchaseCost)}</span>
             </div>
@@ -3428,25 +3420,5 @@ function generateLandedCostReport(tradeId) {
         </div>
     `;
 
-    const opt = {
-        margin: [0, 0, 0, 0],
-        filename: `Landed_Cost_${t.bl_no || t.id}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true,
-            logging: false,
-            letterRendering: true
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    setTimeout(() => {
-        html2pdf().from(container).set(opt).save().then(() => {
-            container.style.left = '-9999px';
-            container.style.opacity = '0';
-            container.style.zIndex = '-1';
-            toast('Landed Cost Report Generated Successfully');
-        });
-    }, 200);
+    openPrintWindow(html, `Landed_Cost_${t.bl_no || t.id}`);
 }
