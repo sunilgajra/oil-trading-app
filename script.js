@@ -1138,7 +1138,7 @@ function renderTradesTable() {
         var boeBadge = t.boe_no ? ' <span class="badge badge-blue" style="font-size:9px; padding:1px 4px;" title="BOE: '+t.boe_no+'">BOE</span>' : '';
         var docBadge = hasDocs ? ' <span title="Documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
 
-        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+boeBadge+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')">&#x270F;</button><button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')">&#x2715;</button></div></td></tr>';
+        return '<tr><td class="mono">'+t.date+'</td><td><span class="badge '+(t.type==='Buy'?'badge-blue':'badge-green')+'">'+t.type+'</span>'+modeInfo+boeBadge+docBadge+'</td><td>'+t.product+'</td><td>'+t.party+'</td><td class="mono">'+fmtN(displayQty)+unitSuffix+'</td><td class="mono">'+fmt(t.price)+'</td><td class="mono">'+fmt(displayQty*t.price)+'</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade('+t.id+')" title="Edit">&#x270F;</button><button class="btn btn-ghost btn-sm" onclick="printTradeReceipt('+t.id+')" title="Print">&#x1F5B6;</button>'+(t.mode==='import'?'<button class="btn btn-teal btn-sm" onclick="generateLandedCostReport('+t.id+')" title="Landed Cost Report">&#x1F4CA;</button>':'')+'<button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\','+t.id+')" title="Delete">&#x2715;</button></div></td></tr>';
     }).join('');
 }
 async function handleTradeDocUpload(input) {
@@ -3277,4 +3277,164 @@ function importStateFromFile(input) {
         }
     };
     reader.readAsText(file);
+}
+
+/* ═══════ LANDED COST REPORT (EXCEL STYLE) ═══════ */
+function generateLandedCostReport(tradeId) {
+    const t = state.trades.find(x => x.id === tradeId);
+    if (!t) return toast('Trade not found', true);
+
+    const container = document.getElementById('hss-print-container');
+    if (!container) return toast('Print container missing', true);
+    
+    container.style.opacity = '1';
+    container.style.zIndex = '9999';
+
+    const foreignLabel = t.currency === 'AED' ? 'AED' : (t.currency || 'USD');
+    const foreignAmt = (parseFloat(t.qty_foreign) || t.vol) * (parseFloat(t.price_foreign) || t.price);
+    const basicInr = t.total_inr_basic || (t.vol * ((parseFloat(t.price_foreign) || t.price) * (t.ex_rate || 1)));
+    
+    const expenses = t.expenses || [];
+    const expNetTotal = expenses.reduce((s, e) => s + (parseFloat(e.net_amount) || 0), 0);
+    const expTaxTotal = expenses.reduce((s, e) => s + (parseFloat(e.tax_amount) || 0), 0);
+    const expGrandTotal = expenses.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
+    
+    const totalPurchaseCost = (parseFloat(t.total) || 0);
+    const totalKG = (t.unit === 'KG') ? t.vol : (t.unit === 'MTON' ? t.vol * 1000 : t.vol * (t.density || 0.85));
+    
+    const basicRateKG = totalKG > 0 ? (basicInr / totalKG) : 0;
+    const expRateKG = totalKG > 0 ? (expGrandTotal / totalKG) : 0;
+    const finalLandedKG = totalKG > 0 ? (totalPurchaseCost / totalKG) : 0;
+
+    container.innerHTML = `
+        <div style="padding: 40px; font-family: 'Segoe UI', Arial, sans-serif; color: #333; background: #fff; min-height: 297mm;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #14b8a6; padding-bottom: 10px; margin-bottom: 20px;">
+                <div>
+                    <h1 style="margin: 0; color: #14b8a6; font-size: 24px;">MURJI RAVJI & COMPANY</h1>
+                    <p style="margin: 2px 0; font-size: 12px; color: #666;">IMPORT SETTLEMENT & LANDED COST STATEMENT</p>
+                </div>
+                <div style="text-align: right;">
+                    <p style="margin: 0; font-weight: bold;">Date: ${t.date}</p>
+                    <p style="margin: 2px 0; font-size: 11px;">Ref: TR-${t.id}</p>
+                </div>
+            </div>
+
+            <!-- Top Details Grid -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">EXPORTER NAME</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${t.party || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9; width: 20%;">MATERIAL</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; width: 30%;">${t.product}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/L NO</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${t.bl_no || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">VESSEL</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${t.vessel || 'NA'}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">B/E NO</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${t.boe_no || 'NA'}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">PORT</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${t.port_dis || 'NA'}</td>
+                </tr>
+            </table>
+
+            <!-- Purchase Calculation -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; text-align: right;">
+                <thead>
+                    <tr style="background: #333; color: #fff;">
+                        <th style="padding: 10px; text-align: left; border: 1px solid #333;">QUANTITY</th>
+                        <th style="padding: 10px; border: 1px solid #333;">RATE (${foreignLabel})</th>
+                        <th style="padding: 10px; border: 1px solid #333;">${foreignLabel} AMT</th>
+                        <th style="padding: 10px; border: 1px solid #333;">EX RT</th>
+                        <th style="padding: 10px; border: 1px solid #333;">INR AMT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">${t.vol} ${t.unit}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(parseFloat(t.price_foreign) || t.price)}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">${fmtN(foreignAmt)}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${t.ex_rate || '1.00'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #14b8a6;">${fmt(basicInr)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Expenses Section -->
+            <h3 style="font-size: 14px; color: #14b8a6; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; letter-spacing: 1px;">IMPORT EXPENSES BREAKDOWN</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 25px;">
+                <thead>
+                    <tr style="background: #f4f4f4; text-align: right; font-weight: bold;">
+                        <th style="padding: 8px; border: 1px solid #ddd; text-align: left; width: 45%;">PARTICULARS</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">NET AMOUNT</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">PLUS GST/TAX</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">TOTAL INR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${expenses.map(e => `
+                        <tr style="text-align: right;">
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: 500;">${e.type} ${e.ref ? `<br><small style="color:#888;">Ref: ${e.ref}</small>` : ''}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${fmtN(e.net_amount || e.amount)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${fmtN(e.tax_amount || 0)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fmtN(e.total_amount || e.amount)}</td>
+                        </tr>
+                    `).join('')}
+                    ${expenses.length === 0 ? '<tr><td colspan="4" style="padding: 30px; text-align: center; color: #999; font-style: italic;">No logistics expenses recorded for this trade.</td></tr>' : ''}
+                </tbody>
+                <tfoot>
+                    <tr style="background: #f9f9f9; font-weight: bold; text-align: right; font-size: 12px; color: #14b8a6;">
+                        <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">EXPENSES GRAND TOTAL</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(expNetTotal)}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(expTaxTotal)}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; border-left: 2px solid #14b8a6;">${fmt(expGrandTotal)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <!-- Final Summary Card -->
+            <div style="background: #1e293b; color: #fff; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                <span style="font-size: 16px; font-weight: bold; letter-spacing: 1px; color: #94a3b8;">TOTAL PURCHASE COST (INR)</span>
+                <span style="font-size: 24px; font-weight: bold; color: #fbbf24;">${fmt(totalPurchaseCost)}</span>
+            </div>
+
+            <!-- Landed Rate Per KG Footer -->
+            <div style="border: 2px solid #ddd; border-radius: 8px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: center;">
+                    <tr style="font-weight: bold; text-transform: uppercase; color: #64748b; font-size: 11px; background: #f8fafc;">
+                        <td style="padding: 12px; border-right: 1px solid #ddd; width: 33.3%;">BASIC RATE / KG</td>
+                        <td style="padding: 12px; border-right: 1px solid #ddd; width: 33.3%;">EXPENSE RATE / KG</td>
+                        <td style="padding: 12px; width: 33.3%; background: #fffbeb; color: #b45309;">FINAL LANDED RATE / KG</td>
+                    </tr>
+                    <tr style="font-size: 20px; font-weight: bold;">
+                        <td style="padding: 15px; border-right: 1px solid #ddd; color: #1e293b;">\u20B9 ${basicRateKG.toFixed(2)}</td>
+                        <td style="padding: 15px; border-right: 1px solid #ddd; color: #1e293b;">\u20B9 ${expRateKG.toFixed(2)}</td>
+                        <td style="padding: 15px; background: #fbbf24; color: #000; border-top: 2px solid #b45309;">\u20B9 ${finalLandedKG.toFixed(2)}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="margin-top: 60px; border-top: 1px solid #eee; padding-top: 20px; text-align: center; font-size: 11px; color: #94a3b8; font-style: italic;">
+                Landed Cost Analysis Report • Generated by Murji Oil Dashboard • ${new Date().toLocaleString()}
+            </div>
+        </div>
+    `;
+
+    const opt = {
+        margin: [0, 0, 0, 0],
+        filename: `Landed_Cost_${t.bl_no || t.id}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().from(container).set(opt).save().then(() => {
+        container.style.opacity = '0';
+        container.style.zIndex = '-1';
+        toast('Landed Cost Report Generated Successfully');
+    });
 }
