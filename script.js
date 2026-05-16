@@ -3057,6 +3057,8 @@ function updatePaymentSummary() {
     let bankINR = 0, bankForeign = 0;
     let yardINR = 0, yardForeign = 0;
     let yardRateFound = 0;
+    let totalInMainCurr = 0;
+    let totalBankINR = 0;
 
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
@@ -3119,11 +3121,9 @@ function updatePaymentSummary() {
     `;
     document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBankINR.toLocaleString('en-IN');
 
-    // Balance calculation
-    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
-    const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-    const totalDueInMain = qty * rate;
-    const balInMain = totalDueInMain - totalInMainCurr;
+    // Balance calculation (Reusing qty and purchaseRateUSD from above)
+    const totalDueInMain = totalDealUSD;
+    const balInMain = balanceUSD;
 
     let balUSD = 0, balAED = 0;
     if (mainCurr === 'USD') {
@@ -3135,15 +3135,20 @@ function updatePaymentSummary() {
     }
 
     const balEl = document.getElementById('tr-pay-balance-dual');
-    balEl.innerHTML = `
-        <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
-        <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
-    `;
+    if (balEl) {
+        balEl.innerHTML = `
+            <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
+            <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
+        `;
+    }
 
-    if (balInMain <= 0.05 && totalDueInMain > 0) {
-        document.getElementById('tr-payment-status').style.display = 'block';
-    } else {
-        document.getElementById('tr-payment-status').style.display = 'none';
+    const statusEl = document.getElementById('tr-payment-status');
+    if (statusEl) {
+        if (balInMain <= 0.05 && totalDueInMain > 0) {
+            statusEl.style.display = 'block';
+        } else {
+            statusEl.style.display = 'none';
+        }
     }
 }
 
