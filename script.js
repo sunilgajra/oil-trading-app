@@ -1208,6 +1208,9 @@ function renderTradeDocs() {
     }
 
     list.innerHTML = currentTradeDocs.map(function (d, idx) {
+        if (typeof d === 'string') {
+            d = { name: 'Attached Document ' + (idx+1), data: d, url: d, size: 0, status: 'Ready', date: today() };
+        }
         const docUrl = d.url || d.data;
         return `
             <div class="doc-item" style="display:flex; align-items:center; background:rgba(255,255,255,0.05); padding:10px 15px; border-radius:10px; margin-bottom:8px; border:1px solid var(--border); gap:12px; transition: all 0.2s;">
@@ -1272,12 +1275,14 @@ async function scanTradeDocWithAI() {
             try {
                 if (window.supabaseClient) {
                     const { data: auth } = await supabaseClient.auth.getSession();
-                    if (auth.session && !doc.url) {
-                        btn.innerHTML = '&#x2601; Uploading to Cloud...';
-                        const cloudUrl = await uploadFileToSupabase(dataURLtoFile(doc.data, doc.name), 'trade_docs');
-                        doc.url = cloudUrl;
-                        doc.data = cloudUrl; // Use URL instead of Base64 to save space
-                        saveState(); // PREVENT URL LOSS ON REFRESH
+                    if (auth.session) {
+                        if (!doc.url && doc.data && doc.data.startsWith('data:')) {
+                            btn.innerHTML = '&#x2601; Uploading to Cloud...';
+                            const cloudUrl = await uploadFileToSupabase(dataURLtoFile(doc.data, doc.name), 'trade_docs');
+                            doc.url = cloudUrl;
+                            doc.data = cloudUrl; // Use URL instead of Base64 to save space
+                            saveState(); // PREVENT URL LOSS ON REFRESH
+                        }
                     }
                 }
             } catch (cloudErr) {
@@ -1355,11 +1360,12 @@ async function refineWithCloudAI(docOrText) {
         if (typeof docOrText === 'object') {
             // MULTIMODAL DIRECT SCAN (Image/PDF)
             let base64Data;
-            if (docOrText.data) {
+            if (docOrText.data && docOrText.data.startsWith('data:')) {
                 base64Data = docOrText.data.split(',')[1];
-            } else if (docOrText.url) {
+            } else if (docOrText.url || (docOrText.data && docOrText.data.startsWith('http'))) {
                 // Fetch from cloud URL and convert to base64 for Gemini
-                const response = await fetch(docOrText.url);
+                const fetchUrl = docOrText.url || docOrText.data;
+                const response = await fetch(fetchUrl);
                 const blob = await response.blob();
                 base64Data = await new Promise((resolve) => {
                     const reader = new FileReader();
@@ -1655,7 +1661,8 @@ function addTrade() {
         type: type, mode: mode, product: product, party: party,
         vol: volInL, price: price, raw_qty: rawQty, unit: unit,
         date: document.getElementById('tr-date').value || today(),
-        terms: termsVal, density: den, docs: currentTradeDocs,
+        terms: termsVal, density: den, 
+        docs: JSON.parse(JSON.stringify(currentTradeDocs)),
         expenses: getTradeExpenses(),
         ship_docs: currentShipDocs,
         payments: getSupplierPayments(),
@@ -1775,6 +1782,7 @@ function addTrade() {
         }
         toast('Changes Saved Successfully ✅');
         // RE-RENDER TO ENSURE VISIBILITY
+        currentTradeDocs = JSON.parse(JSON.stringify(trade.docs || [])); // Ensure sync
         renderTradeDocs();
         renderShipDocs();
     } else {
