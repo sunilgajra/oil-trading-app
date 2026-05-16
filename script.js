@@ -3287,6 +3287,10 @@ function generateLandedCostReport(tradeId) {
     const container = document.getElementById('hss-print-container');
     if (!container) return toast('Print container missing', true);
     
+    toast('Generating Landed Cost Report...');
+    
+    // Make container visible for capture (off-screen)
+    container.style.left = '0';
     container.style.opacity = '1';
     container.style.zIndex = '9999';
 
@@ -3428,13 +3432,21 @@ function generateLandedCostReport(tradeId) {
         margin: [0, 0, 0, 0],
         filename: `Landed_Cost_${t.bl_no || t.id}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true,
+            logging: false,
+            letterRendering: true
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().from(container).set(opt).save().then(() => {
-        container.style.opacity = '0';
-        container.style.zIndex = '-1';
-        toast('Landed Cost Report Generated Successfully');
-    });
+    setTimeout(() => {
+        html2pdf().from(container).set(opt).save().then(() => {
+            container.style.left = '-9999px';
+            container.style.opacity = '0';
+            container.style.zIndex = '-1';
+            toast('Landed Cost Report Generated Successfully');
+        });
+    }, 200);
 }
