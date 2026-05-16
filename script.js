@@ -3284,26 +3284,35 @@ function generateLandedCostReport(tradeId) {
     const t = state.trades.find(x => x.id === tradeId);
     if (!t) return toast('Trade not found', true);
 
-    
+    // FIX: Use raw quantity and correct import rates
+    const q = parseFloat(t.raw_qty) || (t.vol / (t.density || 0.85)); // Fallback to calculation if raw_qty missing
+    const unit = t.unit || 'L';
+    const usdRate = parseFloat(t.imp_rate) || 0;
+    const exRate = parseFloat(t.ex_rate) || 1;
+    const foreignLabel = t.currency || 'USD';
 
-    const foreignLabel = t.currency === 'AED' ? 'AED' : (t.currency || 'USD');
-    const foreignAmt = (parseFloat(t.qty_foreign) || t.vol) * (parseFloat(t.price_foreign) || t.price);
-    const basicInr = t.total_inr_basic || (t.vol * ((parseFloat(t.price_foreign) || t.price) * (t.ex_rate || 1)));
+    // Calculate Financials correctly
+    const foreignAmt = q * usdRate;
+    const basicInr = q * (usdRate * exRate);
     
     const expenses = t.expenses || [];
     const expNetTotal = expenses.reduce((s, e) => s + (parseFloat(e.net_amount) || 0), 0);
     const expTaxTotal = expenses.reduce((s, e) => s + (parseFloat(e.tax_amount) || 0), 0);
     const expGrandTotal = expenses.reduce((s, e) => s + (parseFloat(e.total_amount) || 0), 0);
     
-    const totalPurchaseCost = (parseFloat(t.total) || 0);
-    const totalKG = (t.unit === 'KG') ? t.vol : (t.unit === 'MTON' ? t.vol * 1000 : t.vol * (t.density || 0.85));
+    // Total INR should match the dashboard's calculated total (including bank charges)
+    const totalInrStr = t.total_inr || '₹0';
+    const totalPurchaseCost = parseFloat(totalInrStr.replace(/[^0-9.]/g, '')) || (basicInr + expGrandTotal);
+    
+    // Total KG for Landed Rate calculation
+    const totalKG = (unit === 'KG') ? q : (unit === 'MTON' ? q * 1000 : q * (t.density || 0.85));
     
     const basicRateKG = totalKG > 0 ? (basicInr / totalKG) : 0;
     const expRateKG = totalKG > 0 ? (expGrandTotal / totalKG) : 0;
     const finalLandedKG = totalKG > 0 ? (totalPurchaseCost / totalKG) : 0;
 
     const html = `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333;">
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; padding: 10px;">
             <!-- Header -->
             <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #14b8a6; padding-bottom: 10px; margin-bottom: 20px;">
                 <div>
@@ -3351,10 +3360,10 @@ function generateLandedCostReport(tradeId) {
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">${t.vol} ${t.unit}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(parseFloat(t.price_foreign) || t.price)}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">${fmtN(foreignAmt)}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${t.ex_rate || '1.00'}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">${q.toLocaleString()} ${unit}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${usdRate.toLocaleString()}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">${foreignAmt.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${exRate}</td>
                         <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #14b8a6;">${fmt(basicInr)}</td>
                     </tr>
                 </tbody>
@@ -3395,7 +3404,7 @@ function generateLandedCostReport(tradeId) {
             <!-- Final Summary Card -->
             <div style="background: #1e293b; color: #fff; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                 <span style="font-size: 16px; font-weight: bold; letter-spacing: 1px; color: #94a3b8;">TOTAL PURCHASE COST (INR)</span>
-                <span style="font-size: 24px; font-weight: bold; color: #fbbf24;">${fmt(totalPurchaseCost)}</span>
+                <span style="font-size: 24px; font-weight: bold; color: #fbbf24;">${t.total_inr || fmt(totalPurchaseCost)}</span>
             </div>
 
             <!-- Landed Rate Per KG Footer -->
