@@ -150,7 +150,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Product</th><th>Batch Date</th><th>Density</th><th>Storage Loc</th><th>Vol (L)</th><th>Weight (KG)</th><th>Unit Cost</th><th>Value</th><th>Actions</th>
+                            <th>Product</th><th>Batch Date</th><th>Container No.</th><th>Storage Loc</th><th>Vol (L)</th><th>BL Net (KG)</th><th>Yard Wt (KG)</th><th>Smell</th><th>Colour</th><th>Unit Cost</th><th>Value</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="invTable"></tbody>
@@ -233,49 +233,8 @@
         </div>
 
         <div class="form-group full">
-            <label style="display:flex; justify-content:space-between; align-items:center;">
-                <span>Container Weight Tally (BL vs CFS)</span>
-                <div style="display:flex; gap:10px;">
-                    <input type="file" id="tr-cfs-slip-file" style="display:none" accept=".pdf,image/*" onchange="scanCfsSlipWithAI(this)">
-                    <button type="button" class="btn btn-sm btn-gold" onclick="document.getElementById('tr-cfs-slip-file').click()" id="btn-cfs-scan">&#x2728; Scan CFS Slip</button>
-                    <button type="button" class="btn btn-sm btn-ghost" onclick="addContainerRow()">+ Add Container</button>
-                </div>
-            </label>
-            <!-- Hidden original textarea to preserve legacy logic and AI extraction mapping -->
-            <textarea id="tr-containers" style="display:none;"></textarea>
-            
-            <div class="table-wrap" style="background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
-                <table style="width:100%; border-collapse:collapse;">
-                    <thead>
-                        <tr style="border-bottom:1px solid var(--border); font-size:11px; color:var(--muted);">
-                            <th style="padding:10px; text-align:left;">Container No.</th>
-                            <th style="padding:10px; text-align:left;">BL Gross Wt (KG)</th>
-                            <th style="padding:10px; text-align:left;">BL Net Wt (KG)</th>
-                            <th style="padding:10px; text-align:left;">CFS Wt (KG)</th>
-                            <th style="padding:10px; text-align:left;">Variance</th>
-                            <th style="padding:10px; text-align:center;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tr-container-body">
-                        <!-- Rows added dynamically -->
-                    </tbody>
-                    <tfoot>
-                        <tr style="background:rgba(0,0,0,0.2); font-weight:bold; font-size:12px;">
-                            <td style="padding:10px; text-align:right; color:var(--muted);">Totals:</td>
-                            <td style="padding:10px; color:var(--teal);" id="tr-total-bl-gross">0.00</td>
-                            <td style="padding:10px;">
-                                <input id="tr-total-bl-net" type="number" step="0.01" placeholder="Total Net" 
-                                       style="width:100%; background:transparent; border:none; color:var(--teal); font-weight:bold; padding:0; outline:none;"
-                                       oninput="calcContainerTotals()">
-                            </td>
-                            <td style="padding:10px; color:var(--gold2);" id="tr-total-cfs-wt">0.00</td>
-                            <td style="padding:10px;" id="tr-total-variance">0.00</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-            <div style="font-size:10px; color:var(--muted); margin-top:5px; text-align:right;">* Variances exceeding -50 KG shortage will be highlighted automatically.</div>
+            <label>Container Numbers (Comma Separated)</label>
+            <textarea id="tr-containers" placeholder="e.g. HCKU5703110, HLXU1663342, TCUU4141473" style="width:100%; min-height:60px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; font-family:monospace; resize: vertical;"></textarea>
         </div>
         
         <!-- Shipping Documents Checklist -->
@@ -685,19 +644,47 @@
 
 <!-- Yard Transfer / Move to Yard Modal -->
 <div class="modal" id="moveToYardModal">
-    <div class="modal-content" style="max-width:600px; background:var(--surface); border:1px solid var(--border); padding:25px; border-radius:15px;">
+    <div class="modal-content" style="width:95%; max-width:980px; background:var(--surface); border:1px solid var(--border); padding:25px; border-radius:15px; max-height:90vh; overflow-y:auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:15px;">
-            <h2 style="color:var(--gold2); margin:0;"><i class="fas fa-truck-loading"></i> Move to Yard / Unload</h2>
+            <h2 style="color:var(--gold2); margin:0;"><i class="fas fa-truck-loading"></i> Move to Yard & Quality Control Tally</h2>
             <span class="close" onclick="closeMoveToYardModal()" style="font-size:24px; cursor:pointer; color:var(--muted);">&times;</span>
         </div>
         
         <div style="margin-bottom:20px;">
-            <p style="font-size:13px; color:var(--muted); margin-bottom:15px;">Select which containers to clear and where to store the material.</p>
-            <div id="mty-container-list" style="background:rgba(0,0,0,0.2); border-radius:8px; padding:10px; border:1px solid var(--border); max-height:200px; overflow-y:auto; margin-bottom:20px;">
-                <!-- Container checkboxes will be rendered here -->
-            </div>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:15px;">Weigh, inspect, and test the oil parameters for each container before unloading it.</p>
             
-            <div class="form-grid" style="grid-template-columns: 1fr; gap:15px;">
+            <!-- Scan CFS Slip inside the modal -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-weight:bold; color:var(--teal); font-size:13px;">Container weights & quality checks</span>
+                <div>
+                    <input type="file" id="modal-cfs-slip-file" style="display:none" accept=".pdf,image/*" onchange="scanCfsSlipWithAI(this, true)">
+                    <button type="button" class="btn btn-sm btn-gold" onclick="document.getElementById('modal-cfs-slip-file').click()" id="btn-modal-cfs-scan">✨ Scan CFS Weight Slip (AI)</button>
+                </div>
+            </div>
+
+            <div class="table-wrap scroll-x" style="background:var(--surface2); border-radius:8px; border:1px solid var(--border); margin-bottom:20px;">
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border); font-size:11px; color:var(--muted); background:rgba(255,255,255,0.02);">
+                            <th style="padding:10px; text-align:left; width:40px;"><input type="checkbox" id="mty-select-all" onclick="toggleMtySelectAll(this)" checked></th>
+                            <th style="padding:10px; text-align:left;">Container No.</th>
+                            <th style="padding:10px; text-align:left;">BL Gross Wt (KG)</th>
+                            <th style="padding:10px; text-align:left;">BL Net Wt (KG)</th>
+                            <th style="padding:10px; text-align:left;">CFS Wt (KG)</th>
+                            <th style="padding:10px; text-align:left;">Variance (KG)</th>
+                            <th style="padding:10px; text-align:left;">Yard Wt (KG)</th>
+                            <th style="padding:10px; text-align:left; width:110px;">Smell</th>
+                            <th style="padding:10px; text-align:left; width:120px;">Colour</th>
+                            <th style="padding:10px; text-align:left;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mty-container-tbody">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:15px; margin-top:20px;">
                 <div class="form-group">
                     <label>Destination Storage</label>
                     <select id="mty-dest-type" onchange="toggleMtyDest(this.value)">
@@ -707,19 +694,20 @@
                 </div>
                 
                 <div class="form-group" id="mty-tank-group">
-                    <label>Select Tank</label>
+                    <label>Select Storage Tank</label>
                     <select id="mty-tank-id"></select>
                 </div>
                 
                 <div class="form-group">
-                    <label>Transfer Date</label>
+                    <label>Unload / Receipt Date</label>
                     <input type="date" id="mty-date">
                 </div>
             </div>
         </div>
         
-        <div style="display:flex; gap:10px;">
-            <button class="btn btn-gold" onclick="confirmYardTransfer()" style="flex:1; font-weight:bold;">CONFIRM TRANSFER</button>
+        <div style="display:flex; gap:10px; margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+            <button class="btn btn-gold" onclick="confirmYardTransfer()" style="flex:2; font-weight:bold;">CONFIRM & RECEIVE IN YARD</button>
+            <button class="btn btn-primary" onclick="saveMtyWeightTallyOnly()" style="flex:1;">SAVE WEIGHTS ONLY</button>
             <button class="btn btn-ghost" onclick="closeMoveToYardModal()" style="flex:1;">CANCEL</button>
         </div>
     </div>

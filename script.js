@@ -1108,11 +1108,40 @@ function renderProductsList() {
 }
 
 function renderInventoryTable() {
-    var q = document.getElementById('invSearch').value.toLowerCase();
-    document.getElementById('invTable').innerHTML = state.inventory.filter(function (i) { return i.product.toLowerCase().indexOf(q) >= 0; }).map(function (i) {
-        var lvPct = Math.min(100, i.vol / i.threshold * 10);
-        return '<tr><td><b>' + i.product + '</b></td><td>' + i.grade + '</td><td class="mono">' + i.density + '</td><td>' + i.tank + '</td><td class="mono">' + fmtN(i.vol) + '</td><td class="mono">' + fmtKG(toKG(i.vol, i.density)) + '</td><td class="mono">' + fmt(i.cost) + '</td><td class="mono">' + fmt(i.vol * i.cost) + '</td><td><div class="progress" style="width:60px"><div class="progress-fill ' + (i.vol > i.threshold ? 'green' : 'red') + '" style="width:' + lvPct + '%"></div></div></td><td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\',' + i.id + ')">&#x2715;</button></td></tr>';
-    }).join('');
+    var searchEl = document.getElementById('invSearch');
+    var q = searchEl ? searchEl.value.toLowerCase() : '';
+    
+    document.getElementById('invTable').innerHTML = (state.inventory || [])
+        .filter(function (i) { 
+            return !q || 
+                   i.product.toLowerCase().indexOf(q) >= 0 || 
+                   (i.container_no && i.container_no.toLowerCase().indexOf(q) >= 0) || 
+                   (i.location && i.location.toLowerCase().indexOf(q) >= 0); 
+        })
+        .map(function (i) {
+            var yardWt = i.yard_weight_kg ? fmtKG(i.yard_weight_kg) : '-';
+            var smell = i.smell || '-';
+            var colour = i.colour || '-';
+            var container = i.container_no || '-';
+            var blNet = i.weight_kg ? fmtKG(i.weight_kg) : fmtKG(i.vol * (i.density || 0.850));
+            var cost = i.cost || 0;
+            var locBadge = '<span class="badge badge-blue">' + escH(i.location || i.tank || '') + '</span>';
+            
+            return '<tr>' +
+                '<td style="font-weight:bold; color:var(--teal);">' + escH(i.product) + '</td>' +
+                '<td class="mono">' + (i.date || '') + '</td>' +
+                '<td class="mono" style="font-weight:bold;">' + escH(container) + '</td>' +
+                '<td>' + locBadge + '</td>' +
+                '<td class="mono">' + fmtN(i.vol) + ' L</td>' +
+                '<td class="mono">' + blNet + '</td>' +
+                '<td class="mono" style="font-weight:bold; color:var(--gold2);">' + yardWt + '</td>' +
+                '<td style="font-size:12px;"><span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text);">' + escH(smell) + '</span></td>' +
+                '<td style="font-size:12px;"><span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text);">' + escH(colour) + '</span></td>' +
+                '<td class="mono">' + fmt(cost) + '</td>' +
+                '<td class="mono">' + fmt(i.vol * cost) + '</td>' +
+                '<td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\',\'' + i.id + '\')">&#x2715;</button></td>' +
+            '</tr>';
+        }).join('');
 }
 
 function addInventory() {
@@ -1178,29 +1207,68 @@ function openMoveToYardModal(tradeId) {
     
     document.getElementById('mty-date').value = today();
     
-    // Render containers with checkboxes
-    const list = document.getElementById('mty-container-list');
-    const tally = t.container_tally || [];
+    // Parse the containers list (comma-separated)
+    const rawContainers = typeof t.containers === 'string' ? t.containers : '';
+    const contList = rawContainers.split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
     
-    if (tally.length === 0) {
-        list.innerHTML = '<div style="padding:15px; color:var(--red); text-align:center; font-size:12px;">No container data found for this trade.<br>Please update the Trade Grid with Container IDs and Weights first.</div>';
+    // Sync container tally in memory
+    const oldTally = t.container_tally || [];
+    t.container_tally = contList.map(num => {
+        const existing = oldTally.find(x => x.container_no === num);
+        return {
+            container_no: num,
+            bl_gross: existing ? existing.bl_gross : 0,
+            bl_net: existing ? existing.bl_net : 0,
+            cfs_wt: existing ? existing.cfs_wt : 0,
+            yard_wt: existing ? (existing.yard_wt !== undefined ? existing.yard_wt : existing.cfs_wt) : 0,
+            smell: existing ? (existing.smell || 'Normal') : 'Normal',
+            colour: existing ? (existing.colour || 'Golden') : 'Golden',
+            status: existing ? existing.status : 'Awaiting Yard Transfer',
+            transfer_date: existing ? existing.transfer_date : '',
+            transfer_dest: existing ? existing.transfer_dest : ''
+        };
+    });
+    
+    const tbody = document.getElementById('mty-container-tbody');
+    
+    if (t.container_tally.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="padding:15px; color:var(--red); text-align:center; font-size:12px;">No containers list found for this trade.<br>Please update the Trade with Container IDs (comma-separated) first.</td></tr>';
     } else {
-        list.innerHTML = tally.map((c, i) => {
+        tbody.innerHTML = t.container_tally.map((c, i) => {
             const isTransferred = c.status === 'Transferred';
+            const variance = c.cfs_wt && c.bl_net ? (parseFloat(c.cfs_wt) - parseFloat(c.bl_net)) : 0;
+            const varStr = variance > 0 ? '+' + variance.toFixed(2) : variance.toFixed(2);
+            const varColor = variance < -50 ? 'var(--red)' : (variance > 0 ? 'var(--green)' : 'var(--text)');
+            
             return `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <label style="display:flex; align-items:center; gap:12px; cursor:${isTransferred ? 'default' : 'pointer'}; opacity:${isTransferred ? 0.5 : 1}; margin:0; flex:1;">
-                        <input type="checkbox" class="mty-cnt-check" value="${i}" ${isTransferred ? 'disabled' : 'checked'} style="width:16px; height:16px;">
-                        <div>
-                            <div style="font-family:monospace; font-weight:bold; color:var(--text);">${c.container_no}</div>
-                            <div style="font-size:10px; color:var(--muted);">${isTransferred ? `Unloaded on ${c.transfer_date}` : 'Awaiting Yard Transfer'}</div>
-                        </div>
-                    </label>
-                    <div style="text-align:right;">
-                        <div style="font-size:13px; font-weight:bold; color:var(--teal);">${fmtN(c.cfs_weight)} KG</div>
-                        <div style="font-size:9px; color:var(--muted);">ACTUAL CFS WT</div>
-                    </div>
-                </div>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.05); background:${isTransferred ? 'rgba(255,255,255,0.02)' : 'transparent'}; opacity:${isTransferred ? 0.7 : 1};">
+                    <td style="padding:10px;"><input type="checkbox" class="mty-cnt-check" value="${i}" ${isTransferred ? 'disabled' : 'checked'} style="width:16px; height:16px;"></td>
+                    <td style="padding:10px; font-family:monospace; font-weight:bold; color:var(--text);">${c.container_no}</td>
+                    <td style="padding:10px;"><input class="mty-bl-gross" type="number" step="0.01" value="${c.bl_gross || ''}" placeholder="0.00" style="width:110px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:5px; border-radius:4px;" ${isTransferred ? 'disabled' : ''} oninput="calcMtyRowVariance(this, ${i})"></td>
+                    <td style="padding:10px;"><input class="mty-bl-net" type="number" step="0.01" value="${c.bl_net || ''}" placeholder="0.00" style="width:110px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:5px; border-radius:4px;" ${isTransferred ? 'disabled' : ''} oninput="calcMtyRowVariance(this, ${i})"></td>
+                    <td style="padding:10px;"><input class="mty-cfs" type="number" step="0.01" value="${c.cfs_wt || ''}" placeholder="0.00" style="width:110px; border:1px solid var(--gold2); background:rgba(251, 191, 36, 0.05); color:var(--text); padding:5px; border-radius:4px;" ${isTransferred ? 'disabled' : ''} oninput="calcMtyRowVariance(this, ${i})"></td>
+                    <td style="padding:10px; font-family:monospace; font-weight:bold; color:${varColor};" class="mty-variance-cell">${c.cfs_wt && c.bl_net ? varStr : '-'}</td>
+                    <td style="padding:10px;"><input class="mty-yard-wt" type="number" step="0.01" value="${c.yard_wt || ''}" placeholder="0.00" style="width:110px; border:1px solid var(--teal); background:rgba(20, 184, 166, 0.05); color:var(--text); padding:5px; border-radius:4px;" ${isTransferred ? 'disabled' : ''} oninput="calcMtyRowVariance(this, ${i})"></td>
+                    <td style="padding:10px;">
+                        <select class="mty-smell" style="width:100px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:5px; border-radius:4px;" ${isTransferred ? 'disabled' : ''} onchange="updateMtyRowQuality(this, ${i}, 'smell')">
+                            <option value="Normal" ${c.smell === 'Normal' ? 'selected' : ''}>Normal</option>
+                            <option value="Acidic" ${c.smell === 'Acidic' ? 'selected' : ''}>Acidic</option>
+                            <option value="Burnt" ${c.smell === 'Burnt' ? 'selected' : ''}>Burnt</option>
+                            <option value="Chemical" ${c.smell === 'Chemical' ? 'selected' : ''}>Chemical</option>
+                            <option value="Sweet" ${c.smell === 'Sweet' ? 'selected' : ''}>Sweet</option>
+                        </select>
+                    </td>
+                    <td style="padding:10px;">
+                        <select class="mty-colour" style="width:110px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:5px; border-radius:4px;" ${isTransferred ? 'disabled' : ''} onchange="updateMtyRowQuality(this, ${i}, 'colour')">
+                            <option value="Golden" ${c.colour === 'Golden' ? 'selected' : ''}>Golden</option>
+                            <option value="Light Yellow" ${c.colour === 'Light Yellow' ? 'selected' : ''}>Light Yellow</option>
+                            <option value="Pale Amber" ${c.colour === 'Pale Amber' ? 'selected' : ''}>Pale Amber</option>
+                            <option value="Light Brown" ${c.colour === 'Light Brown' ? 'selected' : ''}>Light Brown</option>
+                            <option value="Dark Brown" ${c.colour === 'Dark Brown' ? 'selected' : ''}>Dark Brown</option>
+                        </select>
+                    </td>
+                    <td style="padding:10px; font-size:11px; color:${isTransferred ? 'var(--teal)' : 'var(--muted)'}; font-weight:bold;">${isTransferred ? `Transferred` : 'Awaiting'}</td>
+                </tr>
             `;
         }).join('');
     }
@@ -1210,6 +1278,65 @@ function openMoveToYardModal(tradeId) {
     tankSel.innerHTML = (state.tanks || []).filter(tk => tk.type !== 'Mobile').map(tank => `<option value="${tank.id}">${tank.name} (${tank.location})</option>`).join('');
     
     document.getElementById('moveToYardModal').classList.add('show');
+}
+
+function toggleMtySelectAll(cb) {
+    const checks = document.querySelectorAll('.mty-cnt-check');
+    checks.forEach(c => {
+        if (!c.disabled) c.checked = cb.checked;
+    });
+}
+
+function calcMtyRowVariance(inputEl, index) {
+    const tr = inputEl.closest('tr');
+    const blNet = parseFloat(tr.querySelector('.mty-bl-net').value) || 0;
+    const cfs = parseFloat(tr.querySelector('.mty-cfs').value) || 0;
+    const varianceCell = tr.querySelector('.mty-variance-cell');
+    
+    const cfsInput = tr.querySelector('.mty-cfs');
+    const yardInput = tr.querySelector('.mty-yard-wt');
+    if (inputEl === cfsInput && (!yardInput.value || parseFloat(yardInput.value) === 0)) {
+        yardInput.value = cfsInput.value;
+    }
+    
+    const yardWt = parseFloat(tr.querySelector('.mty-yard-wt').value) || 0;
+    
+    // Update in-memory array immediately
+    const t = state.trades.find(x => x.id === currentMtyTradeId);
+    if (t && t.container_tally && t.container_tally[index]) {
+        t.container_tally[index].bl_gross = parseFloat(tr.querySelector('.mty-bl-gross').value) || 0;
+        t.container_tally[index].bl_net = blNet;
+        t.container_tally[index].cfs_wt = cfs;
+        t.container_tally[index].yard_wt = yardWt;
+    }
+    
+    if (cfs > 0 && blNet > 0) {
+        const variance = cfs - blNet;
+        varianceCell.textContent = variance > 0 ? '+' + variance.toFixed(2) : variance.toFixed(2);
+        varianceCell.style.color = variance < -50 ? 'var(--red)' : (variance > 0 ? 'var(--green)' : 'var(--text)');
+    } else {
+        varianceCell.textContent = '-';
+        varianceCell.style.color = 'var(--text)';
+    }
+}
+
+function updateMtyRowQuality(selectEl, index, field) {
+    const t = state.trades.find(x => x.id === currentMtyTradeId);
+    if (t && t.container_tally && t.container_tally[index]) {
+        t.container_tally[index][field] = selectEl.value;
+    }
+}
+
+function saveMtyWeightTallyOnly() {
+    const t = state.trades.find(x => x.id === currentMtyTradeId);
+    if (!t) return;
+    
+    t.container_tally_total_net = t.container_tally.reduce((sum, x) => sum + (parseFloat(x.bl_net) || 0), 0);
+    
+    saveState(true);
+    closeMoveToYardModal();
+    renderTradesTable();
+    toast(`✨ Quality control weight tally saved successfully!`);
 }
 
 function toggleMtyDest(val) {
@@ -1232,30 +1359,42 @@ async function confirmYardTransfer() {
     const date = document.getElementById('mty-date').value || today();
     
     let totalTransferred = 0;
+    let missingCfsCount = 0;
     
     selectedIndices.forEach(idx => {
         const c = t.container_tally[idx];
-        const weight = parseFloat(c.cfs_weight) || 0;
-        if (weight <= 0) return;
+        const cfsWeight = parseFloat(c.cfs_wt) || 0;
+        const yardWeight = parseFloat(c.yard_wt) || cfsWeight;
         
-        totalTransferred += weight;
+        if (cfsWeight <= 0) {
+            missingCfsCount++;
+            return;
+        }
+        
+        totalTransferred += yardWeight;
         c.status = 'Transferred';
         c.transfer_date = date;
         c.transfer_dest = destType === 'tank' ? tankId : 'ISO_' + c.container_no;
+        c.yard_wt = yardWeight;
         
         // Add to Inventory
+        if (!state.inventory) state.inventory = [];
         state.inventory.push({
             id: 'INV' + (state.nextInvId++),
             trade_id: t.id,
             container_no: c.container_no,
             product: t.product,
-            vol: weight / (t.density || 0.850),
-            weight_kg: weight,
+            vol: yardWeight / (t.density || 0.850),
+            weight_kg: cfsWeight, // keep original BL Net weight or CFS weight as reference
+            yard_weight_kg: yardWeight, // tested received yard weight
+            smell: c.smell || 'Normal',
+            colour: c.colour || 'Golden',
             density: t.density || 0.850,
             location: destType === 'tank' ? tankId : ('ISO_' + c.container_no),
             date: date,
             type: destType === 'tank' ? 'Unload to Tank' : 'Yard Receipt (ISO)',
-            status: 'In Yard'
+            status: 'In Yard',
+            cost: t.price || 0
         });
         
         // If it's a virtual ISO tank, register it as a temporary storage if not exists
@@ -1267,12 +1406,18 @@ async function confirmYardTransfer() {
                     id: 'ISO_' + c.container_no,
                     name: 'ISO: ' + c.container_no,
                     location: 'Yard - On Wheels',
-                    capacity: 30000, 
+                    capacity: 30000,
                     type: 'Mobile'
                 });
             }
         }
     });
+    
+    if (missingCfsCount > 0 && totalTransferred === 0) {
+        return toast('Please fill in CFS Weight (KG) for selected containers first', true);
+    }
+    
+    t.container_tally_total_net = t.container_tally.reduce((sum, x) => sum + (parseFloat(x.bl_net) || 0), 0);
     
     // Check if ALL containers in this trade are transferred
     const allDone = t.container_tally.every(c => c.status === 'Transferred');
@@ -1280,12 +1425,13 @@ async function confirmYardTransfer() {
         t.status = 'Completed';
     }
     
-    saveState();
+    saveState(true);
     closeMoveToYardModal();
     renderTradesTable();
     if (typeof renderYardDashboard === 'function') renderYardDashboard();
     if (typeof renderTankManager === 'function') renderTankManager();
-    toast(`✨ Successfully transferred ${fmtN(totalTransferred)} KG to your yard!`);
+    if (typeof renderInventoryTable === 'function') renderInventoryTable();
+    toast(`✨ Successfully tested & received ${fmtN(totalTransferred)} KG in yard!`);
 }
 async function handleTradeDocUpload(input) {
     const files = input.files;
@@ -1573,13 +1719,23 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                 'tr-container-count': ai.container_count
             };
 
-            if (ai.containers_tally && Array.isArray(ai.containers_tally) && ai.containers_tally.length > 0) {
-                clearContainerGrid();
-                ai.containers_tally.forEach(c => addContainerRow(c));
-            } else if (ai.containers) {
-                clearContainerGrid();
-                const arr = Array.isArray(ai.containers) ? ai.containers : ai.containers.split(',');
-                arr.forEach(c => addContainerRow({ container_no: c.trim() }));
+            let containerList = '';
+            if (ai.containers) {
+                containerList = Array.isArray(ai.containers) ? ai.containers.join(', ') : ai.containers;
+            } else if (ai.containers_tally && Array.isArray(ai.containers_tally)) {
+                containerList = ai.containers_tally.map(x => x.container_no).join(', ');
+            }
+            if (containerList) {
+                document.getElementById('tr-containers').value = containerList;
+            }
+            if (ai.containers_tally && Array.isArray(ai.containers_tally)) {
+                currentExtractedTally = ai.containers_tally.map(c => ({
+                    container_no: c.container_no.trim().toUpperCase(),
+                    bl_gross: parseFloat(c.bl_gross) || 0,
+                    bl_net: parseFloat(c.bl_net) || 0,
+                    cfs_wt: parseFloat(c.cfs_wt) || null,
+                    status: 'Awaiting Yard Transfer'
+                }));
             }
 
             // Helper to compare values accurately (handles numbers vs strings, units like KGS, and dots/slashes)
@@ -1672,6 +1828,7 @@ function highlightField(id) {
     setTimeout(function () { el.classList.remove('extracted-pulse'); }, 5000);
 }
 var editingTradeId = null;
+var currentExtractedTally = null;
 function editTrade(id) {
     var t = state.trades.find(function (x) { return x.id === id; });
     if (!t) return;
@@ -1725,17 +1882,7 @@ function editTrade(id) {
         document.getElementById('tr-tank-rate').value = t.tank_rate || '';
         document.getElementById('tr-containers').value = t.containers || '';
         
-        // Restore manual total weight if available
-        const totalNetEl = document.getElementById('tr-total-bl-net');
-        if (totalNetEl) totalNetEl.value = t.container_tally_total_net || '';
-        
-        clearContainerGrid();
-        if (t.container_tally && t.container_tally.length > 0) {
-            t.container_tally.forEach(c => addContainerRow(c));
-        } else if (t.containers) {
-            const oldContainers = typeof t.containers === 'string' ? t.containers.split(',').map(s=>s.trim()).filter(Boolean) : [];
-            oldContainers.forEach(c => addContainerRow({ container_no: c }));
-        }
+        // Container weight tally and grid are now handled inside the Move to Yard modal.
 
         calcImportTotal();
     } else if (t.mode === 'hs_sale') {
@@ -1826,6 +1973,14 @@ function addTrade() {
     var termsVal = document.getElementById('tr-terms').value;
     if (termsVal === '__custom__') termsVal = document.getElementById('tr-custom-term-val').value || 'Custom';
 
+    var existingTrade = editingTradeId ? state.trades.find(x => x.id === editingTradeId) : null;
+    var finalContainerTally = existingTrade ? (existingTrade.container_tally || []) : [];
+    if (currentExtractedTally && currentExtractedTally.length > 0) {
+        finalContainerTally = currentExtractedTally;
+        currentExtractedTally = null;
+    }
+    var finalTotalNet = existingTrade ? (existingTrade.container_tally_total_net || 0) : 0;
+
     var trade = {
         type: type, mode: mode, product: product, party: party,
         vol: volInL, price: price, raw_qty: rawQty, unit: unit,
@@ -1833,8 +1988,8 @@ function addTrade() {
         terms: termsVal, density: den, 
         docs: JSON.parse(JSON.stringify(currentTradeDocs)),
         expenses: getTradeExpenses(),
-        container_tally: getContainerGridData(),
-        container_tally_total_net: parseFloat(document.getElementById('tr-total-bl-net').value) || 0,
+        container_tally: finalContainerTally,
+        container_tally_total_net: finalTotalNet,
         containers: document.getElementById('tr-containers').value,
         ship_docs: currentShipDocs,
         payments: getSupplierPayments(),
@@ -2746,26 +2901,34 @@ function calcContainerTotals() {
         }
     });
     
-    document.getElementById('tr-total-bl-gross').textContent = tGross.toFixed(2);
+    const grossEl = document.getElementById('tr-total-bl-gross');
+    if (grossEl) grossEl.textContent = tGross.toFixed(2);
     
     const totalNetEl = document.getElementById('tr-total-bl-net');
-    // Auto-sum only if individual container net weights are entered
-    // IMPORTANT: Do NOT overwrite if the user is currently typing in this field
-    if (tNet > 0 && document.activeElement !== totalNetEl) {
-        totalNetEl.value = tNet.toFixed(2);
+    if (totalNetEl) {
+        if (tNet > 0 && document.activeElement !== totalNetEl) {
+            totalNetEl.value = tNet.toFixed(2);
+        }
+        const finalTotalNet = parseFloat(totalNetEl.value) || 0;
+        
+        const cfsEl = document.getElementById('tr-total-cfs-wt');
+        if (cfsEl) cfsEl.textContent = tCfs.toFixed(2);
+        
+        const totalVar = tCfs > 0 ? (tCfs - finalTotalNet) : 0;
+        const varEl = document.getElementById('tr-total-variance');
+        if (varEl) {
+            varEl.textContent = totalVar > 0 ? '+' + totalVar.toFixed(2) : totalVar.toFixed(2);
+            varEl.style.color = totalVar <= -50 ? 'var(--red)' : (totalVar > 0 ? 'var(--green)' : 'var(--text)');
+        }
     }
-    const finalTotalNet = parseFloat(totalNetEl.value) || 0;
-
-    document.getElementById('tr-total-cfs-wt').textContent = tCfs.toFixed(2);
     
-    const totalVar = tCfs > 0 ? (tCfs - finalTotalNet) : 0;
-    const varEl = document.getElementById('tr-total-variance');
-    varEl.textContent = totalVar > 0 ? '+' + totalVar.toFixed(2) : totalVar.toFixed(2);
-    varEl.style.color = totalVar <= -50 ? 'var(--red)' : (totalVar > 0 ? 'var(--green)' : 'var(--text)');
-    
-    // Sync to hidden textarea for legacy fallback mapping
-    const cntNos = Array.from(rows).map(r => r.querySelector('.cnt-no').value.trim()).filter(Boolean);
-    document.getElementById('tr-containers').value = cntNos.join(', ');
+    if (rows.length > 0) {
+        const firstRowNo = rows[0].querySelector('.cnt-no');
+        if (firstRowNo) {
+            const cntNos = Array.from(rows).map(r => r.querySelector('.cnt-no').value.trim()).filter(Boolean);
+            document.getElementById('tr-containers').value = cntNos.join(', ');
+        }
+    }
 }
 
 function clearContainerGrid() {
@@ -2784,13 +2947,15 @@ function getContainerGridData() {
     })).filter(c => c.container_no);
 }
 
-async function scanCfsSlipWithAI(input) {
+async function scanCfsSlipWithAI(input, isModal = false) {
     const file = input.files[0];
     if (!file) return;
 
     if (!state.apiKey) return toast('Please configure AI API Key first', true);
     
-    const btn = document.getElementById('btn-cfs-scan');
+    const btnId = isModal ? 'btn-modal-cfs-scan' : 'btn-cfs-scan';
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
     const oldBtnHtml = btn.innerHTML;
     btn.innerHTML = '&#x23F3; Scanning Slip...';
     btn.disabled = true;
@@ -2833,7 +2998,6 @@ Return ONLY JSON: { "container_no": "...", "cfs_weight": 0.00 }` },
         rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiResponse = JSON.parse(rawJson);
 
-        // Normalize to array so we can handle both single slips and summary lists
         const results = Array.isArray(aiResponse) ? aiResponse : [aiResponse];
         let matchCount = 0;
         
@@ -2849,33 +3013,57 @@ Return ONLY JSON: { "container_no": "...", "cfs_weight": 0.00 }` },
 
             const targetContainer = item.container_no.replace(/[^A-Z0-9]/gi, '').toUpperCase();
             
-            const rows = document.querySelectorAll('#tr-container-body tr');
-            rows.forEach(row => {
-                const rowCnt = row.querySelector('.cnt-no').value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-                
-                // Match logic: identical, or strong partial match
-                if (rowCnt && targetContainer && (rowCnt === targetContainer || (rowCnt.length >= 8 && targetContainer.includes(rowCnt)) || (targetContainer.length >= 8 && rowCnt.includes(targetContainer)))) {
-                    const cfsInput = row.querySelector('.cnt-cfs');
-                    cfsInput.value = parsedWeight;
-                    
-                    // Visual feedback pulse
-                    const origBg = cfsInput.style.background;
-                    const origBorder = cfsInput.style.border;
-                    cfsInput.style.background = 'rgba(45, 212, 191, 0.4)'; // Teal pulse
-                    cfsInput.style.border = '2px solid var(--teal)';
-                    setTimeout(() => {
-                        cfsInput.style.background = origBg;
-                        cfsInput.style.border = origBorder;
-                    }, 4000);
-                    
-                    matchCount++;
-                }
-            });
+            const mtyRows = document.querySelectorAll('#mty-container-tbody tr');
+            if (mtyRows.length > 0) {
+                mtyRows.forEach((row, rowIndex) => {
+                    const rowCnt = row.cells[1].textContent.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                    if (rowCnt && targetContainer && (rowCnt === targetContainer || rowCnt.includes(targetContainer) || targetContainer.includes(rowCnt))) {
+                        const cfsInput = row.querySelector('.mty-cfs');
+                        if (cfsInput) {
+                            cfsInput.value = parsedWeight;
+                            
+                            // Visual feedback pulse
+                            const origBg = cfsInput.style.background;
+                            const origBorder = cfsInput.style.border;
+                            cfsInput.style.background = 'rgba(45, 212, 191, 0.4)';
+                            cfsInput.style.border = '2px solid var(--teal)';
+                            setTimeout(() => {
+                                cfsInput.style.background = origBg;
+                                cfsInput.style.border = origBorder;
+                            }, 4000);
+                            
+                            calcMtyRowVariance(cfsInput, rowIndex);
+                            matchCount++;
+                        }
+                    }
+                });
+            } else {
+                const rows = document.querySelectorAll('#tr-container-body tr');
+                rows.forEach(row => {
+                    const rowCnt = row.querySelector('.cnt-no').value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                    if (rowCnt && targetContainer && (rowCnt === targetContainer || (rowCnt.length >= 8 && targetContainer.includes(rowCnt)) || (targetContainer.length >= 8 && rowCnt.includes(targetContainer)))) {
+                        const cfsInput = row.querySelector('.cnt-cfs');
+                        cfsInput.value = parsedWeight;
+                        
+                        const origBg = cfsInput.style.background;
+                        const origBorder = cfsInput.style.border;
+                        cfsInput.style.background = 'rgba(45, 212, 191, 0.4)';
+                        cfsInput.style.border = '2px solid var(--teal)';
+                        setTimeout(() => {
+                            cfsInput.style.background = origBg;
+                            cfsInput.style.border = origBorder;
+                        }, 4000);
+                        
+                        matchCount++;
+                    }
+                });
+            }
         });
 
         if (matchCount > 0) {
-            toast(`&#x2728; Success: Matched and updated ${matchCount} container weights!`);
-            calcContainerTotals();
+            toast(`✨ Success: Matched and updated ${matchCount} container weights!`);
+            const mtyRows = document.querySelectorAll('#mty-container-tbody tr');
+            if (mtyRows.length === 0) calcContainerTotals();
         } else {
             toast(`Warning: Found data for ${results.length} containers but none matched your grid.`, true);
         }
