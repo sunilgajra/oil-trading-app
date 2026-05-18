@@ -923,6 +923,26 @@ function loadPurchaseDetails() {
     calcTradeTotals();
     toast('Loaded details from Purchase ' + id);
 }
+let lastCurrency = 'USD';
+function handleCurrencyChange() {
+    const currEl = document.getElementById('tr-imp-curr');
+    const exEl = document.getElementById('tr-ex-rate');
+    if (!currEl || !exEl) return;
+
+    const newCurr = currEl.value;
+    const currentRate = parseFloat(exEl.value) || 0;
+    const univRate = 3.6725;
+
+    if (newCurr !== lastCurrency && currentRate > 0) {
+        if (lastCurrency === 'USD' && newCurr === 'AED') {
+            exEl.value = (currentRate / univRate).toFixed(4);
+        } else if (lastCurrency === 'AED' && newCurr === 'USD') {
+            exEl.value = (currentRate * univRate).toFixed(4);
+        }
+    }
+    lastCurrency = newCurr;
+}
+
 function calcImportTotal() {
     var isHs = document.getElementById('tr-is-hs').checked;
     var rawQty = parseFloat(document.getElementById('tr-vol').value) || 0;
@@ -1694,6 +1714,7 @@ function editTrade(id) {
         document.getElementById('tr-ex-rate').value = t.ex_rate || '';
         document.getElementById('tr-imp-rate').value = t.imp_rate || '';
         document.getElementById('tr-imp-curr').value = t.currency || 'USD';
+        lastCurrency = t.currency || 'USD';
         document.getElementById('tr-agent').value = t.dest_agent || '';
         document.getElementById('tr-net-weight').value = t.net_weight || '';
         document.getElementById('tr-hs-code').value = t.hs_code || '';
