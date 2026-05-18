@@ -653,6 +653,21 @@
         <div style="margin-bottom:20px;">
             <p style="font-size:13px; color:var(--muted); margin-bottom:15px;">Weigh, inspect, and test the oil parameters for each container before unloading it.</p>
             
+            <!-- Auto-Split BL Weight Controller -->
+            <div style="background:var(--surface2); border:1px solid var(--border); padding:12px; border-radius:8px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; gap:15px;">
+                <div>
+                    <label style="font-size:11px; color:var(--muted); font-weight:bold; display:block; margin-bottom:4px;">Total BL Net Weight (KG)</label>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="number" id="mty-total-bl-net" style="width:130px; background:var(--surface); border:1px solid var(--border); color:var(--text); padding:6px; border-radius:4px;" placeholder="0.00">
+                        <button type="button" class="btn btn-sm btn-teal" onclick="autoSplitBlNetWeight()">⚡ Auto-Split Equally</button>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <span style="font-size:11px; color:var(--muted); font-weight:bold; display:block;">Containers Count</span>
+                    <span id="mty-container-count-badge" style="font-size:16px; font-weight:bold; color:var(--teal);">0</span>
+                </div>
+            </div>
+
             <!-- Scan CFS Slip inside the modal -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <span style="font-weight:bold; color:var(--teal); font-size:13px;">Container weights & quality checks</span>
