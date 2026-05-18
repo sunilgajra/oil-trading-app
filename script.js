@@ -2619,7 +2619,7 @@ function deleteChallan(id) {
 function deleteProduct(n) {
     customConfirm('Delete product "' + n + '"?').then(function (ok) {
         if (!ok) return;
-        state.products = state.products.filter(function (p) { return p !== n; });
+        state.products = state.products.filter(function (p) { return p.name !== n; });
         saveState(); populateSelects(); renderProductsList(); toast('Product removed');
     });
 }
@@ -4493,6 +4493,8 @@ function resetTradeForm() {
         // Products Master
         addProductMaster,
         renderProductsList,
+        deleteProduct,
+        editProduct,
         
         // Trade Management
         addTrade,
@@ -4534,7 +4536,9 @@ function resetTradeForm() {
         
         // Orders & Challans
         addOrder,
+        deleteOrder,
         addChallan,
+        deleteChallan,
         
         // High Seas Sales Document Generator
         openHssModal,
