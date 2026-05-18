@@ -173,7 +173,10 @@
 
 <!-- TRADES -->
 <div class="page" id="page-trades"><div class="container">
-  <div class="section-title">Record Trade</div>
+  <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>Record Trade</span>
+      <button class="btn btn-sm btn-ghost" onclick="resetTradeForm()" style="color:var(--teal); border:1px dashed var(--teal); background:transparent;"><i class="fas fa-plus"></i> + New Trade / Clear Form</button>
+  </div>
   <div class="panel">
     <div class="form-grid">
       <div class="form-group"><label>Trade Type</label><select id="tr-type" onchange="toggleTradeModeField(); toggleTradeDetailFields();"><option>Buy</option><option>Sell</option><option>Move</option></select></div>
@@ -769,6 +772,36 @@
         <button class="btn btn-gold" onclick="handleLogin()" style="width:100%; font-weight:bold;">LOGIN TO CLOUD</button>
         <button class="btn btn-ghost" onclick="handleSignUp()" style="width:100%; margin-top:5px; color:var(--teal);">New User? Sign Up</button>
         <button class="btn btn-ghost" onclick="closeLoginModal()" style="width:100%; margin-top:10px;">Cancel</button>
+    </div>
+</div>
+
+<!-- Edit Inventory Modal -->
+<div id="editInventoryModal" class="modal">
+    <div class="modal-content" style="width:95%; max-width:600px; background:var(--surface); border:1px solid var(--border); padding:25px; border-radius:15px; max-height:90vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:15px;">
+            <h2 style="color:var(--gold2); margin:0;"><i class="fas fa-edit"></i> Edit Stock Batch</h2>
+            <span class="close" onclick="closeEditInventoryModal()" style="font-size:24px; cursor:pointer; color:var(--muted);">&times;</span>
+        </div>
+        
+        <input type="hidden" id="edit-inv-id">
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-bottom:20px;">
+            <div class="form-group"><label>Product Name</label><input id="edit-inv-product" readonly style="background:var(--surface2); color:var(--muted);"></div>
+            <div class="form-group"><label>Container No.</label><input id="edit-inv-container" readonly style="background:var(--surface2); color:var(--muted);"></div>
+            <div class="form-group"><label>Batch Date</label><input id="edit-inv-date" type="date"></div>
+            <div class="form-group"><label>Storage Location</label><input id="edit-inv-location" placeholder="e.g. Tank 1"></div>
+            <div class="form-group"><label>Volume (Litres)</label><input id="edit-inv-vol" type="number" step="0.01" oninput="syncEditInvVolToWeight()"></div>
+            <div class="form-group"><label>Density (kg/L)</label><input id="edit-inv-density" type="number" step="0.001" oninput="syncEditInvVolToWeight()"></div>
+            <div class="form-group"><label>BL Net Weight (KG)</label><input id="edit-inv-weight" type="number" step="0.01" readonly style="background:var(--surface2); color:var(--muted);"></div>
+            <div class="form-group"><label>Yard Weight (KG)</label><input id="edit-inv-yard-weight" type="number" step="0.01"></div>
+            <div class="form-group"><label>Smell</label><input id="edit-inv-smell" placeholder="e.g. Normal"></div>
+            <div class="form-group"><label>Colour</label><input id="edit-inv-colour" placeholder="e.g. Golden"></div>
+            <div class="form-group"><label>Unit Cost (₹)</label><input id="edit-inv-cost" type="number" step="0.01"></div>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn btn-ghost" onclick="closeEditInventoryModal()" style="flex:1;">Cancel</button>
+            <button class="btn btn-gold" onclick="saveEditInventoryItem()" style="flex:1; font-weight:bold;">Save Changes</button>
+        </div>
     </div>
 </div>
 
