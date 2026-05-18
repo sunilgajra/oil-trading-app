@@ -789,17 +789,19 @@ function calcTradeTotals() {
         if (inputs && inputs.length > 3) bankTotal += parseFloat(inputs[3].value) || 0;
     });
 
-    // Add Tank/Extra Cost if import (calculated in USD converted to INR)
+    // Add Tank/Extra Cost if import (calculated in USD converted to INR) and Duty Amount
     var tankCost = 0;
+    var dutyAmt = 0;
     if (mode === 'import') {
         var contCount = parseFloat(document.getElementById('tr-container-count').value) || 0;
         var tankRateUSD = parseFloat(document.getElementById('tr-tank-rate').value) || 0;
         var ex = parseFloat(document.getElementById('tr-ex-rate').value) || 1;
         tankCost = contCount * tankRateUSD * ex;
         document.getElementById('tr-tank-cost').value = fmtN(tankCost);
+        dutyAmt = parseFloat(document.getElementById('tr-duty-amt').value) || 0;
     }
 
-    var totalInr = basicInr + logTotal + bankTotal + tankCost;
+    var totalInr = basicInr + logTotal + bankTotal + tankCost + dutyAmt;
     document.getElementById('tr-total-inr-shared').value = fmt(totalInr);
 
     // Update Foreign Total
@@ -3890,15 +3892,16 @@ function generateLandedCostReport(tradeId) {
     // Also include Bank Charges from payments if any
     const bankCharges = (t.payments || []).reduce((s, p) => s + (parseFloat(p.bank_chg) || 0), 0);
     const tankCost = parseFloat(t.tank_cost) || 0;
+    const dutyAmt = parseFloat(t.duty_amt) || 0;
 
-    // Total INR should be the exact sum of all components
-    const totalPurchaseCost = basicInr + expGrandTotal + bankCharges + tankCost;
+    // Total INR should be the exact sum of all components (including Customs Duty)
+    const totalPurchaseCost = basicInr + expGrandTotal + bankCharges + tankCost + dutyAmt;
 
     // Total KG for Landed Rate calculation
     const totalKG = (unit === 'KG') ? q : (unit === 'MTON' ? q * 1000 : q * (t.density || 0.85));
 
     const basicRateKG = totalKG > 0 ? (basicInr / totalKG) : 0;
-    const expRateKG = totalKG > 0 ? ((expGrandTotal + bankCharges + tankCost) / totalKG) : 0;
+    const expRateKG = totalKG > 0 ? ((expGrandTotal + bankCharges + tankCost + dutyAmt) / totalKG) : 0;
     const finalLandedKG = basicRateKG + expRateKG;
 
     const html = `
@@ -3994,6 +3997,14 @@ function generateLandedCostReport(tradeId) {
                             <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fmtN(tankCost)}</td>
                         </tr>
                     ` : ''}
+                    ${dutyAmt > 0 ? `
+                        <tr style="text-align: right;">
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: 500;">Customs Duty (BOE No: ${escH(t.boe_no || 'N/A')})</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${fmtN(dutyAmt)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">0.00</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fmtN(dutyAmt)}</td>
+                        </tr>
+                    ` : ''}
                     ${bankCharges > 0 ? `
                         <tr style="text-align: right;">
                             <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: 500;">Bank Charges (Payments)</td>
@@ -4002,14 +4013,14 @@ function generateLandedCostReport(tradeId) {
                             <td style="padding: 8px; border: 1px solid #ddd; font-weight: 600;">${fmtN(bankCharges)}</td>
                         </tr>
                     ` : ''}
-                    ${(expenses.length === 0 && tankCost === 0 && bankCharges === 0) ? '<tr><td colspan="4" style="padding: 30px; text-align: center; color: #999; font-style: italic;">No logistics expenses recorded for this trade.</td></tr>' : ''}
+                    ${(expenses.length === 0 && tankCost === 0 && bankCharges === 0 && dutyAmt === 0) ? '<tr><td colspan="4" style="padding: 30px; text-align: center; color: #999; font-style: italic;">No logistics expenses recorded for this trade.</td></tr>' : ''}
                 </tbody>
                 <tfoot>
                     <tr style="background: #f9f9f9; font-weight: bold; text-align: right; font-size: 12px; color: #14b8a6;">
                         <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">EXPENSES GRAND TOTAL</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(expNetTotal + tankCost + bankCharges)}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(expNetTotal + tankCost + bankCharges + dutyAmt)}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${fmtN(expTaxTotal)}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; border-left: 2px solid #14b8a6;">${fmt(expGrandTotal + tankCost + bankCharges)}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; border-left: 2px solid #14b8a6;">${fmt(expGrandTotal + tankCost + bankCharges + dutyAmt)}</td>
                     </tr>
                 </tfoot>
             </table>
