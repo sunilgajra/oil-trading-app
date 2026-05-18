@@ -1127,7 +1127,14 @@ function renderInventoryTable() {
             var container = i.container_no || '-';
             var blNet = i.weight_kg ? fmtKG(i.weight_kg) : fmtKG(i.vol * (i.density || 0.850));
             var cost = i.cost || 0;
-            var locBadge = '<span class="badge badge-blue">' + escH(i.location || i.tank || '') + '</span>';
+            var dispLoc = i.location || i.tank || '';
+            if (dispLoc.indexOf('ISO_') === 0) {
+                var tk = (state.tanks || []).find(function(x) { return x.id === dispLoc; });
+                if (tk) {
+                    dispLoc = tk.name + ' (' + tk.location + ')';
+                }
+            }
+            var locBadge = '<span class="badge badge-blue">' + escH(dispLoc) + '</span>';
             
             return '<tr>' +
                 '<td style="font-weight:bold; color:var(--teal);">' + escH(i.product) + '</td>' +
@@ -1493,16 +1500,19 @@ async function confirmYardTransfer() {
         
         // If it's a virtual ISO tank, register it as a temporary storage if not exists
         if (destType === 'iso') {
+            const yardLoc = (document.getElementById('mty-yard-loc').value || '').trim() || 'Yard - On Wheels';
             const exists = (state.tanks || []).find(tk => tk.id === ('ISO_' + c.container_no));
             if (!exists) {
                 if (!state.tanks) state.tanks = [];
                 state.tanks.push({
                     id: 'ISO_' + c.container_no,
                     name: 'ISO: ' + c.container_no,
-                    location: 'Yard - On Wheels',
+                    location: yardLoc,
                     capacity: 30000,
                     type: 'Mobile'
                 });
+            } else {
+                exists.location = yardLoc;
             }
         }
     });
