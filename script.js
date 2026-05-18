@@ -1289,6 +1289,25 @@ function openMoveToYardModal(tradeId) {
     const tankSel = document.getElementById('mty-tank-id');
     tankSel.innerHTML = (state.tanks || []).filter(tk => tk.type !== 'Mobile').map(tank => `<option value="${tank.id}">${tank.name} (${tank.location})</option>`).join('');
     
+    // Populate Yard Locations datalist
+    const yardList = document.getElementById('mty-yard-list');
+    if (yardList && state.tanks) {
+        const uniqueYards = [...new Set(state.tanks.map(tk => tk.location).filter(l => l && l !== 'Yard - On Wheels'))];
+        yardList.innerHTML = uniqueYards.map(y => `<option value="${y}"></option>`).join('');
+    }
+    
+    const yardLocEl = document.getElementById('mty-yard-loc');
+    if (yardLocEl) {
+        yardLocEl.value = 'Yard A'; // Default Yard
+    }
+    
+    // Set initial destination display toggle
+    const destTypeEl = document.getElementById('mty-dest-type');
+    if (destTypeEl) {
+        destTypeEl.value = 'tank'; // Reset default
+        toggleMtyDest('tank');
+    }
+    
     document.getElementById('moveToYardModal').classList.add('show');
     updateMtyTotals();
 }
@@ -1415,6 +1434,7 @@ function saveMtyWeightTallyOnly() {
 
 function toggleMtyDest(val) {
     document.getElementById('mty-tank-group').style.display = val === 'tank' ? 'block' : 'none';
+    document.getElementById('mty-yard-group').style.display = val === 'iso' ? 'block' : 'none';
 }
 
 function closeMoveToYardModal() {
