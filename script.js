@@ -232,6 +232,8 @@ function initApp() {
     renderTradesTable();
     renderOrdersTable();
     renderChallansTable();
+    renderSuppliersTable();
+    renderBuyersTable();
 
     // Yard features with error safety
     try {
@@ -4530,8 +4532,10 @@ function resetTradeForm() {
         // Buyers, Suppliers & Tanks
         addSupplier,
         clearSupForm,
+        renderSuppliersTable,
         addBuyer,
         clearBuyForm,
+        renderBuyersTable,
         addTank,
         
         // Orders & Challans
