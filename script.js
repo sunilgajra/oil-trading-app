@@ -1278,6 +1278,7 @@ function openMoveToYardModal(tradeId) {
     tankSel.innerHTML = (state.tanks || []).filter(tk => tk.type !== 'Mobile').map(tank => `<option value="${tank.id}">${tank.name} (${tank.location})</option>`).join('');
     
     document.getElementById('moveToYardModal').classList.add('show');
+    updateMtyTotals();
 }
 
 function toggleMtySelectAll(cb) {
@@ -1317,6 +1318,43 @@ function calcMtyRowVariance(inputEl, index) {
     } else {
         varianceCell.textContent = '-';
         varianceCell.style.color = 'var(--text)';
+    }
+    updateMtyTotals();
+}
+
+function updateMtyTotals() {
+    const t = state.trades.find(x => x.id === currentMtyTradeId);
+    if (!t || !t.container_tally) return;
+    
+    let totalGross = 0;
+    let totalNet = 0;
+    let totalCfs = 0;
+    let totalYard = 0;
+    
+    t.container_tally.forEach(c => {
+        totalGross += parseFloat(c.bl_gross) || 0;
+        totalNet += parseFloat(c.bl_net) || 0;
+        totalCfs += parseFloat(c.cfs_wt) || 0;
+        totalYard += parseFloat(c.yard_wt) || parseFloat(c.cfs_wt) || 0;
+    });
+    
+    const variance = totalCfs - totalNet;
+    const varStr = variance > 0 ? '+' + variance.toFixed(2) : variance.toFixed(2);
+    const varColor = variance < -50 ? 'var(--red)' : (variance > 0 ? 'var(--green)' : 'var(--text)');
+    
+    const tfoot = document.getElementById('mty-container-tfoot');
+    if (tfoot) {
+        tfoot.innerHTML = `
+            <tr style="border-top: 2px solid var(--border); background: rgba(255,255,255,0.03);">
+                <td colspan="2" style="padding:12px; font-weight:bold; color:var(--text);">GRAND TOTALS:</td>
+                <td style="padding:12px; font-family:monospace; font-weight:bold; color:var(--text);">${fmtKG(totalGross)}</td>
+                <td style="padding:12px; font-family:monospace; font-weight:bold; color:var(--teal);">${fmtKG(totalNet)}</td>
+                <td style="padding:12px; font-family:monospace; font-weight:bold; color:var(--gold2);">${fmtKG(totalCfs)}</td>
+                <td style="padding:12px; font-family:monospace; font-weight:bold; color:${varColor};">${varStr}</td>
+                <td style="padding:12px; font-family:monospace; font-weight:bold; color:var(--teal);">${fmtKG(totalYard)}</td>
+                <td colspan="3"></td>
+            </tr>
+        `;
     }
 }
 
