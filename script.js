@@ -3928,6 +3928,12 @@ function generateLandedCostReport(tradeId) {
                     <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">MATERIAL</td>
                     <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.product)}</td>
                 </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">BOE NO</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${escH(t.boe_no) || 'NA'} ${t.boe_date ? `(Dt: ${t.boe_date})` : ''}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background: #f9f9f9;">QUANTITY</td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">${q.toLocaleString(undefined, {minimumFractionDigits:3})} ${escH(t.unit || 'MTON')}</td>
+                </tr>
             </table>
 
             <!-- Purchase Calculation (Split between Bank and Yard) -->
