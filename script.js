@@ -3090,9 +3090,12 @@ function updatePaymentSummary() {
     if (mainExField && document.activeElement !== mainExField) {
         const avgEx = totalForeignForAvg > 0 ? (totalINRForAvg / totalForeignForAvg) : lastValidRate;
         if (avgEx > 0) {
-            mainExField.value = avgEx.toFixed(3);
-            // Trigger trade total recalculation since exchange rate changed
-            if (typeof calcTradeTotals === 'function') calcTradeTotals();
+            const currentVal = parseFloat(mainExField.value) || 0;
+            if (Math.abs(currentVal - avgEx) > 0.001) {
+                mainExField.value = avgEx.toFixed(3);
+                // Trigger trade total recalculation since exchange rate changed
+                if (typeof calcTradeTotals === 'function') calcTradeTotals();
+            }
         }
     }
 
