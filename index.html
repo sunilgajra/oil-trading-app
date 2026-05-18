@@ -333,7 +333,13 @@
                         </td>
                         <td colspan="1" style="padding:10px; text-align:right; color:var(--muted);">Paid:</td>
                         <td colspan="1" style="padding:10px;"><div id="tr-pay-total-dual" style="display:flex; flex-direction:column; gap:2px; font-size:10px;"><span>USD 0.00</span><span>AED 0.00</span></div></td>
-                        <td colspan="1" style="padding:10px; color:var(--gold);">Bank: <span id="tr-pay-total-bank">₹ 0</span></td>
+                        <td colspan="1" style="padding:10px; color:var(--gold);">
+                            <div style="display:flex; flex-direction:column; gap:2px; font-size:10px;">
+                                <span>Bank: <span id="tr-pay-total-bank-paid">₹ 0</span></span>
+                                <span>Yard: <span id="tr-pay-total-yard-paid">₹ 0</span></span>
+                                <span>Charges: <span id="tr-pay-total-bank">₹ 0</span></span>
+                            </div>
+                        </td>
                         <td colspan="1" style="padding:10px; text-align:right;"><div id="tr-pay-balance-dual" style="display:flex; flex-direction:column; gap:2px; font-size:10px;"><span>Bal: USD 0.00</span><span>Bal: AED 0.00</span></div></td>
                     </tr>
                 </tfoot>
@@ -764,6 +770,6 @@
 <div id="hss-print-container" style="position:absolute; left:-9999px; top:0; width:210mm; background:#fff; z-index:-1;"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="script.js?v=2.1"></script>
+<script src="script.js?v=2.2"></script>
 </body>
 </html>

@@ -3055,6 +3055,8 @@ function updatePaymentSummary() {
 
     let totalInMainCurr = 0;
     let totalBankINR = 0;
+    let totalBankPaidINR = 0;
+    let totalYardPaidINR = 0;
 
     let totalINRForAvg = 0;
     let totalForeignForAvg = 0;
@@ -3062,10 +3064,18 @@ function updatePaymentSummary() {
 
     rows.forEach(row => {
         const inputs = row.querySelectorAll('input');
+        const select = row.querySelector('select');
         const amtInr = parseFloat(inputs[1].value) || 0;
         const exRate = parseFloat(inputs[2].value) || 0;
         const bank = parseFloat(inputs[3].value) || 0;
         totalBankINR += bank;
+        
+        const type = select ? select.value : 'Bank';
+        if (type === 'Bank') {
+            totalBankPaidINR += amtInr;
+        } else if (type === 'Yard') {
+            totalYardPaidINR += amtInr;
+        }
         
         if (exRate > 0) {
             totalInMainCurr += (amtInr / exRate);
@@ -3101,6 +3111,12 @@ function updatePaymentSummary() {
         <span style="color:var(--muted)">AED ${totalAED.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
     `;
     document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBankINR.toLocaleString('en-IN');
+    if (document.getElementById('tr-pay-total-bank-paid')) {
+        document.getElementById('tr-pay-total-bank-paid').textContent = '₹ ' + totalBankPaidINR.toLocaleString('en-IN');
+    }
+    if (document.getElementById('tr-pay-total-yard-paid')) {
+        document.getElementById('tr-pay-total-yard-paid').textContent = '₹ ' + totalYardPaidINR.toLocaleString('en-IN');
+    }
 
     // Balance calculation
     const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
