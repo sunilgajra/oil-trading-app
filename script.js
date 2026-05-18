@@ -1139,7 +1139,10 @@ function renderInventoryTable() {
                 '<td style="font-size:12px;"><span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text);">' + escH(colour) + '</span></td>' +
                 '<td class="mono">' + fmt(cost) + '</td>' +
                 '<td class="mono">' + fmt(i.vol * cost) + '</td>' +
-                '<td><button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\',\'' + i.id + '\')">&#x2715;</button></td>' +
+                '<td><div style="display:flex;gap:4px">' +
+                '<button class="btn btn-primary btn-sm" onclick="editInventoryItem(\'' + i.id + '\')" title="Edit">&#x270F;</button>' +
+                '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'inventory\',\'' + i.id + '\')" title="Delete">&#x2715;</button>' +
+                '</div></td>' +
             '</tr>';
         }).join('');
 }
@@ -1211,14 +1214,21 @@ function openMoveToYardModal(tradeId) {
     const rawContainers = typeof t.containers === 'string' ? t.containers : '';
     const contList = rawContainers.split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
     
-    // Sync container tally in memory
+    const totalBlNet = parseFloat(t.net_weight) || parseFloat(t.raw_qty) || parseFloat(t.vol) || 0;
+    const defaultNetPerContainer = (totalBlNet > 0 && contList.length > 0) ? (totalBlNet / contList.length) : 0;
+    
+    document.getElementById('mty-total-bl-net').value = totalBlNet || '';
+    document.getElementById('mty-container-count-badge').textContent = contList.length;
+    
+    // Sync container tally in memory with normalized robust alphanumeric matching
     const oldTally = t.container_tally || [];
     t.container_tally = contList.map(num => {
-        const existing = oldTally.find(x => x.container_no === num);
+        const normNum = num.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        const existing = oldTally.find(x => (x.container_no || '').replace(/[^A-Z0-9]/gi, '').toUpperCase() === normNum);
         return {
             container_no: num,
-            bl_gross: existing ? existing.bl_gross : 0,
-            bl_net: existing ? existing.bl_net : 0,
+            bl_gross: existing ? existing.bl_gross : defaultNetPerContainer,
+            bl_net: existing ? (existing.bl_net || defaultNetPerContainer) : defaultNetPerContainer,
             cfs_wt: existing ? existing.cfs_wt : 0,
             yard_wt: existing ? (existing.yard_wt !== undefined ? existing.yard_wt : existing.cfs_wt) : 0,
             smell: existing ? (existing.smell || 'Normal') : 'Normal',
@@ -1356,6 +1366,30 @@ function updateMtyTotals() {
             </tr>
         `;
     }
+}
+
+function autoSplitBlNetWeight() {
+    const t = state.trades.find(x => x.id === currentMtyTradeId);
+    if (!t || !t.container_tally || t.container_tally.length === 0) return;
+    
+    const newTotal = parseFloat(document.getElementById('mty-total-bl-net').value) || 0;
+    const splitVal = newTotal > 0 ? (newTotal / t.container_tally.length) : 0;
+    
+    const rows = document.querySelectorAll('#mty-container-tbody tr');
+    t.container_tally.forEach((c, i) => {
+        c.bl_net = splitVal;
+        
+        // Update input field in DOM
+        if (rows[i]) {
+            const blNetInput = rows[i].querySelector('.mty-bl-net');
+            if (blNetInput) {
+                blNetInput.value = splitVal.toFixed(2);
+                calcMtyRowVariance(blNetInput, i);
+            }
+        }
+    });
+    
+    toast(`⚡ Distributed ${fmtKG(newTotal)} equally across all containers!`);
 }
 
 function updateMtyRowQuality(selectEl, index, field) {
@@ -2560,7 +2594,7 @@ document.getElementById('confirmNo').onclick = function () {
 function deleteItem(arr, id) {
     customConfirm('Remove this item?').then(function (ok) {
         if (!ok) return;
-        state[arr] = state[arr].filter(function (x) { return x.id !== id; });
+        state[arr] = state[arr].filter(function (x) { return String(x.id) !== String(id); });
         saveState();
         if (arr === 'inventory') { renderInventoryTable(); renderDashboardKpis(); renderInvLevels(); }
         if (arr === 'trades') { renderTradesTable(); renderRecentTrades(); renderDashboardKpis(); }
@@ -4324,3 +4358,201 @@ document.addEventListener('input', function (e) {
         e.target.title = '';
     }
 });
+
+// --- NEW INVENTORY EDITING AND FORM RESET METHODS ---
+function editInventoryItem(id) {
+    if (!state.inventory) state.inventory = [];
+    const item = state.inventory.find(x => String(x.id) === String(id));
+    if (!item) return toast('Inventory item not found', true);
+
+    document.getElementById('edit-inv-id').value = item.id;
+    document.getElementById('edit-inv-product').value = item.product || '';
+    document.getElementById('edit-inv-container').value = item.container_no || '';
+    document.getElementById('edit-inv-date').value = item.date || today();
+    document.getElementById('edit-inv-location').value = item.location || '';
+    document.getElementById('edit-inv-vol').value = item.vol || 0;
+    document.getElementById('edit-inv-density').value = item.density || 0.850;
+    document.getElementById('edit-inv-weight').value = item.weight_kg ? item.weight_kg.toFixed(2) : (item.vol * (item.density || 0.850)).toFixed(2);
+    document.getElementById('edit-inv-yard-weight').value = item.yard_weight_kg || 0;
+    document.getElementById('edit-inv-smell').value = item.smell || 'Normal';
+    document.getElementById('edit-inv-colour').value = item.colour || 'Golden';
+    document.getElementById('edit-inv-cost').value = item.cost || 0;
+
+    const modal = document.getElementById('editInventoryModal');
+    if (modal) modal.classList.add('show');
+}
+
+function closeEditInventoryModal() {
+    const modal = document.getElementById('editInventoryModal');
+    if (modal) modal.classList.remove('show');
+}
+
+function syncEditInvVolToWeight() {
+    const vol = parseFloat(document.getElementById('edit-inv-vol').value) || 0;
+    const density = parseFloat(document.getElementById('edit-inv-density').value) || 0.850;
+    document.getElementById('edit-inv-weight').value = (vol * density).toFixed(2);
+}
+
+function saveEditInventoryItem() {
+    const id = document.getElementById('edit-inv-id').value;
+    if (!state.inventory) state.inventory = [];
+    const item = state.inventory.find(x => String(x.id) === String(id));
+    if (!item) return toast('Inventory item not found', true);
+
+    const vol = parseFloat(document.getElementById('edit-inv-vol').value) || 0;
+    const density = parseFloat(document.getElementById('edit-inv-density').value) || 0.850;
+
+    item.date = document.getElementById('edit-inv-date').value || today();
+    item.location = document.getElementById('edit-inv-location').value;
+    item.vol = vol;
+    item.density = density;
+    item.weight_kg = vol * density;
+    item.yard_weight_kg = parseFloat(document.getElementById('edit-inv-yard-weight').value) || 0;
+    item.smell = document.getElementById('edit-inv-smell').value;
+    item.colour = document.getElementById('edit-inv-colour').value;
+    item.cost = parseFloat(document.getElementById('edit-inv-cost').value) || 0;
+
+    saveState();
+    renderInventoryTable();
+    renderDashboardKpis();
+    renderInvLevels();
+    closeEditInventoryModal();
+    toast('Stock Batch Updated successfully ✅');
+}
+
+function resetTradeForm() {
+    editingTradeId = null;
+    currentTradeDocs = [];
+    currentShipDocs = [];
+    currentExtractedTally = null;
+    
+    // Clear all input elements
+    const ids = [
+        'tr-party', 'tr-vol', 'tr-price-local', 'tr-bl-no', 'tr-vessel', 'tr-port-load', 'tr-port-dis', 
+        'tr-ex-rate', 'tr-inv-no', 'tr-gst', 'tr-veh', 'tr-imp-rate', 'tr-total-for', 'tr-total-inr-shared', 
+        'tr-agent', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-containers', 
+        'tr-storage-loc', 'tr-sale-deal', 'tr-sale-inv-amt', 'tr-inv-no-intl', 'tr-tank-rate', 'tr-tank-cost',
+        'tr-hs-seller'
+    ];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    
+    const partySel = document.getElementById('tr-party-select');
+    if (partySel) partySel.value = '';
+    
+    const isHs = document.getElementById('tr-is-hs');
+    if (isHs) isHs.checked = false;
+    
+    const trType = document.getElementById('tr-type');
+    if (trType) trType.value = 'Buy';
+    
+    const trMode = document.getElementById('tr-mode');
+    if (trMode) trMode.value = 'local';
+    
+    clearExpenses();
+    clearContainerGrid();
+    clearSupplierData();
+    clearBuyerData();
+    if (typeof toggleTradeModeField === 'function') toggleTradeModeField();
+    if (typeof toggleTradeDetailFields === 'function') toggleTradeDetailFields();
+    
+    renderTradeDocs();
+    renderShipDocs();
+    
+    const btnScan = document.getElementById('btn-scan-ai');
+    if (btnScan) btnScan.style.display = 'none';
+    
+    const btnSave = document.querySelector('button[onclick="addTrade()"]');
+    if (btnSave) {
+        btnSave.innerHTML = '&#x1F4B1; Record Trade';
+        btnSave.classList.remove('btn-blue');
+    }
+    toast('Form Reset');
+}
+
+// ═══════ SECURE GLOBAL WINDOW EXPORT BRIDGE ═══════
+// Under Secure ECMAScript (SES) lockdown, variables & function declarations 
+// inside script tags are sandboxed and not automatically attached to 'window'.
+// This block explicitly bridges global callbacks used by inline HTML handlers.
+(function (w) {
+    const exports = {
+        // App Lifecycle & State
+        loadState,
+        saveState,
+        initApp,
+        switchPage,
+        forceCloudResync,
+        inspectCloudData,
+        deepRecoveryScan,
+        exportStateToFile,
+        initializeStorage,
+        handleLogout,
+        
+        // Products Master
+        addProductMaster,
+        renderProductsList,
+        
+        // Trade Management
+        addTrade,
+        editTrade,
+        deleteItem,
+        resetTradeForm,
+        syncWeightToQty,
+        scanTradeDocWithAI,
+        uploadShipDoc,
+        
+        // Payments & Logistics Expenses
+        addPaymentRow,
+        addBuyerPaymentRow,
+        addExpenseRow,
+        
+        // Yard Unloading & QC Transfers
+        renderYardDashboard,
+        exportInventoryExcel,
+        openMoveToYardModal,
+        closeMoveToYardModal,
+        calcMtyRowVariance,
+        updateMtyRowQuality,
+        autoSplitBlNetWeight,
+        confirmYardTransfer,
+        scanCfsSlipWithAI,
+        
+        // Inventory Stock Batches
+        editInventoryItem,
+        closeEditInventoryModal,
+        syncEditInvVolToWeight,
+        saveEditInventoryItem,
+        
+        // Buyers, Suppliers & Tanks
+        addSupplier,
+        clearSupForm,
+        addBuyer,
+        clearBuyForm,
+        addTank,
+        
+        // Orders & Challans
+        addOrder,
+        addChallan,
+        
+        // High Seas Sales Document Generator
+        openHssModal,
+        closeHssModal,
+        downloadAllHssDocs,
+        
+        // Cloud Authentication & Settings
+        openLoginModal,
+        closeLoginModal,
+        handleLogin,
+        handleSignUp,
+        saveApiKey
+    };
+    
+    for (const key in exports) {
+        if (typeof exports[key] === 'function') {
+            w[key] = exports[key];
+        }
+    }
+    console.log("✨ Secure Global Window Export Bridge initialized successfully!");
+})(window);
