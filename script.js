@@ -141,6 +141,15 @@ function runMigrations() {
             }
         });
     }
+
+    // 7. Ensure yards & activeYard exist for Multi-Yard management
+    if (!state.yards) {
+        const uniqueLocs = [...new Set((state.tanks || []).map(t => t.location).filter(Boolean))];
+        state.yards = uniqueLocs.length > 0 ? uniqueLocs : ['Yard A', 'Yard B'];
+    }
+    if (!state.activeYard || !state.yards.includes(state.activeYard)) {
+        state.activeYard = state.yards[0] || 'Yard A';
+    }
 }
 
 var isTableMissing = false;
@@ -244,102 +253,7 @@ function initApp() {
     }
 }
 
-/* ═══════ YARD MANAGER & TANK LOGIC ═══════ */
-function renderYardDashboard() {
-    const grid = document.getElementById('yard-grid');
-    if (!grid || !state) return;
-
-    grid.innerHTML = (state.tanks || []).map(tank => {
-        const relevant = (state.inventory || []).filter(i => i.location === tank.id);
-        const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
-        const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
-        const mainProd = products.length > 0 ? products[0] : 'EMPTY';
-        const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
-        const color = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#14b8a6';
-
-        return `
-            <div class="panel" style="border-top: 4px solid ${color};">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <b>${escH(tank.name)}</b>
-                    <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
-                </div>
-                <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
-                    <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
-                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
-                        <div style="font-size:16px; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
-                        <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(1))} KG</div>
-                    </div>
-                </div>
-                <div style="font-size:10px; margin-top:5px; color:var(--muted); display:flex; justify-content:space-between;">
-                    <span>${mainProd}</span>
-                    <span>${escH(tank.location)}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function renderTankManager() {
-    const tbody = document.getElementById('tankManagerTable');
-    if (!tbody || !state) return;
-
-    tbody.innerHTML = (state.tanks || []).map(t => `
-        <tr>
-            <td class="mono">${t.id}</td>
-            <td style="font-weight:bold;">${escH(t.name)}</td>
-            <td>${escH(t.location)}</td>
-            <td class="mono">${fmtN(t.capacity)} L</td>
-            <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')" style="color:var(--red)">&#x2715;</button></td>
-        </tr>
-    `).join('');
-
-    // Update Trade Storage Dropdown
-    const locSelect = document.getElementById('tr-storage-loc');
-    const srcSelect = document.getElementById('tr-source-loc');
-    if (locSelect) {
-        let html = '<option value="">-- Direct Sale / Other --</option>';
-        (state.tanks || []).forEach(t => {
-            html += `<option value="${t.id}">${t.name} (${fmtN(t.capacity)} L)</option>`;
-        });
-        locSelect.innerHTML = html;
-        if (srcSelect) srcSelect.innerHTML = html.replace('-- Direct Sale / Other --', '-- Select Source --');
-    }
-}
-
-function addTank() {
-    if (!state.tanks) state.tanks = [];
-    const name = document.getElementById('new-tank-name').value;
-    let cap = parseFloat(document.getElementById('new-tank-cap').value);
-    const capKG = parseFloat(document.getElementById('new-tank-cap-kg').value);
-    const capMT = parseFloat(document.getElementById('new-tank-cap-mt').value);
-    const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
-
-    if (capKG && !cap) cap = capKG / 0.850;
-    if (capMT && !cap) cap = (capMT * 1000) / 0.850;
-
-    if (!name || !cap) return toast('Enter name and capacity', true);
-
-    const id = 'T' + (state.tanks.length + 1);
-    state.tanks.push({ id, name, capacity: cap, location: loc });
-
-    document.getElementById('new-tank-name').value = '';
-    document.getElementById('new-tank-cap').value = '';
-    document.getElementById('new-tank-cap-kg').value = '';
-    document.getElementById('new-tank-cap-mt').value = '';
-
-    saveState();
-    renderTankManager();
-    renderYardDashboard();
-    toast('New Tank Registered');
-}
-
-function deleteTank(id) {
-    if (!confirm('Remove this tank?')) return;
-    state.tanks = state.tanks.filter(t => t.id !== id);
-    saveState();
-    renderTankManager();
-    renderYardDashboard();
-}
+/* ═══════ YARD MANAGER & TANK LOGIC (Implemented at the bottom) ═══════ */
 
 function openLoginModal() { document.getElementById('loginModal').classList.add('show'); }
 function closeLoginModal() { document.getElementById('loginModal').classList.remove('show'); }
@@ -1077,13 +991,18 @@ function populateOrderParties() {
 function populateSelects() {
     if (!state || !state.products) return;
     populateOrderParties();
-    ['inv-product', 'tr-product', 'ord-product', 'ch-product'].forEach(function (id) {
+    ['inv-product', 'tr-product', 'ord-product', 'ch-product', 'new-iso-product'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el) return;
-        el.innerHTML = state.products.map(function (p) {
+        var html = '';
+        if (id === 'new-iso-product') {
+            html += '<option value="">-- Empty / No Stock --</option>';
+        }
+        html += state.products.map(function (p) {
             var label = p.name + (p.other ? ' (' + p.other + ')' : '');
             return '<option value="' + escH(p.name) + '">' + escH(label) + '</option>';
         }).join('');
+        el.innerHTML = html;
     });
 
     // Populate Sale Deal Dropdown
@@ -1296,16 +1215,12 @@ function openMoveToYardModal(tradeId) {
     const tankSel = document.getElementById('mty-tank-id');
     tankSel.innerHTML = (state.tanks || []).filter(tk => tk.type !== 'Mobile').map(tank => `<option value="${tank.id}">${tank.name} (${tank.location})</option>`).join('');
     
-    // Populate Yard Locations datalist
-    const yardList = document.getElementById('mty-yard-list');
-    if (yardList && state.tanks) {
-        const uniqueYards = [...new Set(state.tanks.map(tk => tk.location).filter(l => l && l !== 'Yard - On Wheels'))];
-        yardList.innerHTML = uniqueYards.map(y => `<option value="${y}"></option>`).join('');
-    }
-    
+    // Populate Yard Locations dropdown
     const yardLocEl = document.getElementById('mty-yard-loc');
     if (yardLocEl) {
-        yardLocEl.value = 'Yard A'; // Default Yard
+        if (!state.yards) state.yards = ['Yard A', 'Yard B'];
+        yardLocEl.innerHTML = state.yards.map(y => `<option value="${escH(y)}">${escH(y)}</option>`).join('');
+        yardLocEl.value = state.activeYard || state.yards[0] || 'Yard A';
     }
     
     // Set initial destination display toggle
@@ -3872,74 +3787,137 @@ async function downloadAllHssDocs() {
 /* ═══════ YARD & TANK MANAGEMENT ═══════ */
 
 /* ═══════ YARD MANAGER & TANK LOGIC ═══════ */
-function renderYardDashboard() {
-    const grid = document.getElementById('yard-grid');
-    if (!grid || !state) return;
+function selectYard(yardName) {
+    state.activeYard = yardName;
+    saveState(true);
+    renderYardDashboard();
+    renderTankManager();
+}
 
-    grid.innerHTML = (state.tanks || []).map(tank => {
-        const relevant = (state.inventory || []).filter(i => i.location === tank.id);
-        const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
-        const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
-        const mainProd = products.length > 0 ? products[0] : 'EMPTY';
-        const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
-        const color = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#14b8a6';
+function addYard() {
+    const input = document.getElementById('new-yard-name');
+    if (!input) return;
+    const name = input.value.trim();
+    if (!name) return toast('Please enter a yard name', true);
+    
+    if (!state.yards) state.yards = [];
+    if (state.yards.includes(name)) return toast('Yard already exists!', true);
+    
+    state.yards.push(name);
+    state.activeYard = name;
+    input.value = '';
+    
+    saveState(true);
+    renderYardDashboard();
+    renderTankManager();
+    toast('New Yard Created: ' + name);
+}
+
+function renderYardTabs() {
+    const tabsEl = document.getElementById('yard-tabs');
+    if (!tabsEl || !state.yards) return;
+    
+    tabsEl.innerHTML = state.yards.map(y => {
+        const isActive = state.activeYard === y;
+        const style = isActive 
+            ? 'background:var(--gold); color:#000; border-color:var(--gold); font-weight:bold; cursor:pointer; padding:6px 14px;' 
+            : 'background:var(--surface2); color:var(--muted); border-color:var(--border); cursor:pointer; padding:6px 14px;';
+        
+        const unitsCount = (state.tanks || []).filter(t => t.location === y).length;
+        const badgeText = unitsCount > 0 ? ` (${unitsCount})` : '';
 
         return `
-            <div class="panel" style="border-top: 4px solid ${color};">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <b>${escH(tank.name)}</b>
-                    <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
-                </div>
-                <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
-                    <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
-                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
-                        <div style="font-size:16px; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
-                        <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(1))} KG</div>
-                    </div>
-                </div>
-                <div style="font-size:10px; margin-top:5px; color:var(--muted); display:flex; justify-content:space-between;">
-                    <span>${mainProd}</span>
-                    <span>${escH(tank.location)}</span>
-                </div>
-            </div>
+            <span class="badge" style="${style}" onclick="selectYard('${escH(y)}')">
+                ${escH(y)}${badgeText}
+            </span>
         `;
     }).join('');
 }
 
-function renderTankManager() {
-    const tbody = document.getElementById('tankManagerTable');
-    if (!tbody || !state) return;
-
-    tbody.innerHTML = (state.tanks || []).map(t => `
-        <tr>
-            <td class="mono">${t.id}</td>
-            <td style="font-weight:bold;">${escH(t.name)}</td>
-            <td>${escH(t.location)}</td>
-            <td class="mono">${fmtN(t.capacity)} L</td>
-            <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')" style="color:var(--red)">&#x2715;</button></td>
-        </tr>
-    `).join('');
-
-    // Update Trade Storage Dropdown
-    const locSelect = document.getElementById('tr-storage-loc');
-    const srcSelect = document.getElementById('tr-source-loc');
-    if (locSelect) {
-        let html = '<option value="">-- Direct Sale / Other --</option>';
-        (state.tanks || []).forEach(t => {
-            html += `<option value="${t.id}">${t.name} (${fmtN(t.capacity)} L)</option>`;
-        });
-        locSelect.innerHTML = html;
-        if (srcSelect) srcSelect.innerHTML = html.replace('-- Direct Sale / Other --', '-- Select Source --');
+function toggleStorageFormFields(type) {
+    const staticFields = document.getElementById('form-static-tank-fields');
+    const mobileFields = document.getElementById('form-mobile-iso-fields');
+    if (!staticFields || !mobileFields) return;
+    if (type === 'Static') {
+        staticFields.style.display = 'block';
+        mobileFields.style.display = 'none';
+    } else {
+        staticFields.style.display = 'none';
+        mobileFields.style.display = 'block';
     }
 }
 
-function addTank() {
+function syncTankCapacities(unit) {
+    const capEl = document.getElementById('yard-new-tank-cap');
+    const capKgEl = document.getElementById('yard-new-tank-cap-kg');
+    const capMtEl = document.getElementById('yard-new-tank-cap-mt');
+    if (!capEl || !capKgEl || !capMtEl) return;
+    const den = 0.850;
+    
+    if (unit === 'L') {
+        const val = parseFloat(capEl.value) || 0;
+        capKgEl.value = val > 0 ? (val * den).toFixed(0) : '';
+        capMtEl.value = val > 0 ? (val * den / 1000).toFixed(1) : '';
+    } else if (unit === 'KG') {
+        const val = parseFloat(capKgEl.value) || 0;
+        capEl.value = val > 0 ? (val / den).toFixed(0) : '';
+        capMtEl.value = val > 0 ? (val / 1000).toFixed(1) : '';
+    } else if (unit === 'MT') {
+        const val = parseFloat(capMtEl.value) || 0;
+        capEl.value = val > 0 ? (val * 1000 / den).toFixed(0) : '';
+        capKgEl.value = val > 0 ? (val * 1000).toFixed(0) : '';
+    }
+}
+
+function onIsoProductChange() {
+    const pName = document.getElementById('new-iso-product').value;
+    const densityEl = document.getElementById('new-iso-density');
+    const volEl = document.getElementById('new-iso-vol');
+    const wtEl = document.getElementById('new-iso-weight');
+    if (!densityEl || !volEl || !wtEl) return;
+    
+    if (!pName) {
+        densityEl.value = '';
+        volEl.value = '';
+        wtEl.value = '';
+        volEl.disabled = true;
+        wtEl.disabled = true;
+        return;
+    }
+    
+    volEl.disabled = false;
+    wtEl.disabled = false;
+    const den = getDensity(pName);
+    densityEl.value = den.toFixed(3);
+    
+    syncIsoVolWeight('L');
+}
+
+function syncIsoVolWeight(unit) {
+    const pName = document.getElementById('new-iso-product').value;
+    if (!pName) return;
+    
+    const den = parseFloat(document.getElementById('new-iso-density').value) || 0.850;
+    const volEl = document.getElementById('new-iso-vol');
+    const wtEl = document.getElementById('new-iso-weight');
+    if (!volEl || !wtEl) return;
+    
+    if (unit === 'L') {
+        const vol = parseFloat(volEl.value) || 0;
+        wtEl.value = vol > 0 ? (vol * den).toFixed(1) : '';
+    } else {
+        const wt = parseFloat(wtEl.value) || 0;
+        volEl.value = wt > 0 ? (wt / den).toFixed(0) : '';
+    }
+}
+
+function registerNewTank() {
     if (!state.tanks) state.tanks = [];
-    const name = document.getElementById('new-tank-name').value;
-    let cap = parseFloat(document.getElementById('new-tank-cap').value);
-    const capKG = parseFloat(document.getElementById('new-tank-cap-kg').value);
-    const capMT = parseFloat(document.getElementById('new-tank-cap-mt').value);
-    const loc = document.getElementById('new-tank-loc').value || 'Main Yard';
+    const name = (document.getElementById('yard-new-tank-name').value || '').trim();
+    let cap = parseFloat(document.getElementById('yard-new-tank-cap').value);
+    const capKG = parseFloat(document.getElementById('yard-new-tank-cap-kg').value);
+    const capMT = parseFloat(document.getElementById('yard-new-tank-cap-mt').value);
+    const loc = state.activeYard || 'Yard A';
 
     if (capKG && !cap) cap = capKG / 0.850;
     if (capMT && !cap) cap = (capMT * 1000) / 0.850;
@@ -3947,25 +3925,250 @@ function addTank() {
     if (!name || !cap) return toast('Enter name and capacity', true);
 
     const id = 'T' + (state.tanks.length + 1);
-    state.tanks.push({ id, name, capacity: cap, location: loc });
+    state.tanks.push({ id, name, capacity: cap, location: loc, type: 'Static' });
 
-    document.getElementById('new-tank-name').value = '';
-    document.getElementById('new-tank-cap').value = '';
-    document.getElementById('new-tank-cap-kg').value = '';
-    document.getElementById('new-tank-cap-mt').value = '';
+    document.getElementById('yard-new-tank-name').value = '';
+    document.getElementById('yard-new-tank-cap').value = '';
+    document.getElementById('yard-new-tank-cap-kg').value = '';
+    document.getElementById('yard-new-tank-cap-mt').value = '';
 
-    saveState();
+    saveState(true);
     renderTankManager();
     renderYardDashboard();
-    toast('New Tank Registered');
+    toast('New Tank Registered in ' + loc);
+}
+
+function parkNewIsoContainer() {
+    if (!state.tanks) state.tanks = [];
+    const containerNo = (document.getElementById('new-iso-no').value || '').trim().toUpperCase();
+    const cap = parseFloat(document.getElementById('new-iso-cap').value) || 30000;
+    const product = document.getElementById('new-iso-product').value;
+    const loc = state.activeYard || 'Yard A';
+
+    if (!containerNo) return toast('Please enter a container number', true);
+
+    const id = 'ISO_' + containerNo;
+    const exists = state.tanks.find(t => t.id === id);
+    if (exists) return toast('Container already registered!', true);
+
+    state.tanks.push({
+        id: id,
+        name: 'ISO: ' + containerNo,
+        location: loc,
+        capacity: cap,
+        type: 'Mobile'
+    });
+
+    if (product) {
+        const vol = parseFloat(document.getElementById('new-iso-vol').value) || 0;
+        const weight = parseFloat(document.getElementById('new-iso-weight').value) || 0;
+        const density = parseFloat(document.getElementById('new-iso-density').value) || 0.850;
+
+        if (vol > 0) {
+            if (!state.inventory) state.inventory = [];
+            state.inventory.push({
+                id: 'INV' + (state.nextInvId++),
+                trade_id: null,
+                container_no: containerNo,
+                product: product,
+                vol: vol,
+                weight_kg: weight || (vol * density),
+                yard_weight_kg: weight || (vol * density),
+                smell: 'Normal',
+                colour: 'Golden',
+                density: density,
+                location: id,
+                date: today(),
+                type: 'Yard Receipt (ISO)',
+                status: 'In Yard',
+                cost: 0
+            });
+        }
+    }
+
+    document.getElementById('new-iso-no').value = '';
+    document.getElementById('new-iso-product').value = '';
+    const volEl = document.getElementById('new-iso-vol');
+    const wtEl = document.getElementById('new-iso-weight');
+    const densityEl = document.getElementById('new-iso-density');
+    if (volEl) { volEl.value = ''; volEl.disabled = true; }
+    if (wtEl) { wtEl.value = ''; wtEl.disabled = true; }
+    if (densityEl) densityEl.value = '';
+
+    saveState(true);
+    renderTankManager();
+    renderYardDashboard();
+    toast('ISO Container ' + containerNo + ' parked in ' + loc);
+}
+
+// Backward compatibility wrapper
+function addTank() {
+    registerNewTank();
 }
 
 function deleteTank(id) {
-    if (!confirm('Remove this tank?')) return;
+    if (!confirm('Remove this storage unit? This will not delete inventory batches associated with it.')) return;
     state.tanks = state.tanks.filter(t => t.id !== id);
-    saveState();
+    saveState(true);
     renderTankManager();
     renderYardDashboard();
+    toast('Storage unit removed');
+}
+
+function renderYardDashboard() {
+    const staticGrid = document.getElementById('yard-static-grid');
+    const mobileGrid = document.getElementById('yard-mobile-grid');
+    if (!state) return;
+    
+    if (!state.yards) state.yards = ['Yard A', 'Yard B'];
+    if (!state.activeYard || !state.yards.includes(state.activeYard)) {
+        state.activeYard = state.yards[0] || 'Yard A';
+    }
+    
+    const activeYard = state.activeYard;
+    ['active-yard-title-tanks', 'active-yard-title-mobile', 'active-yard-title-table'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = activeYard;
+    });
+    
+    renderYardTabs();
+    
+    const yardTanks = (state.tanks || []).filter(t => t.location === activeYard);
+    
+    // Render Static Tanks
+    if (staticGrid) {
+        const staticTanks = yardTanks.filter(t => t.type === 'Static');
+        if (staticTanks.length === 0) {
+            staticGrid.innerHTML = '<div class="empty" style="grid-column: 1/-1;">No storage tanks registered in this yard.</div>';
+        } else {
+            staticGrid.innerHTML = staticTanks.map(tank => {
+                const relevant = (state.inventory || []).filter(i => i.location === tank.id);
+                const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
+                const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
+                const mainProd = products.length > 0 ? products[0] : 'EMPTY';
+                const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
+                const color = pct > 90 ? '#ef4444' : pct > 75 ? '#f59e0b' : '#14b8a6';
+                
+                return `
+                    <div class="panel" style="border-top: 4px solid ${color}; margin-bottom: 0;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <b>${escH(tank.name)}</b>
+                            <span style="color:${color}; font-weight:bold;">${pct.toFixed(1)}%</span>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
+                            <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
+                            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
+                                <div style="font-size:16px; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
+                                <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(0))} KG</div>
+                            </div>
+                        </div>
+                        <div style="font-size:10px; margin-top:8px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;">
+                            <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; font-weight:bold; color:var(--gold2);">${mainProd}</span>
+                            <span>Max: ${fmtN(tank.capacity)} L</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+    
+    // Render Mobile/ISO Tanks
+    if (mobileGrid) {
+        const mobileTanks = yardTanks.filter(t => t.type === 'Mobile');
+        if (mobileTanks.length === 0) {
+            mobileGrid.innerHTML = '<div class="empty" style="grid-column: 1/-1;">No parked ISO containers in this yard.</div>';
+        } else {
+            mobileGrid.innerHTML = mobileTanks.map(tank => {
+                const relevant = (state.inventory || []).filter(i => i.location === tank.id);
+                const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
+                const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
+                const mainProd = products.length > 0 ? products[0] : 'EMPTY';
+                const pct = Math.min(100, Math.max(0, (currentL / tank.capacity) * 100));
+                
+                return `
+                    <div class="panel" style="border-top: 4px solid var(--teal); margin-bottom: 0; background:rgba(20, 184, 166, 0.02);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <b style="color:var(--teal);"><i class="fas fa-truck"></i> ${escH(tank.name)}</b>
+                            <span style="color:var(--teal); font-weight:bold;">${pct.toFixed(1)}%</span>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
+                            <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:rgba(20, 184, 166, 0.15);"></div>
+                            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
+                                <div style="font-size:16px; font-weight:bold; color:var(--text);">${fmtN(currentL.toFixed(0))} L</div>
+                                <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(0))} KG</div>
+                            </div>
+                        </div>
+                        <div style="font-size:10px; margin-top:8px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;">
+                            <span style="background:rgba(20, 184, 166, 0.1); padding:2px 6px; border-radius:4px; font-weight:bold; color:var(--teal);">${mainProd}</span>
+                            <span>Max: ${fmtN(tank.capacity)} L</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+function renderTankManager() {
+    const tbody = document.getElementById('tankManagerTable');
+    if (!tbody || !state) return;
+
+    const activeYard = state.activeYard || 'Yard A';
+    const yardTanks = (state.tanks || []).filter(t => t.location === activeYard);
+
+    if (yardTanks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No storage units registered in this yard yet.</td></tr>';
+    } else {
+        tbody.innerHTML = yardTanks.map(t => {
+            const relevant = (state.inventory || []).filter(i => i.location === t.id);
+            const currentL = relevant.reduce((sum, i) => sum + i.vol, 0);
+            const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
+            const mainProd = products.length > 0 ? products[0] : 'EMPTY';
+            const typeLabel = t.type === 'Mobile' ? '<span class="badge badge-teal">Mobile / ISO</span>' : '<span class="badge badge-gold">Static Tank</span>';
+            const stockText = currentL > 0 ? `${mainProd}: ${fmtN(currentL.toFixed(0))} L` : '<span style="color:var(--muted)">Empty</span>';
+
+            return `
+                <tr>
+                    <td class="mono">${t.id}</td>
+                    <td style="font-weight:bold;">${escH(t.name)}</td>
+                    <td>${typeLabel}</td>
+                    <td class="mono">${fmtN(t.capacity)} L</td>
+                    <td>${stockText}</td>
+                    <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')" style="color:var(--red)">&#x2715;</button></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    const locSelect = document.getElementById('tr-storage-loc');
+    const srcSelect = document.getElementById('tr-source-loc');
+    if (locSelect) {
+        let html = '<option value="">-- Direct Sale / Other --</option>';
+        const yards = [...new Set((state.tanks || []).map(t => t.location).filter(Boolean))];
+        yards.forEach(y => {
+            html += `<optgroup label="${escH(y)}">`;
+            (state.tanks || []).filter(t => t.location === y).forEach(t => {
+                html += `<option value="${t.id}">${escH(t.name)} (${fmtN(t.capacity)} L)</option>`;
+            });
+            html += `</optgroup>`;
+        });
+        locSelect.innerHTML = html;
+        if (srcSelect) srcSelect.innerHTML = html.replace('-- Direct Sale / Other --', '-- Select Source --');
+    }
+
+    const transferSelect = document.getElementById('mty-tank-id');
+    if (transferSelect) {
+        let html = '';
+        const yards = [...new Set((state.tanks || []).filter(t => t.type === 'Static').map(t => t.location).filter(Boolean))];
+        yards.forEach(y => {
+            html += `<optgroup label="${escH(y)}">`;
+            (state.tanks || []).filter(t => t.type === 'Static' && t.location === y).forEach(t => {
+                html += `<option value="${t.id}">${escH(t.name)} (${fmtN(t.capacity)} L)</option>`;
+            });
+            html += `</optgroup>`;
+        });
+        transferSelect.innerHTML = html;
+    }
 }
 
 async function forceCloudResync() {
@@ -4552,6 +4755,15 @@ function resetTradeForm() {
         autoSplitBlNetWeight,
         confirmYardTransfer,
         scanCfsSlipWithAI,
+        addYard,
+        selectYard,
+        toggleStorageFormFields,
+        syncTankCapacities,
+        onIsoProductChange,
+        syncIsoVolWeight,
+        registerNewTank,
+        parkNewIsoContainer,
+        deleteTank,
         
         // Inventory Stock Batches
         editInventoryItem,
