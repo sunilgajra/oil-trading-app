@@ -99,9 +99,17 @@ function runMigrations() {
     if (!state.apiModel || state.apiModel.includes('1.5') || state.apiModel === 'gemini-pro') {
         state.apiModel = 'gemini-3.1-flash-lite';
     }
+    if (!state.tallyUrl) state.tallyUrl = 'http://localhost:9000';
+    if (!state.tallyCompany) state.tallyCompany = 'Murji Oil';
+    if (!state.tallyBankLedger) state.tallyBankLedger = 'Bank Account';
+    if (!state.tallyCashLedger) state.tallyCashLedger = 'Cash';
 
     if (document.getElementById('api-key')) document.getElementById('api-key').value = state.apiKey;
     if (document.getElementById('api-model')) document.getElementById('api-model').value = state.apiModel;
+    if (document.getElementById('tally-url')) document.getElementById('tally-url').value = state.tallyUrl;
+    if (document.getElementById('tally-company')) document.getElementById('tally-company').value = state.tallyCompany;
+    if (document.getElementById('tally-bank-ledger')) document.getElementById('tally-bank-ledger').value = state.tallyBankLedger;
+    if (document.getElementById('tally-cash-ledger')) document.getElementById('tally-cash-ledger').value = state.tallyCashLedger;
 
     // 3. Ensure suppliers have all required fields
     if (state.suppliers) {
@@ -2125,8 +2133,12 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
 function saveApiKey() {
     state.apiKey = document.getElementById('api-key').value;
     state.apiModel = document.getElementById('api-model').value;
+    state.tallyUrl = document.getElementById('tally-url').value;
+    state.tallyCompany = document.getElementById('tally-company').value;
+    state.tallyBankLedger = document.getElementById('tally-bank-ledger').value;
+    state.tallyCashLedger = document.getElementById('tally-cash-ledger').value;
     saveState();
-    toast('AI Configuration Saved');
+    toast('Configuration Saved');
 }
 
 function runDemoScan() {
@@ -3626,7 +3638,10 @@ function addPaymentRow(data) {
             </select>
         </td>
         <td style="padding:8px;"><input type="text" value="${dRem}" placeholder="Ref/Remark" style="width:100%"></td>
-        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removePaymentRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
+        <td style="padding:8px; text-align:center; display:flex; gap:4px; justify-content:center;">
+            <button class="btn btn-sm btn-ghost" onclick="syncSupplierPaymentToTally('${rowId}')" style="color:var(--gold2); padding:2px 6px;" title="Sync to Tally Prime">&#x21C4; Tally</button>
+            <button class="btn btn-sm btn-ghost" onclick="removePaymentRow('${rowId}')" style="color:var(--red); padding:2px 6px;">&#x2715;</button>
+        </td>
     `;
     tbody.appendChild(row);
     updatePaymentSummary();
@@ -3796,7 +3811,10 @@ function addBuyerPaymentRow(data) {
             </select>
         </td>
         <td style="padding:8px;"><input type="text" value="${dRem}" placeholder="Ref/Remark" style="width:100%"></td>
-        <td style="padding:8px; text-align:center;"><button class="btn btn-sm btn-ghost" onclick="removeBuyerPaymentRow('${rowId}')" style="color:var(--red)">&#x2715;</button></td>
+        <td style="padding:8px; text-align:center; display:flex; gap:4px; justify-content:center;">
+            <button class="btn btn-sm btn-ghost" onclick="syncBuyerPaymentToTally('${rowId}')" style="color:var(--gold2); padding:2px 6px;" title="Sync to Tally Prime">&#x21C4; Tally</button>
+            <button class="btn btn-sm btn-ghost" onclick="removeBuyerPaymentRow('${rowId}')" style="color:var(--red); padding:2px 6px;">&#x2715;</button>
+        </td>
     `;
     tbody.appendChild(row);
     updateBuyerPaymentSummary();
@@ -5069,6 +5087,8 @@ function resetTradeForm() {
     }
     toast('Form Reset');
 }
+
+// Tally Prime Integration Functions (Extracted to tally.js)
 
 // ═══════ SECURE GLOBAL WINDOW EXPORT BRIDGE ═══════
 // Under Secure ECMAScript (SES) lockdown, variables & function declarations 

@@ -675,6 +675,26 @@
 
             </div>
             
+            <h3 style="color:var(--gold2); margin-top:30px; border-top: 1px solid var(--border); padding-top: 20px;">&#x21C4; Tally Prime Integration</h3>
+            <p style="color:var(--muted); font-size:13px;">Enable automated synchronization of Payments and Receipts directly into your Tally Prime instance.</p>
+            
+            <div class="form-group" style="margin-top:20px;">
+                <label style="display:block; margin-bottom:8px; font-weight:500;">Tally Prime HTTP Server URL</label>
+                <input type="text" id="tally-url" placeholder="http://localhost:9000" style="width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+                <label style="display:block; margin-bottom:8px; font-weight:500;">Current Company Name (in Tally)</label>
+                <input type="text" id="tally-company" placeholder="Murji Oil" style="width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+                <label style="display:block; margin-bottom:8px; font-weight:500;">Default Bank Ledger Name</label>
+                <input type="text" id="tally-bank-ledger" placeholder="Bank Account" style="width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+            </div>
+            <div class="form-group" style="margin-top:20px; margin-bottom:20px;">
+                <label style="display:block; margin-bottom:8px; font-weight:500;">Default Cash Ledger Name</label>
+                <input type="text" id="tally-cash-ledger" placeholder="Cash" style="width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+            </div>
+            
             <button class="btn btn-gold" onclick="saveApiKey()" style="width:100%; margin-top:10px; font-weight:bold;">SAVE CONFIGURATION</button>
             <button class="btn btn-sm btn-ghost" onclick="forceCloudResync()" style="width:100%; margin-top:15px; color:var(--red); border:1px solid var(--red); font-size:11px;">⚠️ FORCE CLOUD RESYNC (FIX MISSING DATA)</button>
             <button class="btn btn-sm btn-ghost" onclick="inspectCloudData()" style="width:100%; margin-top:5px; color:var(--teal); border:1px solid var(--teal); font-size:11px;">🔍 INSPECT CLOUD DATA (DIAGNOSTIC)</button>
@@ -884,5 +904,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="script.js?v=2.4"></script>
+<script src="tally.js"></script>
 </body>
 </html>
