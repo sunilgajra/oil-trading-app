@@ -1170,11 +1170,14 @@ function renderTradesTable() {
         var hasShipDocs = t.ship_docs ? (Array.isArray(t.ship_docs) ? t.ship_docs.length > 0 : Object.keys(t.ship_docs).length > 0) : false;
         var hasDocs = (t.docs && t.docs.length > 0) || hasShipDocs;
         var boeBadge = t.boe_no ? ' <span class="badge badge-blue" style="font-size:9px; padding:1px 4px;" title="BOE: ' + t.boe_no + '">BOE</span>' : '';
+        var importBadge = t.import_no ? ' <span class="badge" style="font-size:9px; padding:1px 4px; background:#6366f1; color:#fff;" title="Import No: ' + t.import_no + '">' + t.import_no + '</span>' : '';
+        var activeBlNo = t.bl_no || t.hss_bl_no;
+        var blBadge = activeBlNo ? ' <span class="badge" style="font-size:9px; padding:1px 4px; background:var(--surface2); color:var(--text); border:1px solid var(--border);" title="BL No: ' + activeBlNo + '">BL: ' + activeBlNo + '</span>' : '';
         var docBadge = hasDocs ? ' <span title="Documents attached" style="color:var(--gold2)">&#x1F4CE;</span>' : '';
 
         const moveBtn = t.mode === 'import' ? `<button class="btn btn-blue btn-sm" onclick="openMoveToYardModal(${t.id})" title="Move to Yard">&#x1F69A;</button>` : '';
 
-        return '<tr><td class="mono">' + t.date + '</td><td><span class="badge ' + (t.type === 'Buy' ? 'badge-blue' : 'badge-green') + '">' + t.type + '</span>' + modeInfo + boeBadge + docBadge + '</td><td>' + t.product + '</td><td>' + t.party + '</td><td class="mono">' + fmtN(displayQty) + unitSuffix + '</td><td class="mono">' + fmt(t.price) + '</td><td class="mono">' + fmt(displayQty * t.price) + '</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade(' + t.id + ')" title="Edit">&#x270F;</button><button class="btn btn-ghost btn-sm" onclick="printTradeReceipt(' + t.id + ')" title="Print">&#x1F5B6;</button>' + (t.mode === 'import' ? '<button class="btn btn-teal btn-sm" onclick="generateLandedCostReport(' + t.id + ')" title="Landed Cost Report">&#x1F4CA;</button>' : '') + moveBtn + '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\',' + t.id + ')" title="Delete">&#x2715;</button></div></td></tr>';
+        return '<tr><td class="mono">' + t.date + '</td><td><span class="badge ' + (t.type === 'Buy' ? 'badge-blue' : 'badge-green') + '">' + t.type + '</span>' + modeInfo + importBadge + blBadge + boeBadge + docBadge + '</td><td>' + t.product + '</td><td>' + t.party + '</td><td class="mono">' + fmtN(displayQty) + unitSuffix + '</td><td class="mono">' + fmt(t.price) + '</td><td class="mono">' + fmt(displayQty * t.price) + '</td><td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" onclick="editTrade(' + t.id + ')" title="Edit">&#x270F;</button><button class="btn btn-ghost btn-sm" onclick="printTradeReceipt(' + t.id + ')" title="Print">&#x1F5B6;</button>' + (t.mode === 'import' ? '<button class="btn btn-teal btn-sm" onclick="generateLandedCostReport(' + t.id + ')" title="Landed Cost Report">&#x1F4CA;</button>' : '') + moveBtn + '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'trades\',' + t.id + ')" title="Delete">&#x2715;</button></div></td></tr>';
     }).join('');
 }
 
@@ -2076,6 +2079,7 @@ function editTrade(id) {
         document.getElementById('tr-imp-curr').value = t.currency || 'USD';
         lastCurrency = t.currency || 'USD';
         document.getElementById('tr-agent').value = t.dest_agent || '';
+        document.getElementById('tr-import-no').value = t.import_no || '';
         document.getElementById('tr-gross-weight').value = t.gross_weight || '';
         document.getElementById('tr-net-weight').value = t.net_weight || '';
         document.getElementById('tr-hs-code').value = t.hs_code || '';
@@ -2226,6 +2230,7 @@ function addTrade() {
             trade.total_for = document.getElementById('tr-total-for').value;
             trade.total_inr = document.getElementById('tr-total-inr-shared').value;
             trade.dest_agent = document.getElementById('tr-agent').value;
+            trade.import_no = document.getElementById('tr-import-no').value;
             trade.gross_weight = document.getElementById('tr-gross-weight').value;
             trade.net_weight = document.getElementById('tr-net-weight').value;
             trade.hs_code = document.getElementById('tr-hs-code').value;
@@ -2337,7 +2342,7 @@ function addTrade() {
         document.getElementById('btn-scan-ai').style.display = 'none';
         var btn = document.querySelector('button[onclick="addTrade()"]');
         if (btn) { btn.innerHTML = '&#x1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
-        ['tr-party', 'tr-vol', 'tr-price-local', 'tr-bl-no', 'tr-vessel', 'tr-port-load', 'tr-port-dis', 'tr-ex-rate', 'tr-inv-no', 'tr-gst', 'tr-veh', 'tr-imp-rate', 'tr-total-for', 'tr-total-inr-shared', 'tr-agent', 'tr-gross-weight', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-boe-fine', 'tr-boe-penalty', 'tr-boe-interest', 'tr-containers', 'tr-storage-loc'].forEach(function (id) {
+        ['tr-party', 'tr-vol', 'tr-price-local', 'tr-import-no', 'tr-bl-no', 'tr-vessel', 'tr-port-load', 'tr-port-dis', 'tr-ex-rate', 'tr-inv-no', 'tr-gst', 'tr-veh', 'tr-imp-rate', 'tr-total-for', 'tr-total-inr-shared', 'tr-agent', 'tr-gross-weight', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-boe-fine', 'tr-boe-penalty', 'tr-boe-interest', 'tr-containers', 'tr-storage-loc'].forEach(function (id) {
             var el = document.getElementById(id); if (el) el.value = '';
         });
         document.getElementById('tr-party-select').value = '';
@@ -4673,7 +4678,7 @@ function generateLandedCostReport(tradeId) {
                 </div>
                 <div style="text-align: right;">
                     <p style="margin: 0; font-weight: bold;">Date: ${t.date}</p>
-                    <p style="margin: 2px 0; font-size: 11px;">Ref: TR-${t.id}</p>
+                    <p style="margin: 2px 0; font-size: 11px;">Ref: TR-${t.id}${t.import_no ? ` | Import No: ${t.import_no}` : ''}</p>
                 </div>
             </div>
 
@@ -4810,7 +4815,7 @@ function generateLandedCostReport(tradeId) {
         </div>
     `;
 
-    openPrintWindow(html, `Landed_Cost_${t.bl_no || t.id}`);
+    openPrintWindow(html, `Landed_Cost_${t.import_no || t.bl_no || t.id}`);
 }
 
 // Global listener to clear mismatch warnings
@@ -4891,9 +4896,9 @@ function resetTradeForm() {
     
     // Clear all input elements
     const ids = [
-        'tr-party', 'tr-vol', 'tr-price-local', 'tr-bl-no', 'tr-vessel', 'tr-port-load', 'tr-port-dis', 
+        'tr-party', 'tr-vol', 'tr-price-local', 'tr-import-no', 'tr-bl-no', 'tr-vessel', 'tr-port-load', 'tr-port-dis', 
         'tr-ex-rate', 'tr-inv-no', 'tr-gst', 'tr-veh', 'tr-imp-rate', 'tr-total-for', 'tr-total-inr-shared', 
-        'tr-agent', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-boe-fine', 
+        'tr-agent', 'tr-gross-weight', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-boe-fine', 
         'tr-boe-penalty', 'tr-boe-interest', 'tr-containers', 'tr-storage-loc', 'tr-sale-deal', 
         'tr-sale-inv-amt', 'tr-inv-no-intl', 'tr-tank-rate', 'tr-tank-cost', 'tr-hs-seller'
     ];

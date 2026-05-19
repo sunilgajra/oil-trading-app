@@ -212,6 +212,7 @@
         <div id="tr-imp-curr-group" class="form-group"><label>Currency</label><select id="tr-imp-curr" onchange="handleCurrencyChange(); calcTradeTotals()"><option>USD</option><option>AED</option></select></div>
         <div id="tr-ex-rate-group" class="form-group"><label>Ex. Rate (&#x20B9;/$)</label><input id="tr-ex-rate" type="number" step="0.01" placeholder="83.50" oninput="calcTradeTotals()"></div>
         <div class="form-group"><label>Total (Foreign)</label><input id="tr-total-for" readonly style="background:var(--surface2); color:var(--gold2); font-weight:bold;"></div>
+        <div class="form-group"><label>Import No.</label><input id="tr-import-no" placeholder="e.g. IMP-8"></div>
         <div class="form-group"><label>CI Invoice No.</label><input id="tr-inv-no-intl" placeholder="Invoice Number from CI"></div>
         <div class="form-group"><label>BL NO.</label><input id="tr-bl-no" placeholder="XY123"></div>
         <div class="form-group"><label>Vessel</label><input id="tr-vessel" placeholder="Vessel Name"></div>
