@@ -667,6 +667,54 @@ function populateTradeParties() {
         }
     }
 }
+function syncCustomsDutyToExpenses() {
+    const dutyVal = parseFloat(document.getElementById('tr-duty-amt').value) || 0;
+    const fineVal = parseFloat(document.getElementById('tr-boe-fine').value) || 0;
+    const penaltyVal = parseFloat(document.getElementById('tr-boe-penalty').value) || 0;
+    const interestVal = parseFloat(document.getElementById('tr-boe-interest').value) || 0;
+    
+    const totalCustoms = dutyVal + fineVal + penaltyVal + interestVal;
+    const boeNo = (document.getElementById('tr-boe-no').value || '').trim();
+    
+    const tbody = document.getElementById('tr-expenses-body');
+    if (!tbody) return;
+    
+    const rows = tbody.querySelectorAll('.expense-row');
+    let customsRow = null;
+    
+    for (let row of rows) {
+        const select = row.querySelector('select');
+        if (select && select.value === 'Customs Duty') {
+            customsRow = row;
+            break;
+        }
+    }
+    
+    if (customsRow) {
+        if (totalCustoms > 0) {
+            customsRow.querySelector('.exp-net').value = totalCustoms.toFixed(2);
+            customsRow.querySelector('.exp-tax').value = '0.00';
+            customsRow.querySelector('.exp-total').value = totalCustoms.toFixed(2);
+            const refInput = customsRow.querySelector('td:nth-child(7) input');
+            if (refInput && boeNo && !refInput.value) {
+                refInput.value = 'BOE: ' + boeNo;
+            }
+        } else {
+            customsRow.remove();
+        }
+    } else if (totalCustoms > 0) {
+        addExpenseRow({
+            type: 'Customs Duty',
+            net_amount: totalCustoms,
+            tax_amount: 0,
+            amount: totalCustoms,
+            status: 'Pending',
+            ref: boeNo ? 'BOE: ' + boeNo : '',
+            date: document.getElementById('tr-boe-date').value || today()
+        });
+    }
+}
+
 function calcTradeTotals() {
     var rawQty = parseFloat(document.getElementById('tr-vol').value) || 0;
     var den = parseFloat(document.getElementById('tr-density').value) || 0.85;
@@ -1566,6 +1614,64 @@ function downloadDoc(idx) {
     link.download = d.name;
     link.click();
 }
+async function scanDocument(doc, progressCallback) {
+    if (!doc) return;
+    document.getElementById('tr-mode').value = 'import';
+    toggleTradeDetailFields();
+
+    if (state.apiKey) {
+        // AUTO-UPLOAD TO CLOUD IF LOGGED IN (Ensures persistence)
+        try {
+            if (window.supabaseClient) {
+                const { data: auth } = await supabaseClient.auth.getSession();
+                if (auth.session) {
+                    if (!doc.url && doc.data && doc.data.startsWith('data:')) {
+                        if (progressCallback) progressCallback('&#x2601; Uploading to Cloud...');
+                        const cloudUrl = await uploadFileToSupabase(dataURLtoFile(doc.data, doc.name), 'trade_docs');
+                        doc.url = cloudUrl;
+                        doc.data = cloudUrl;
+                        saveState();
+                    }
+                }
+            }
+        } catch (cloudErr) {
+            console.warn("Cloud Upload Skip:", cloudErr.message);
+        }
+
+        // DIRECT AI SCAN
+        if (progressCallback) progressCallback('&#x2601; AI Vision Scanning...');
+        await refineWithCloudAI(doc);
+    } else {
+        // LOCAL OCR FALLBACK
+        if (progressCallback) progressCallback('&#x2728; Local OCR Scanning...');
+        var text = "";
+
+        if (doc.type === 'application/pdf') {
+            var pdf = await pdfjsLib.getDocument(doc.data).promise;
+            for (var p = 1; p <= pdf.numPages; p++) {
+                var page = await pdf.getPage(p);
+                var viewport = page.getViewport({ scale: 2 });
+                var canvas = document.createElement('canvas');
+                var context = canvas.getContext('2d');
+                canvas.height = viewport.height; canvas.width = viewport.width;
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                const result = await Tesseract.recognize(canvas.toDataURL('image/png'), 'eng');
+                text += "\n" + result.data.text;
+            }
+        } else {
+            const result = await Tesseract.recognize(doc.data, 'eng');
+            text = result.data.text;
+        }
+
+        var cleanText = text.replace(/[\[\]\|]/g, ' ').replace(/\s+/g, ' ').trim();
+        runLocalExtract(cleanText);
+        syncCustomsDutyToExpenses();
+        calcTradeTotals();
+
+        toast('Local OCR Complete. Add API Key for 100% accuracy.');
+    }
+}
+
 async function scanTradeDocWithAI() {
     if (currentTradeDocs.length === 0) return;
     var btn = document.getElementById('btn-scan-ai');
@@ -1576,66 +1682,13 @@ async function scanTradeDocWithAI() {
         var doc = currentTradeDocs[0];
         if (!doc) return toast("No document found to scan", true);
 
-        document.getElementById('tr-mode').value = 'import';
-        toggleTradeDetailFields();
-
-        if (state.apiKey) {
-            // AUTO-UPLOAD TO CLOUD IF LOGGED IN (Ensures persistence)
-            try {
-                if (window.supabaseClient) {
-                    const { data: auth } = await supabaseClient.auth.getSession();
-                    if (auth.session) {
-                        if (!doc.url && doc.data && doc.data.startsWith('data:')) {
-                            btn.innerHTML = '&#x2601; Uploading to Cloud...';
-                            const cloudUrl = await uploadFileToSupabase(dataURLtoFile(doc.data, doc.name), 'trade_docs');
-                            doc.url = cloudUrl;
-                            doc.data = cloudUrl; // Use URL instead of Base64 to save space
-                            saveState(); // PREVENT URL LOSS ON REFRESH
-                        }
-                    }
-                }
-            } catch (cloudErr) {
-                console.warn("Cloud Upload Skip:", cloudErr.message);
-            }
-
-            // DIRECT AI SCAN
-            btn.innerHTML = '&#x2601; AI Vision Scanning...';
-            await refineWithCloudAI(doc);
-            btn.innerHTML = oldBtnHtml;
-            btn.disabled = false;
-        } else {
-            // LOCAL OCR FALLBACK
-            btn.innerHTML = '&#x2728; Local OCR Scanning...';
-            var text = "";
-
-            if (doc.type === 'application/pdf') {
-                var pdf = await pdfjsLib.getDocument(doc.data).promise;
-                for (var p = 1; p <= pdf.numPages; p++) {
-                    var page = await pdf.getPage(p);
-                    var viewport = page.getViewport({ scale: 2 });
-                    var canvas = document.createElement('canvas');
-                    var context = canvas.getContext('2d');
-                    canvas.height = viewport.height; canvas.width = viewport.width;
-                    await page.render({ canvasContext: context, viewport: viewport }).promise;
-                    const result = await Tesseract.recognize(canvas.toDataURL('image/png'), 'eng');
-                    text += "\n" + result.data.text;
-                }
-            } else {
-                const result = await Tesseract.recognize(doc.data, 'eng');
-                text = result.data.text;
-            }
-
-            var cleanText = text.replace(/[\[\]\|]/g, ' ').replace(/\s+/g, ' ').trim();
-            // Local Regex extraction... (keeping for users without API key)
-            runLocalExtract(cleanText);
-
-            toast('Local OCR Complete. Add API Key for 100% accuracy.');
-            btn.innerHTML = oldBtnHtml;
-            btn.disabled = false;
-        }
+        await scanDocument(doc, function (msg) {
+            btn.innerHTML = msg;
+        });
     } catch (err) {
         console.error("Scan Error:", err);
         toast("Scan Error: " + err.message, true);
+    } finally {
         btn.innerHTML = oldBtnHtml;
         btn.disabled = false;
     }
@@ -1648,14 +1701,64 @@ function runLocalExtract(cleanText) {
     var vMatch = cleanText.match(/VESSEL[:\s\n]+([A-Z0-9\s\[\]]+)/i);
     if (vMatch) document.getElementById('tr-vessel').value = vMatch[1].trim().split('\n')[0].replace(/[^A-Z0-9\s]/g, '');
 
-    var weightMatch = cleanText.match(/(?:GROSS|NET)\s*WEIGHT\s*[:\s]*([0-9\.\s,]+)/i);
-    if (weightMatch) document.getElementById('tr-net-weight').value = weightMatch[1].replace(/[\s,]/g, '');
+    var grossMatch = cleanText.match(/GROSS\s*WEIGHT\s*[:\s]*([0-9\.\s,]+)/i);
+    if (grossMatch) document.getElementById('tr-gross-weight').value = grossMatch[1].replace(/[\s,]/g, '');
+
+    var netMatch = cleanText.match(/NET\s*WEIGHT\s*[:\s]*([0-9\.\s,]+)/i);
+    if (netMatch) document.getElementById('tr-net-weight').value = netMatch[1].replace(/[\s,]/g, '');
 
     var containerMatches = cleanText.match(/[A-Z]{4}\s*[0-9]{7}/g) || cleanText.match(/[A-Z0-9]{10,12}/g);
     if (containerMatches) {
         var uniqueC = [...new Set(containerMatches)].map(c => c.replace(/\s+/g, '')).filter(c => /[A-Z]{3,4}/.test(c) && /[0-9]{6,7}/.test(c));
         document.getElementById('tr-containers').value = uniqueC.slice(0, 22).join(', ');
     }
+
+    // Helper to format date strings for input[type="date"]
+    const formatDateToYYYYMMDD = (dateStr) => {
+        if (!dateStr) return '';
+        let match = dateStr.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
+        if (match) {
+            let day = match[1].padStart(2, '0');
+            let month = match[2].padStart(2, '0');
+            let year = match[3];
+            return `${year}-${month}-${day}`;
+        }
+        match = dateStr.match(/^(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})$/);
+        if (match) {
+            let year = match[1];
+            let month = match[2].padStart(2, '0');
+            let day = match[3].padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        try {
+            let d = new Date(dateStr);
+            if (!isNaN(d.getTime())) {
+                return d.toISOString().split('T')[0];
+            }
+        } catch(e) {}
+        return dateStr;
+    };
+
+    // BOE Details local extraction regex
+    var boeNoMatch = cleanText.match(/(?:B\.?E\.?\s*No\.?|BILL\s*OF\s*ENTRY\s*NO\.?)[:\s]*([0-9]+)/i);
+    if (boeNoMatch) document.getElementById('tr-boe-no').value = boeNoMatch[1].trim();
+
+    var boeDateMatch = cleanText.match(/(?:B\.?E\.?\s*Date|Date)[:\s]*([0-9]{2}[/\-][0-9]{2}[/\-][0-9]{4})/i) || cleanText.match(/(?:Date)[:\s]*([0-9]{4}[/\-][0-9]{2}[/\-][0-9]{2})/i);
+    if (boeDateMatch) {
+        document.getElementById('tr-boe-date').value = formatDateToYYYYMMDD(boeDateMatch[1].trim());
+    }
+
+    var dutyMatch = cleanText.match(/(?:CUSTOMS\s*DUTY|DUTY\s*AMOUNT|TOTAL\s*DUTY)[:\s]*([0-9,]+(?:\.[0-9]{2})?)/i);
+    if (dutyMatch) document.getElementById('tr-duty-amt').value = dutyMatch[1].replace(/[\s,]/g, '');
+
+    var fineMatch = cleanText.match(/(?:REDEMPTION\s*)?FINE[:\s]*([0-9,]+(?:\.[0-9]{2})?)/i);
+    if (fineMatch) document.getElementById('tr-boe-fine').value = fineMatch[1].replace(/[\s,]/g, '');
+
+    var penaltyMatch = cleanText.match(/PENALTY[:\s]*([0-9,]+(?:\.[0-9]{2})?)/i);
+    if (penaltyMatch) document.getElementById('tr-boe-penalty').value = penaltyMatch[1].replace(/[\s,]/g, '');
+
+    var interestMatch = cleanText.match(/INTEREST[:\s]*([0-9,]+(?:\.[0-9]{2})?)/i);
+    if (interestMatch) document.getElementById('tr-boe-interest').value = interestMatch[1].replace(/[\s,]/g, '');
 }
 
 async function refineWithCloudAI(docOrText) {
@@ -1689,16 +1792,23 @@ async function refineWithCloudAI(docOrText) {
                 contents: [{
                     parts: [
                         {
-                            text: `DOMAIN: International Oil Shipping. 
-TASK: Extract Bill of Lading or Commercial Invoice data from this document.
+                            text: `DOMAIN: International Oil Shipping and Customs Import. 
+TASK: Extract Bill of Lading, Commercial Invoice, or Bill of Entry (BOE/BE) data from this document.
 RULES: 
 1. Fix all OCR errors. Reconstruct the full list of container numbers (4 letters + 7 digits).
-2. Format weights as 0.00. 
+2. Format weights as 0.00. Extract the overall Gross Weight of the shipment as "gross_weight" and overall Net Weight of the shipment as "net_weight".
 3. Identify Vessel, Ports, Agent, and HS Code.
 4. Extract "Invoice Number" if scanning an Invoice.
 5. Extract "Number of Containers" (Total count).
-6. If the document has a container-level packing list or weight breakdown, extract the individual container weights.
-Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "net_weight": "", "container_count": 0, "containers_tally": [{"container_no": "", "bl_gross": 0.00, "bl_net": 0.00}] }` },
+6. If scanning a Bill of Entry (BOE/BE):
+   - Extract the BOE/BE Number as "boe_no" (usually listed near top header as BE No or Bill of Entry No, e.g. 9045404).
+   - Extract the BOE/BE Date as "boe_date" (formatted as YYYY-MM-DD).
+   - Extract the basic Customs Duty Amount as "duty_amt".
+   - Extract the Fine as "boe_fine" (if any, default to 0.00).
+   - Extract the Penalty as "boe_penalty" (if any, default to 0.00).
+   - Extract the Interest as "boe_interest" (if any, default to 0.00).
+7. If the document has a container-level packing list or weight breakdown, extract the individual container weights.
+Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "port_dis": "", "dest_agent": "", "hs_code": "", "gross_weight": "", "net_weight": "", "container_count": 0, "boe_no": "", "boe_date": "", "duty_amt": 0.00, "boe_fine": 0.00, "boe_penalty": 0.00, "boe_interest": 0.00, "containers_tally": [{"container_no": "", "bl_gross": 0.00, "bl_net": 0.00}] }` },
                         { inlineData: { mimeType: docOrText.type || "application/pdf", data: base64Data } }
                     ]
                 }]
@@ -1739,8 +1849,15 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                 'tr-port-dis': ai.port_dis,
                 'tr-agent': ai.dest_agent,
                 'tr-hs-code': ai.hs_code,
+                'tr-gross-weight': ai.gross_weight,
                 'tr-net-weight': ai.net_weight,
-                'tr-container-count': ai.container_count
+                'tr-container-count': ai.container_count,
+                'tr-boe-no': ai.boe_no,
+                'tr-boe-date': ai.boe_date,
+                'tr-duty-amt': ai.duty_amt,
+                'tr-boe-fine': ai.boe_fine,
+                'tr-boe-penalty': ai.boe_penalty,
+                'tr-boe-interest': ai.boe_interest
             };
 
             let containerList = '';
@@ -1775,16 +1892,50 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                 return raw.replace(/[^A-Z0-9]/g, '');
             };
 
+            // Helper to format date strings for input[type="date"]
+            const formatDateToYYYYMMDD = (dateStr) => {
+                if (!dateStr) return '';
+                let match = dateStr.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
+                if (match) {
+                    let day = match[1].padStart(2, '0');
+                    let month = match[2].padStart(2, '0');
+                    let year = match[3];
+                    return `${year}-${month}-${day}`;
+                }
+                match = dateStr.match(/^(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})$/);
+                if (match) {
+                    let year = match[1];
+                    let month = match[2].padStart(2, '0');
+                    let day = match[3].padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+                try {
+                    let d = new Date(dateStr);
+                    if (!isNaN(d.getTime())) {
+                        return d.toISOString().split('T')[0];
+                    }
+                } catch(e) {}
+                return dateStr;
+            };
+
             let mismatches = [];
             for (let id in fields) {
                 const el = document.getElementById(id);
                 if (!el) continue;
 
-                const newValue = (fields[id] || '').toString().trim();
+                let newValue = (fields[id] || '').toString().trim();
                 const oldValue = el.value.trim();
 
+                if (el.type === 'date') {
+                    newValue = formatDateToYYYYMMDD(newValue);
+                }
+
                 // 1. Skip if AI didn't find this value (to avoid clearing existing data or false warnings)
-                if (!newValue || newValue.toLowerCase() === 'null' || newValue.toLowerCase() === 'na' || newValue === '0') {
+                const isBoeNumeric = ['tr-duty-amt', 'tr-boe-fine', 'tr-boe-penalty', 'tr-boe-interest'].includes(id);
+                if (!newValue || newValue.toLowerCase() === 'null' || newValue.toLowerCase() === 'na') {
+                    continue;
+                }
+                if (newValue === '0' && !isBoeNumeric) {
                     continue;
                 }
 
@@ -1794,6 +1945,7 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                     el.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.3)';
                     el.title = `Mismatch detected! Existing: "${oldValue}" | New Scan: "${newValue}"`;
                     mismatches.push(el.previousElementSibling ? el.previousElementSibling.textContent : id);
+                    el.value = newValue; // Populate even if mismatch so the user gets the scanned value
                 } else {
                     el.style.border = '';
                     el.style.boxShadow = '';
@@ -1816,6 +1968,7 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
                     calcContainerTotals();
                 }
             }
+            syncCustomsDutyToExpenses();
             calcTradeTotals();
         }
     } catch (e) {
@@ -1897,11 +2050,15 @@ function editTrade(id) {
         document.getElementById('tr-imp-curr').value = t.currency || 'USD';
         lastCurrency = t.currency || 'USD';
         document.getElementById('tr-agent').value = t.dest_agent || '';
+        document.getElementById('tr-gross-weight').value = t.gross_weight || '';
         document.getElementById('tr-net-weight').value = t.net_weight || '';
         document.getElementById('tr-hs-code').value = t.hs_code || '';
         document.getElementById('tr-boe-no').value = t.boe_no || '';
         document.getElementById('tr-boe-date').value = t.boe_date || '';
         document.getElementById('tr-duty-amt').value = t.duty_amt || '';
+        document.getElementById('tr-boe-fine').value = t.boe_fine || '';
+        document.getElementById('tr-boe-penalty').value = t.boe_penalty || '';
+        document.getElementById('tr-boe-interest').value = t.boe_interest || '';
         document.getElementById('tr-container-count').value = t.container_count || '';
         document.getElementById('tr-tank-rate').value = t.tank_rate || '';
         document.getElementById('tr-containers').value = t.containers || '';
@@ -2043,11 +2200,15 @@ function addTrade() {
             trade.total_for = document.getElementById('tr-total-for').value;
             trade.total_inr = document.getElementById('tr-total-inr-shared').value;
             trade.dest_agent = document.getElementById('tr-agent').value;
+            trade.gross_weight = document.getElementById('tr-gross-weight').value;
             trade.net_weight = document.getElementById('tr-net-weight').value;
             trade.hs_code = document.getElementById('tr-hs-code').value;
             trade.boe_no = document.getElementById('tr-boe-no').value;
             trade.boe_date = document.getElementById('tr-boe-date').value;
             trade.duty_amt = document.getElementById('tr-duty-amt').value;
+            trade.boe_fine = document.getElementById('tr-boe-fine').value;
+            trade.boe_penalty = document.getElementById('tr-boe-penalty').value;
+            trade.boe_interest = document.getElementById('tr-boe-interest').value;
             trade.container_count = document.getElementById('tr-container-count').value;
             trade.tank_rate = document.getElementById('tr-tank-rate').value;
             var cCount = parseFloat(trade.container_count) || 0;
@@ -2150,7 +2311,7 @@ function addTrade() {
         document.getElementById('btn-scan-ai').style.display = 'none';
         var btn = document.querySelector('button[onclick="addTrade()"]');
         if (btn) { btn.innerHTML = '&#x1F4B1; Record Trade'; btn.classList.remove('btn-blue'); }
-        ['tr-party', 'tr-vol', 'tr-price-local', 'tr-bl-no', 'tr-vessel', 'tr-port-load', 'tr-port-dis', 'tr-ex-rate', 'tr-inv-no', 'tr-gst', 'tr-veh', 'tr-imp-rate', 'tr-total-for', 'tr-total-inr-shared', 'tr-agent', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-containers', 'tr-storage-loc'].forEach(function (id) {
+        ['tr-party', 'tr-vol', 'tr-price-local', 'tr-bl-no', 'tr-vessel', 'tr-port-load', 'tr-port-dis', 'tr-ex-rate', 'tr-inv-no', 'tr-gst', 'tr-veh', 'tr-imp-rate', 'tr-total-for', 'tr-total-inr-shared', 'tr-agent', 'tr-gross-weight', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-boe-fine', 'tr-boe-penalty', 'tr-boe-interest', 'tr-containers', 'tr-storage-loc'].forEach(function (id) {
             var el = document.getElementById(id); if (el) el.value = '';
         });
         document.getElementById('tr-party-select').value = '';
@@ -3113,17 +3274,53 @@ async function handleShipDocUpload(input) {
     const files = input.files;
     if (!files || files.length === 0) return;
 
-    toast("Uploading Shipping Docs...");
+    toast("Processing Shipping Docs...");
+    const type = activeShipDocItem ? activeShipDocItem.dataset.type : 'Other';
+
     for (let f of files) {
         try {
-            const url = await uploadFileToSupabase(f, 'shipping');
-            const type = activeShipDocItem ? activeShipDocItem.dataset.type : 'Other';
-            currentShipDocs.push({ name: f.name, url: url, type: type, date: today() });
+            // Read as data URL first (for scanning)
+            const reader = new FileReader();
+            const base64Data = await new Promise((resolve) => {
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(f);
+            });
+
+            // Upload to Supabase
+            let url = null;
+            try {
+                url = await uploadFileToSupabase(f, 'shipping');
+            } catch (uploadErr) {
+                console.warn("Failed to upload shipping doc:", uploadErr);
+            }
+
+            const docObj = {
+                name: f.name,
+                data: base64Data,
+                url: url,
+                type: f.type
+            };
+
+            currentShipDocs.push({ name: f.name, url: url || base64Data, type: type, date: today() });
+            renderShipDocs();
+
+            // If it is Bill of Lading, Commercial Invoice, or Bill of Entry, auto-scan it!
+            if (['Bill of Lading', 'Commercial Invoice', 'Bill of Entry'].includes(type)) {
+                toast(`✨ Auto-scanning ${type}...`);
+                try {
+                    await scanDocument(docObj, function (msg) {
+                        console.log(msg);
+                    });
+                    toast(`✨ ${type} Scan Complete!`);
+                } catch (scanErr) {
+                    console.error("Auto Scan Error:", scanErr);
+                    toast(`Scan failed for ${f.name}: ` + scanErr.message, true);
+                }
+            }
         } catch (e) {
-            toast("Failed to upload " + f.name, true);
+            toast("Failed to handle " + f.name, true);
         }
     }
-    renderShipDocs();
 }
 
 function updateShipDocType(select) {
@@ -4670,9 +4867,9 @@ function resetTradeForm() {
     const ids = [
         'tr-party', 'tr-vol', 'tr-price-local', 'tr-bl-no', 'tr-vessel', 'tr-port-load', 'tr-port-dis', 
         'tr-ex-rate', 'tr-inv-no', 'tr-gst', 'tr-veh', 'tr-imp-rate', 'tr-total-for', 'tr-total-inr-shared', 
-        'tr-agent', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-containers', 
-        'tr-storage-loc', 'tr-sale-deal', 'tr-sale-inv-amt', 'tr-inv-no-intl', 'tr-tank-rate', 'tr-tank-cost',
-        'tr-hs-seller'
+        'tr-agent', 'tr-net-weight', 'tr-hs-code', 'tr-boe-no', 'tr-boe-date', 'tr-duty-amt', 'tr-boe-fine', 
+        'tr-boe-penalty', 'tr-boe-interest', 'tr-containers', 'tr-storage-loc', 'tr-sale-deal', 
+        'tr-sale-inv-amt', 'tr-inv-no-intl', 'tr-tank-rate', 'tr-tank-cost', 'tr-hs-seller'
     ];
     ids.forEach(id => {
         const el = document.getElementById(id);
@@ -4749,6 +4946,7 @@ function resetTradeForm() {
         addPaymentRow,
         addBuyerPaymentRow,
         addExpenseRow,
+        syncCustomsDutyToExpenses,
         
         // Yard Unloading & QC Transfers
         renderYardDashboard,
