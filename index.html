@@ -222,7 +222,10 @@
         <div class="form-group"><label>HS Code</label><input id="tr-hs-code" placeholder="27101980"></div>
         <div class="form-group"><label>BOE Number</label><input id="tr-boe-no" placeholder="BOE/2024/..."></div>
         <div class="form-group"><label>BOE Date</label><input id="tr-boe-date" type="date"></div>
-        <div class="form-group"><label>Duty Amount (&#x20B9;)</label><input id="tr-duty-amt" type="number" step="0.01" placeholder="0.00" oninput="calcTradeTotals()"></div>
+        <div class="form-group"><label>Duty Amount (&#x20B9;)</label><input id="tr-duty-amt" type="number" step="0.01" placeholder="0.00" oninput="calcTradeTotals(); syncCustomsDutyToExpenses();"></div>
+        <div class="form-group"><label>BOE Fine (&#x20B9;)</label><input id="tr-boe-fine" type="number" step="0.01" placeholder="0.00" oninput="calcTradeTotals(); syncCustomsDutyToExpenses();"></div>
+        <div class="form-group"><label>BOE Penalty (&#x20B9;)</label><input id="tr-boe-penalty" type="number" step="0.01" placeholder="0.00" oninput="calcTradeTotals(); syncCustomsDutyToExpenses();"></div>
+        <div class="form-group"><label>BOE Interest (&#x20B9;)</label><input id="tr-boe-interest" type="number" step="0.01" placeholder="0.00" oninput="calcTradeTotals(); syncCustomsDutyToExpenses();"></div>
         <div class="form-group"><label>No. of Containers</label><input id="tr-container-count" type="number" placeholder="e.g. 9" oninput="calcTradeTotals()"></div>
         <div class="form-group"><label>Tank Rate (USD / Tank)</label><input id="tr-tank-rate" type="number" step="0.01" placeholder="Rate in USD" oninput="calcTradeTotals()"></div>
         <div class="form-group"><label>Total Tank Cost (&#x20B9;)</label><input id="tr-tank-cost" readonly style="background:var(--surface2); color:var(--gold2); font-weight:bold;" placeholder="Auto-calculated"></div>
