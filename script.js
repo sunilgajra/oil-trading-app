@@ -1004,7 +1004,12 @@ function renderRecentTrades() {
 }
 function renderActiveOrders() {
     document.getElementById('activeOrdersTbl').innerHTML = state.orders.filter(function (o) { return o.status !== 'Delivered'; }).map(function (o) {
-        return '<tr><td class="mono">' + o.id + '</td><td>' + o.customer + '</td><td>' + o.product + '</td><td class="mono">' + fmtN(o.qty) + '</td><td class="mono">' + fmt(o.qty * o.price) + '</td><td>' + statusBadge(o.status) + '</td><td class="mono">' + o.due + '</td></tr>';
+        const isKG = o.unit === 'KG';
+        const displayQty = isKG ? (o.qty_kg || o.qty || 0) : (o.qty || 0);
+        const displayUnit = isKG ? 'KG' : 'LTRS';
+        const displayPrice = isKG ? (o.price_kg || o.price || 0) : (o.price || 0);
+        const displayTotal = displayQty * displayPrice;
+        return '<tr><td class="mono">' + o.id + '</td><td>' + o.customer + '</td><td>' + o.product + '</td><td class="mono">' + fmtN(displayQty) + ' ' + displayUnit + '</td><td class="mono">' + fmt(displayTotal) + '</td><td>' + statusBadge(o.status) + '</td><td class="mono">' + o.due + '</td></tr>';
     }).join('');
 }
 
@@ -2370,12 +2375,16 @@ function renderOrdersTable() {
         const mainQty = isKG ? (o.qty * den) : o.qty;
         const mainRate = isKG ? (o.price / den) : o.price;
         const otherQty = isKG ? o.qty : (o.qty * den);
-        const otherUnit = isKG ? 'L' : 'KG';
-        const mainUnit = isKG ? 'KG' : 'L';
+        const otherUnit = isKG ? 'LTRS' : 'KG';
+        const mainUnit = isKG ? 'KG' : 'LTRS';
 
         // Final values for display
         const displayQty = isKG ? (o.qty_kg || (o.qty * den)) : o.qty;
         const displayRate = isKG ? (o.price_kg || (o.price / den)) : o.price;
+        const secondaryRate = isKG ? o.price : (o.price_kg || (o.price / den));
+
+        const mainRateVal = parseFloat(displayRate) || 0;
+        const otherRateVal = parseFloat(secondaryRate) || 0;
 
         return '<tr>' +
             '<td class="mono">' + o.id + '</td>' +
@@ -2383,7 +2392,7 @@ function renderOrdersTable() {
             '<td><b>' + o.customer + '</b></td>' +
             '<td>' + o.product + '</td>' +
             '<td class="mono"><div>' + fmtN(displayQty.toFixed(1)) + ' ' + mainUnit + '</div><small style="color:var(--muted)">' + fmtN(otherQty.toFixed(1)) + ' ' + otherUnit + '</small></td>' +
-            '<td class="mono"><div>\u20B9 ' + displayRate.toFixed(2) + '</div><small style="color:var(--muted)">per ' + mainUnit + '</small></td>' +
+            '<td class="mono"><div>\u20B9 ' + mainRateVal.toFixed(2) + ' <small style="color:var(--muted)">/ ' + mainUnit + '</small></div><small style="color:var(--muted)">\u20B9 ' + otherRateVal.toFixed(2) + ' / ' + otherUnit + '</small></td>' +
             '<td class="mono"><b>' + fmt(displayQty * displayRate) + '</b></td>' +
             '<td>' + statusBadge(o.status) + '</td>' +
             '<td class="mono">' + o.due + '</td>' +
