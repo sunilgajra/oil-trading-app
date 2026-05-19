@@ -1067,6 +1067,115 @@ function populateSelects() {
                 return '<option value="' + o.id + '">' + escH(o.id + ' | ' + o.customer + ' | ' + o.product) + '</option>';
             }).join('');
     }
+
+    populateChallanLinks();
+}
+
+function populateChallanLinks() {
+    var type = document.getElementById('ch-type') ? document.getElementById('ch-type').value : 'out';
+    var sel = document.getElementById('ch-link');
+    if (!sel) return;
+
+    var html = '<option value="">-- Select Order or Trade to Link --</option>';
+
+    if (type === 'out') {
+        // Outward Dispatch -> Link to Sale Orders or Sell Trades
+        var saleOrders = (state.orders || []).filter(o => o.type === 'SALE' && o.status !== 'Delivered');
+        if (saleOrders.length > 0) {
+            html += '<optgroup label="Sale Orders">';
+            saleOrders.forEach(o => {
+                html += `<option value="order:${o.id}">Order: ${escH(o.id)} | ${escH(o.customer)} | ${escH(o.product)}</option>`;
+            });
+            html += '</optgroup>';
+        }
+
+        var sellTrades = (state.trades || []).filter(t => t.type === 'Sell');
+        if (sellTrades.length > 0) {
+            html += '<optgroup label="Sell Deals (Trades)">';
+            sellTrades.forEach(t => {
+                var party = t.party || 'No Customer';
+                var prod = t.product || 'No Product';
+                html += `<option value="trade:${t.id}">Trade: TR-${t.id} | ${escH(party)} | ${escH(prod)}</option>`;
+            });
+            html += '</optgroup>';
+        }
+    } else {
+        // Inward Receive -> Link to Purchase Orders or Buy Trades
+        var purchaseOrders = (state.orders || []).filter(o => o.type === 'PURCHASE' && o.status !== 'Delivered');
+        if (purchaseOrders.length > 0) {
+            html += '<optgroup label="Purchase Orders">';
+            purchaseOrders.forEach(o => {
+                html += `<option value="order:${o.id}">Order: ${escH(o.id)} | ${escH(o.customer)} | ${escH(o.product)}</option>`;
+            });
+            html += '</optgroup>';
+        }
+
+        var buyTrades = (state.trades || []).filter(t => t.type === 'Buy');
+        if (buyTrades.length > 0) {
+            html += '<optgroup label="Buy Deals (Trades)">';
+            buyTrades.forEach(t => {
+                var party = t.party || 'No Supplier';
+                var prod = t.product || 'No Product';
+                html += `<option value="trade:${t.id}">Trade: TR-${t.id} | ${escH(party)} | ${escH(prod)}</option>`;
+            });
+            html += '</optgroup>';
+        }
+    }
+
+    sel.innerHTML = html;
+}
+
+function handleChallanLinkChange() {
+    var linkVal = document.getElementById('ch-link').value;
+    if (!linkVal) return;
+
+    var parts = linkVal.split(':');
+    var prefix = parts[0];
+    var id = parts[1];
+    var chType = document.getElementById('ch-type').value;
+
+    var product = '';
+    var vol = 0;
+    var weight = 0;
+    var party = '';
+    var density = 0.850;
+
+    if (prefix === 'order') {
+        var o = (state.orders || []).find(x => x.id === id);
+        if (o) {
+            product = o.product || '';
+            density = parseFloat(o.density) || 0.850;
+            if (o.unit === 'KG') {
+                weight = parseFloat(o.qty_kg) || (parseFloat(o.qty) * density) || 0;
+                vol = weight / density;
+            } else {
+                vol = parseFloat(o.qty) || 0;
+                weight = vol * density;
+            }
+            party = o.customer || '';
+        }
+    } else if (prefix === 'trade') {
+        var t = (state.trades || []).find(x => x.id == id);
+        if (t) {
+            product = t.product || '';
+            density = parseFloat(t.density) || 0.850;
+            vol = parseFloat(t.vol) || 0;
+            weight = parseFloat(t.net_weight) || (vol * density) || 0;
+            party = t.party || '';
+        }
+    }
+
+    // Autofill fields
+    if (product) document.getElementById('ch-product').value = product;
+    document.getElementById('ch-density').value = density;
+    document.getElementById('ch-vol').value = vol > 0 ? vol.toFixed(0) : '';
+    document.getElementById('ch-kg').value = weight > 0 ? weight.toFixed(0) : '';
+
+    if (chType === 'out') {
+        document.getElementById('ch-to').value = party;
+    } else {
+        document.getElementById('ch-from').value = party;
+    }
 }
 function renderProductsList() {
     document.getElementById('productsList').innerHTML = state.products.map(function (p) {
@@ -2511,6 +2620,7 @@ function toggleChallanFields() {
     var t = document.getElementById('ch-type').value;
     document.getElementById('ch-from-group').querySelector('label').textContent = t === 'in' ? 'Received From' : 'Dispatched From';
     document.getElementById('ch-to-group').querySelector('label').textContent = t === 'in' ? 'Stored At' : 'Delivered To';
+    populateChallanLinks();
 }
 function renderChallansTable() {
     document.getElementById('challansTable').innerHTML = state.challans.slice().reverse().map(function (c) {
@@ -2534,10 +2644,21 @@ function addChallan() {
         to: document.getElementById('ch-to').value,
         vehicle: document.getElementById('ch-vehicle').value,
         driver: document.getElementById('ch-driver').value,
-        driverPh: document.getElementById('ch-driver-ph').value
+        driverPh: document.getElementById('ch-driver-ph').value,
+        link: document.getElementById('ch-link').value || ''
     });
     if (!document.getElementById('ch-no').value.trim()) state.nextChNum++;
-    saveState(); renderChallansTable(); toast('Created ' + no);
+    
+    // Clear form fields
+    ['ch-no', 'ch-vol', 'ch-kg', 'ch-from', 'ch-to', 'ch-vehicle', 'ch-driver', 'ch-driver-ph', 'ch-link'].forEach(id => {
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    
+    saveState(); 
+    renderChallansTable(); 
+    populateChallanLinks();
+    toast('Created ' + no);
 }
 
 function renderSuppliersTable() {

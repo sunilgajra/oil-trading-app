@@ -471,6 +471,7 @@
     <div class="form-grid">
       <div class="form-group"><label>Type</label><select id="ch-type" onchange="toggleChallanFields()"><option value="out">Outward (Dispatch)</option><option value="in">Inward (Receive)</option></select></div>
       <div class="form-group"><label>Challan No.</label><input id="ch-no" placeholder="Auto if blank"></div>
+      <div class="form-group"><label>Link to Order / Trade</label><select id="ch-link" onchange="handleChallanLinkChange()"><option value="">-- Select Order or Trade to Link --</option></select></div>
       <div class="form-group"><label>Date</label><input id="ch-date" type="date"></div>
       <div class="form-group"><label>Product</label><select id="ch-product"></select></div>
       <div class="form-group"><label>Density (kg/L)</label><input id="ch-density" type="number" step="0.001" placeholder="0.850" oninput="dualCalc('ch','kg')"></div>
