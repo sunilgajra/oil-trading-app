@@ -1695,25 +1695,32 @@ async function scanTradeDocWithAI() {
 }
 
 function runLocalExtract(cleanText) {
-    var blMatch = cleanText.match(/BILL\s*OF\s*LADING\s*NO\.?[:\s]+([A-Z0-9.\s]+)/i) || cleanText.match(/TKU[\.\s][A-Z0-9\.\s]+/i);
-    if (blMatch) document.getElementById('tr-bl-no').value = (blMatch[1] || blMatch[0]).trim().replace(/\s+/g, '.');
+    // 1. BL Number - match "BILL OF LADING", "B/L", "BL" followed by "NO", "NUMBER", or just spaces/colons
+    var blMatch = cleanText.match(/(?:BILL\s*OF\s*LADING|B\/L|BL)\s*(?:NO\.?|NUMBER)?[\s:]+([A-Z0-9.\/\-]+)/i) || 
+                  cleanText.match(/TKU[\.\s][A-Z0-9\.\s]+/i);
+    if (blMatch) {
+        document.getElementById('tr-bl-no').value = (blMatch[1] || blMatch[0]).trim().replace(/\s+/g, '.');
+    }
 
+    // 2. Vessel Name
     var vMatch = cleanText.match(/VESSEL[:\s\n]+([A-Z0-9\s\[\]]+)/i);
     if (vMatch) document.getElementById('tr-vessel').value = vMatch[1].trim().split('\n')[0].replace(/[^A-Z0-9\s]/g, '');
 
-    var grossMatch = cleanText.match(/GROSS\s*WEIGHT\s*[:\s]*([0-9\.\s,]+)/i);
+    // 3. Gross & Net Weight
+    var grossMatch = cleanText.match(/(?:GROSS\s*WEIGHT|GR\s*WT|GROSS\s*WT)[\s:]*([0-9\.\s,]+)/i);
     if (grossMatch) document.getElementById('tr-gross-weight').value = grossMatch[1].replace(/[\s,]/g, '');
 
-    var netMatch = cleanText.match(/NET\s*WEIGHT\s*[:\s]*([0-9\.\s,]+)/i);
+    var netMatch = cleanText.match(/(?:NET\s*WEIGHT|NET\s*WT)[\s:]*([0-9\.\s,]+)/i);
     if (netMatch) document.getElementById('tr-net-weight').value = netMatch[1].replace(/[\s,]/g, '');
 
+    // 4. Containers
     var containerMatches = cleanText.match(/[A-Z]{4}\s*[0-9]{7}/g) || cleanText.match(/[A-Z0-9]{10,12}/g);
     if (containerMatches) {
         var uniqueC = [...new Set(containerMatches)].map(c => c.replace(/\s+/g, '')).filter(c => /[A-Z]{3,4}/.test(c) && /[0-9]{6,7}/.test(c));
         document.getElementById('tr-containers').value = uniqueC.slice(0, 22).join(', ');
     }
 
-    // Helper to format date strings for input[type="date"]
+    // Date formatting helper
     const formatDateToYYYYMMDD = (dateStr) => {
         if (!dateStr) return '';
         let match = dateStr.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
@@ -1739,25 +1746,27 @@ function runLocalExtract(cleanText) {
         return dateStr;
     };
 
-    // BOE Details local extraction regex
-    var boeNoMatch = cleanText.match(/(?:B\.?E\.?\s*No\.?|BILL\s*OF\s*ENTRY\s*NO\.?)[:\s]*([0-9]+)/i);
+    // 5. BOE Details
+    var boeNoMatch = cleanText.match(/(?:B\.?E\.?\s*(?:NO\.?|NUMBER)?|BILL\s*OF\s*ENTRY\s*(?:NO\.?|NUMBER)?)[\/\-\s:]*([0-9]+)/i);
     if (boeNoMatch) document.getElementById('tr-boe-no').value = boeNoMatch[1].trim();
 
-    var boeDateMatch = cleanText.match(/(?:B\.?E\.?\s*Date|Date)[:\s]*([0-9]{2}[/\-][0-9]{2}[/\-][0-9]{4})/i) || cleanText.match(/(?:Date)[:\s]*([0-9]{4}[/\-][0-9]{2}[/\-][0-9]{2})/i);
+    var boeDateMatch = cleanText.match(/(?:B\.?E\.?\s*Date|Date|B\/E\s*Date)[\/\-\s:]*([0-9]{2}[/\-][0-9]{2}[/\-][0-9]{4})/i) || 
+                       cleanText.match(/(?:B\.?E\.?\s*Date|Date|B\/E\s*Date)[\/\-\s:]*([0-9]{4}[/\-][0-9]{2}[/\-][0-9]{2})/i);
     if (boeDateMatch) {
         document.getElementById('tr-boe-date').value = formatDateToYYYYMMDD(boeDateMatch[1].trim());
     }
 
-    var dutyMatch = cleanText.match(/(?:CUSTOMS\s*DUTY|DUTY\s*AMOUNT|TOTAL\s*DUTY)[:\s]*([0-9,]+(?:\.[0-9]{2})?)/i);
+    // 6. Customs Duty, Fine, Penalty, Interest
+    var dutyMatch = cleanText.match(/(?:CUSTOMS\s*DUTY|DUTY\s*AMOUNT|TOTAL\s*DUTY|BCD|DUTY|SWS|IGST)[\/\-\s:]*([0-9,]+(?:\.[0-9]{2})?)/i);
     if (dutyMatch) document.getElementById('tr-duty-amt').value = dutyMatch[1].replace(/[\s,]/g, '');
 
-    var fineMatch = cleanText.match(/(?:REDEMPTION\s*)?FINE[:\s]*([0-9,]+(?:\.[0-9]{2})?)/i);
+    var fineMatch = cleanText.match(/(?:REDEMPTION\s*FINE|FINE\s*AMOUNT|FINE|R\.?\s*FINE)[\/\-\s:]*([0-9,]+(?:\.[0-9]{2})?)/i);
     if (fineMatch) document.getElementById('tr-boe-fine').value = fineMatch[1].replace(/[\s,]/g, '');
 
-    var penaltyMatch = cleanText.match(/PENALTY[:\s]*([0-9,]+(?:\.[0-9]{2})?)/i);
+    var penaltyMatch = cleanText.match(/PENALTY\s*(?:AMOUNT)?[\/\-\s:]*([0-9,]+(?:\.[0-9]{2})?)/i);
     if (penaltyMatch) document.getElementById('tr-boe-penalty').value = penaltyMatch[1].replace(/[\s,]/g, '');
 
-    var interestMatch = cleanText.match(/INTEREST[:\s]*([0-9,]+(?:\.[0-9]{2})?)/i);
+    var interestMatch = cleanText.match(/INTEREST\s*(?:AMOUNT)?[\/\-\s:]*([0-9,]+(?:\.[0-9]{2})?)/i);
     if (interestMatch) document.getElementById('tr-boe-interest').value = interestMatch[1].replace(/[\s,]/g, '');
 }
 
@@ -1841,23 +1850,40 @@ Return ONLY JSON: { "bl_no": "", "inv_no": "", "vessel": "", "port_load": "", "p
             rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
             const ai = JSON.parse(rawJson);
 
+            const aiNorm = {};
+            for (let k in ai) {
+                if (ai[k] !== undefined && ai[k] !== null) {
+                    aiNorm[k.toLowerCase().replace(/[^a-z0-9_]/g, '')] = ai[k];
+                }
+            }
+
+            const getVal = (keys, defaultVal = '') => {
+                for (let k of keys) {
+                    const normK = k.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                    if (aiNorm[normK] !== undefined && aiNorm[normK] !== null) {
+                        return aiNorm[normK];
+                    }
+                }
+                return defaultVal;
+            };
+
             const fields = {
-                'tr-bl-no': ai.bl_no,
-                'tr-inv-no-intl': ai.inv_no,
-                'tr-vessel': ai.vessel,
-                'tr-port-load': ai.port_load,
-                'tr-port-dis': ai.port_dis,
-                'tr-agent': ai.dest_agent,
-                'tr-hs-code': ai.hs_code,
-                'tr-gross-weight': ai.gross_weight,
-                'tr-net-weight': ai.net_weight,
-                'tr-container-count': ai.container_count,
-                'tr-boe-no': ai.boe_no,
-                'tr-boe-date': ai.boe_date,
-                'tr-duty-amt': ai.duty_amt,
-                'tr-boe-fine': ai.boe_fine,
-                'tr-boe-penalty': ai.boe_penalty,
-                'tr-boe-interest': ai.boe_interest
+                'tr-bl-no': getVal(['bl_no', 'bl_number', 'blNo', 'bill_of_lading_no']),
+                'tr-inv-no-intl': getVal(['inv_no', 'invoice_no', 'invoice_number']),
+                'tr-vessel': getVal(['vessel', 'vessel_name', 'vesselName']),
+                'tr-port-load': getVal(['port_load', 'loading_port']),
+                'tr-port-dis': getVal(['port_dis', 'discharge_port']),
+                'tr-agent': getVal(['dest_agent', 'agent', 'agent_dest']),
+                'tr-hs-code': getVal(['hs_code', 'hscode']),
+                'tr-gross-weight': getVal(['gross_weight', 'gross_wt', 'grossWeight']),
+                'tr-net-weight': getVal(['net_weight', 'net_wt', 'netWeight']),
+                'tr-container-count': getVal(['container_count', 'containers_count']),
+                'tr-boe-no': getVal(['boe_no', 'boe_number', 'be_no', 'be_number', 'bill_of_entry_no']),
+                'tr-boe-date': getVal(['boe_date', 'be_date']),
+                'tr-duty-amt': getVal(['duty_amt', 'duty_amount', 'customs_duty', 'duty']),
+                'tr-boe-fine': getVal(['boe_fine', 'fine', 'redemption_fine', 'fine_amt']),
+                'tr-boe-penalty': getVal(['boe_penalty', 'penalty', 'penalty_amt']),
+                'tr-boe-interest': getVal(['boe_interest', 'interest', 'interest_amt'])
             };
 
             let containerList = '';
