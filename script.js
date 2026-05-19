@@ -1159,8 +1159,8 @@ function openMoveToYardModal(tradeId) {
             bl_net: existing ? (existing.bl_net || defaultNetPerContainer) : defaultNetPerContainer,
             cfs_wt: existing ? existing.cfs_wt : 0,
             yard_wt: existing ? (existing.yard_wt !== undefined ? existing.yard_wt : existing.cfs_wt) : 0,
-            smell: existing ? (existing.smell || 'Normal') : 'Normal',
-            colour: existing ? (existing.colour || 'Golden') : 'Golden',
+            smell: existing ? (existing.smell || '') : '',
+            colour: existing ? (existing.colour || '') : '',
             status: existing ? existing.status : 'Awaiting Yard Transfer',
             transfer_date: existing ? existing.transfer_date : '',
             transfer_dest: existing ? existing.transfer_dest : ''
@@ -1189,7 +1189,10 @@ function openMoveToYardModal(tradeId) {
                     <td style="padding:10px;"><input class="mty-yard-wt" type="number" step="0.01" value="${c.yard_wt || ''}" placeholder="0.00" style="width:110px; border:1px solid var(--teal); background:rgba(20, 184, 166, 0.05); color:var(--text); padding:5px; border-radius:4px;" ${isTransferred ? 'disabled' : ''} oninput="calcMtyRowVariance(this, ${i})"></td>
                     <td style="padding:10px;">
                         <select class="mty-smell" style="width:100px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:5px; border-radius:4px;" ${isTransferred ? 'disabled' : ''} onchange="updateMtyRowQuality(this, ${i}, 'smell')">
+                            <option value="" ${!c.smell ? 'selected' : ''}>-- Select --</option>
                             <option value="Normal" ${c.smell === 'Normal' ? 'selected' : ''}>Normal</option>
+                            <option value="Strong" ${c.smell === 'Strong' ? 'selected' : ''}>Strong</option>
+                            <option value="Light" ${c.smell === 'Light' ? 'selected' : ''}>Light</option>
                             <option value="Acidic" ${c.smell === 'Acidic' ? 'selected' : ''}>Acidic</option>
                             <option value="Burnt" ${c.smell === 'Burnt' ? 'selected' : ''}>Burnt</option>
                             <option value="Chemical" ${c.smell === 'Chemical' ? 'selected' : ''}>Chemical</option>
@@ -1198,6 +1201,8 @@ function openMoveToYardModal(tradeId) {
                     </td>
                     <td style="padding:10px;">
                         <select class="mty-colour" style="width:110px; background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:5px; border-radius:4px;" ${isTransferred ? 'disabled' : ''} onchange="updateMtyRowQuality(this, ${i}, 'colour')">
+                            <option value="" ${!c.colour ? 'selected' : ''}>-- Select --</option>
+                            <option value="White" ${c.colour === 'White' ? 'selected' : ''}>White</option>
                             <option value="Golden" ${c.colour === 'Golden' ? 'selected' : ''}>Golden</option>
                             <option value="Light Yellow" ${c.colour === 'Light Yellow' ? 'selected' : ''}>Light Yellow</option>
                             <option value="Pale Amber" ${c.colour === 'Pale Amber' ? 'selected' : ''}>Pale Amber</option>
@@ -1403,8 +1408,8 @@ async function confirmYardTransfer() {
             vol: yardWeight / (t.density || 0.850),
             weight_kg: cfsWeight, // keep original BL Net weight or CFS weight as reference
             yard_weight_kg: yardWeight, // tested received yard weight
-            smell: c.smell || 'Normal',
-            colour: c.colour || 'Golden',
+            smell: c.smell || '',
+            colour: c.colour || '',
             density: t.density || 0.850,
             location: destType === 'tank' ? tankId : ('ISO_' + c.container_no),
             date: date,
@@ -3974,8 +3979,8 @@ function parkNewIsoContainer() {
                 vol: vol,
                 weight_kg: weight || (vol * density),
                 yard_weight_kg: weight || (vol * density),
-                smell: 'Normal',
-                colour: 'Golden',
+                smell: '',
+                colour: '',
                 density: density,
                 location: id,
                 date: today(),
@@ -4609,8 +4614,8 @@ function editInventoryItem(id) {
     document.getElementById('edit-inv-density').value = item.density || 0.850;
     document.getElementById('edit-inv-weight').value = item.weight_kg ? item.weight_kg.toFixed(2) : (item.vol * (item.density || 0.850)).toFixed(2);
     document.getElementById('edit-inv-yard-weight').value = item.yard_weight_kg || 0;
-    document.getElementById('edit-inv-smell').value = item.smell || 'Normal';
-    document.getElementById('edit-inv-colour').value = item.colour || 'Golden';
+    document.getElementById('edit-inv-smell').value = item.smell || '';
+    document.getElementById('edit-inv-colour').value = item.colour || '';
     document.getElementById('edit-inv-cost').value = item.cost || 0;
 
     const modal = document.getElementById('editInventoryModal');
