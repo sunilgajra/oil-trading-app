@@ -855,7 +855,7 @@ function toggleTradeDetailFields() {
         } else {
             imp.style.display = 'none';
             loc.style.display = 'grid';
-            document.getElementById('tr-payments-section').style.display = 'none';
+            document.getElementById('tr-payments-section').style.display = 'block';
             document.getElementById('tr-buyer-payments-section').style.display = 'none';
         }
     } else {
@@ -872,6 +872,7 @@ function toggleTradeDetailFields() {
             linkGrp.style.display = 'none';
         }
     }
+    updatePaymentSummary();
 }
 function populatePurchaseLinks() {
     var sel = document.getElementById('tr-link-purchase');
@@ -3629,7 +3630,7 @@ function addPaymentRow(data) {
     row.innerHTML = `
         <td style="padding:8px;"><input type="date" value="${dDate}" oninput="updatePaymentSummary()"></td>
         <td style="padding:8px;"><input type="number" value="${dAmtInr}" placeholder="Amt INR" oninput="updatePaymentSummary()"></td>
-        <td style="padding:8px;"><input type="number" value="${dEx}" step="0.01" placeholder="Rate" oninput="updatePaymentSummary()"></td>
+        <td class="tr-pay-exrate-cell" style="padding:8px;"><input type="number" value="${dEx}" step="0.01" placeholder="Rate" oninput="updatePaymentSummary()"></td>
         <td style="padding:8px;"><input type="number" value="${dBank}" placeholder="Charges" oninput="calcTradeTotals()"></td>
         <td style="padding:8px;">
             <select onchange="updatePaymentSummary()">
@@ -3659,6 +3660,17 @@ function updatePaymentSummary() {
     const mainCurr = document.getElementById('tr-imp-curr').value;
     const univRate = parseFloat(document.getElementById('tr-pay-univ-rate').value) || 3.6725;
 
+    const isLocalBuy = document.getElementById('tr-type').value === 'Buy' && document.getElementById('tr-mode').value === 'local';
+
+    // Toggle Ex. Rate column visibility
+    document.querySelectorAll('.tr-pay-exrate-cell').forEach(el => {
+        el.style.display = isLocalBuy ? 'none' : 'table-cell';
+    });
+    const univRateCont = document.getElementById('tr-pay-univ-rate-container');
+    if (univRateCont) {
+        univRateCont.style.display = isLocalBuy ? 'none' : 'inline-block';
+    }
+
     let totalInMainCurr = 0;
     let totalBankINR = 0;
     let totalBankPaidINR = 0;
@@ -3672,7 +3684,7 @@ function updatePaymentSummary() {
         const inputs = row.querySelectorAll('input');
         const select = row.querySelector('select');
         const amtInr = parseFloat(inputs[1].value) || 0;
-        const exRate = parseFloat(inputs[2].value) || 0;
+        const exRate = isLocalBuy ? 1 : (parseFloat(inputs[2].value) || 0);
         const bank = parseFloat(inputs[3].value) || 0;
         totalBankINR += bank;
         
@@ -3691,34 +3703,44 @@ function updatePaymentSummary() {
         }
     });
 
-    // Update the main Ex. Rate field with the weighted average
-    const mainExField = document.getElementById('tr-ex-rate');
-    if (mainExField && document.activeElement !== mainExField) {
-        const avgEx = totalForeignForAvg > 0 ? (totalINRForAvg / totalForeignForAvg) : lastValidRate;
-        if (avgEx > 0) {
-            const currentVal = parseFloat(mainExField.value) || 0;
-            if (Math.abs(currentVal - avgEx) > 0.001) {
-                mainExField.value = avgEx.toFixed(3);
-                // Trigger trade total recalculation since exchange rate changed
-                if (typeof calcTradeTotals === 'function') calcTradeTotals();
+    if (!isLocalBuy) {
+        // Update the main Ex. Rate field with the weighted average
+        const mainExField = document.getElementById('tr-ex-rate');
+        if (mainExField && document.activeElement !== mainExField) {
+            const avgEx = totalForeignForAvg > 0 ? (totalINRForAvg / totalForeignForAvg) : lastValidRate;
+            if (avgEx > 0) {
+                const currentVal = parseFloat(mainExField.value) || 0;
+                if (Math.abs(currentVal - avgEx) > 0.001) {
+                    mainExField.value = avgEx.toFixed(3);
+                    // Trigger trade total recalculation since exchange rate changed
+                    if (typeof calcTradeTotals === 'function') calcTradeTotals();
+                }
             }
         }
     }
 
-    // Calculate Dual Totals
-    let totalUSD = 0, totalAED = 0;
-    if (mainCurr === 'USD') {
-        totalUSD = totalInMainCurr;
-        totalAED = totalUSD * univRate;
+    // Calculate Dual Totals / Local Total
+    const totalPaidInr = totalBankPaidINR + totalYardPaidINR;
+    if (isLocalBuy) {
+        document.getElementById('tr-pay-total-dual').innerHTML = `
+            <span style="color:var(--text); font-weight:bold;">₹ ${totalPaidInr.toLocaleString('en-IN')}</span>
+        `;
     } else {
-        totalAED = totalInMainCurr;
-        totalUSD = totalAED / univRate;
+        let totalUSD = 0, totalAED = 0;
+        if (mainCurr === 'USD') {
+            totalUSD = totalInMainCurr;
+            totalAED = totalUSD * univRate;
+        } else {
+            totalAED = totalInMainCurr;
+            totalUSD = totalAED / univRate;
+        }
+
+        document.getElementById('tr-pay-total-dual').innerHTML = `
+            <span style="color:var(--text)">USD ${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+            <span style="color:var(--muted)">AED ${totalAED.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+        `;
     }
 
-    document.getElementById('tr-pay-total-dual').innerHTML = `
-        <span style="color:var(--text)">USD ${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-        <span style="color:var(--muted)">AED ${totalAED.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-    `;
     document.getElementById('tr-pay-total-bank').textContent = '₹ ' + totalBankINR.toLocaleString('en-IN');
     if (document.getElementById('tr-pay-total-bank-paid')) {
         document.getElementById('tr-pay-total-bank-paid').textContent = '₹ ' + totalBankPaidINR.toLocaleString('en-IN');
@@ -3728,27 +3750,39 @@ function updatePaymentSummary() {
     }
 
     // Balance calculation
-    const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
-    const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
-    const totalDueInMain = qty * rate;
-    const balInMain = totalDueInMain - totalInMainCurr;
-
-    let balUSD = 0, balAED = 0;
-    if (mainCurr === 'USD') {
-        balUSD = balInMain;
-        balAED = balUSD * univRate;
+    let isFullyPaid = false;
+    if (isLocalBuy) {
+        const totalDueINR = parseFloat(document.getElementById('tr-total-inr-shared').value) || 0;
+        const balanceINR = totalDueINR - totalPaidInr;
+        const balEl = document.getElementById('tr-pay-balance-dual');
+        balEl.innerHTML = `
+            <span style="color:${balanceINR > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: ₹ ${balanceINR > 0 ? balanceINR.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}</span>
+        `;
+        isFullyPaid = (balanceINR <= 0.05 && totalDueINR > 0);
     } else {
-        balAED = balInMain;
-        balUSD = balAED / univRate;
+        const qty = parseFloat(document.getElementById('tr-vol').value) || 0;
+        const rate = parseFloat(document.getElementById('tr-imp-rate').value) || 0;
+        const totalDueInMain = qty * rate;
+        const balInMain = totalDueInMain - totalInMainCurr;
+
+        let balUSD = 0, balAED = 0;
+        if (mainCurr === 'USD') {
+            balUSD = balInMain;
+            balAED = balUSD * univRate;
+        } else {
+            balAED = balInMain;
+            balUSD = balAED / univRate;
+        }
+
+        const balEl = document.getElementById('tr-pay-balance-dual');
+        balEl.innerHTML = `
+            <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
+            <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
+        `;
+        isFullyPaid = (balInMain <= 0.05 && totalDueInMain > 0);
     }
 
-    const balEl = document.getElementById('tr-pay-balance-dual');
-    balEl.innerHTML = `
-        <span style="color:${balUSD > 0.05 ? 'var(--red)' : 'var(--green)'}">Bal: USD ${balUSD > 0 ? balUSD.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
-        <span style="color:var(--muted); font-size:9px;">Bal: AED ${balAED > 0 ? balAED.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</span>
-    `;
-
-    if (balInMain <= 0.05 && totalDueInMain > 0) {
+    if (isFullyPaid) {
         document.getElementById('tr-payment-status').style.display = 'block';
     } else {
         document.getElementById('tr-payment-status').style.display = 'none';

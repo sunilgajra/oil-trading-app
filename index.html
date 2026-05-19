@@ -286,7 +286,7 @@
                     <tr style="border-bottom:1px solid var(--border); font-size:11px; color:var(--muted);">
                         <th style="padding:10px; text-align:left;">Date</th>
                         <th style="padding:10px; text-align:left;">Amount (INR)</th>
-                        <th style="padding:10px; text-align:left;">Ex. Rate</th>
+                        <th class="tr-pay-exrate-cell" style="padding:10px; text-align:left;">Ex. Rate</th>
                         <th style="padding:10px; text-align:left;">Bank Chg (₹)</th>
                         <th style="padding:10px; text-align:left;">Type</th>
                         <th style="padding:10px; text-align:left;">Remarks / Ref</th>
@@ -297,9 +297,9 @@
                 <tfoot>
                     <tr style="background:rgba(0,0,0,0.2); font-weight:bold; font-size:12px;">
                         <td colspan="2" style="padding:10px; text-align:right; color:var(--muted);">
-                            USD/AED Rate: <input id="tr-pay-univ-rate" type="number" step="0.0001" value="3.6725" style="width:70px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;" oninput="updatePaymentSummary()">
+                            <span id="tr-pay-univ-rate-container">USD/AED Rate: <input id="tr-pay-univ-rate" type="number" step="0.0001" value="3.6725" style="width:70px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text); padding:2px 5px; border-radius:4px;" oninput="updatePaymentSummary()"></span>
                         </td>
-                        <td colspan="1" style="padding:10px; text-align:right; color:var(--muted);">Paid:</td>
+                        <td id="tr-pay-td-exrate-col" class="tr-pay-exrate-cell" colspan="1" style="padding:10px; text-align:right; color:var(--muted);">Paid:</td>
                         <td colspan="1" style="padding:10px;"><div id="tr-pay-total-dual" style="display:flex; flex-direction:column; gap:2px; font-size:10px;"><span>USD 0.00</span><span>AED 0.00</span></div></td>
                         <td colspan="1" style="padding:10px; color:var(--gold);">
                             <div style="display:flex; flex-direction:column; gap:2px; font-size:10px;">

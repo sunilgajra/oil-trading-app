@@ -82,7 +82,8 @@ function syncSupplierPaymentToTally(rowId) {
         return toast('Please enter a payment amount', true);
     }
 
-    const party = document.getElementById('tr-party-select').value || document.getElementById('tr-party-input').value || 'Supplier Ledger';
+    const partyVal = (document.getElementById('tr-party-select') && document.getElementById('tr-party-select').value) || (document.getElementById('tr-party') && document.getElementById('tr-party').value) || 'Supplier Ledger';
+    const party = partyVal;
     const tradeId = editingTradeId || 'Draft';
     const narration = `Supplier Payment OUT - TR-${tradeId}. Remarks: ${remarks}`;
 
@@ -121,7 +122,8 @@ function syncBuyerPaymentToTally(rowId) {
         return toast('Please enter a receipt amount', true);
     }
 
-    const party = document.getElementById('tr-party-select').value || document.getElementById('tr-party-input').value || 'Buyer Ledger';
+    const partyVal = (document.getElementById('tr-party-select') && document.getElementById('tr-party-select').value) || (document.getElementById('tr-party') && document.getElementById('tr-party').value) || 'Buyer Ledger';
+    const party = partyVal;
     const tradeId = editingTradeId || 'Draft';
     const narration = `Buyer Receipt IN - TR-${tradeId}. Remarks: ${remarks}`;
 
