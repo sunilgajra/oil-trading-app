@@ -4439,13 +4439,13 @@ function renderYardDashboard() {
                         <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
                             <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:${color}44;"></div>
                             <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
-                                <div style="font-size:16px; font-weight:bold;">${fmtN(currentL.toFixed(0))} L</div>
-                                <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(0))} KG</div>
+                                <div style="font-size:16px; font-weight:bold; color:var(--text);">${fmtN((currentL * 0.850).toFixed(0))} KG</div>
+                                <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850 / 1000).toFixed(2))} MTON</div>
                             </div>
                         </div>
                         <div style="font-size:10px; margin-top:8px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;">
                             <span style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; font-weight:bold; color:var(--gold2);">${mainProd}</span>
-                            <span>Max: ${fmtN(tank.capacity)} L</span>
+                            <span>Max: ${fmtN((tank.capacity * 0.85).toFixed(0))} KG | ${fmtN((tank.capacity * 0.85 / 1000).toFixed(1))} MTON</span>
                         </div>
                     </div>
                 `;
@@ -4475,13 +4475,13 @@ function renderYardDashboard() {
                         <div style="background:rgba(255,255,255,0.05); height:80px; position:relative; border-radius:4px; overflow:hidden; border:1px solid var(--border);">
                             <div style="position:absolute; bottom:0; width:100%; height:${pct}%; background:rgba(20, 184, 166, 0.15);"></div>
                             <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px;">
-                                <div style="font-size:16px; font-weight:bold; color:var(--text);">${fmtN(currentL.toFixed(0))} L</div>
-                                <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850).toFixed(0))} KG</div>
+                                <div style="font-size:16px; font-weight:bold; color:var(--text);">${fmtN((currentL * 0.850).toFixed(0))} KG</div>
+                                <div style="font-size:12px; font-weight:bold; color:var(--teal);">${fmtN((currentL * 0.850 / 1000).toFixed(2))} MTON</div>
                             </div>
                         </div>
                         <div style="font-size:10px; margin-top:8px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;">
                             <span style="background:rgba(20, 184, 166, 0.1); padding:2px 6px; border-radius:4px; font-weight:bold; color:var(--teal);">${mainProd}</span>
-                            <span>Max: ${fmtN(tank.capacity)} L</span>
+                            <span>Max: ${fmtN((tank.capacity * 0.85).toFixed(0))} KG | ${fmtN((tank.capacity * 0.85 / 1000).toFixed(1))} MTON</span>
                         </div>
                     </div>
                 `;
@@ -4506,14 +4506,18 @@ function renderTankManager() {
             const products = [...new Set(relevant.filter(i => i.vol > 0).map(i => i.product))];
             const mainProd = products.length > 0 ? products[0] : 'EMPTY';
             const typeLabel = t.type === 'Mobile' ? '<span class="badge badge-teal">Mobile / ISO</span>' : '<span class="badge badge-gold">Static Tank</span>';
-            const stockText = currentL > 0 ? `${mainProd}: ${fmtN(currentL.toFixed(0))} L` : '<span style="color:var(--muted)">Empty</span>';
+            const capKg = t.capacity * 0.85;
+            const capMton = capKg / 1000;
+            const currentKg = currentL * 0.85;
+            const currentMton = currentKg / 1000;
+            const stockText = currentL > 0 ? `${mainProd}: ${fmtN(currentKg.toFixed(0))} KG (${fmtN(currentMton.toFixed(1))} MTON)` : '<span style="color:var(--muted)">Empty</span>';
 
             return `
                 <tr>
                     <td class="mono">${t.id}</td>
                     <td style="font-weight:bold;">${escH(t.name)}</td>
                     <td>${typeLabel}</td>
-                    <td class="mono">${fmtN(t.capacity)} L</td>
+                    <td class="mono">${fmtN(capKg.toFixed(0))} KG | ${fmtN(capMton.toFixed(1))} MTON</td>
                     <td>${stockText}</td>
                     <td><button class="btn btn-sm btn-ghost" onclick="deleteTank('${t.id}')" style="color:var(--red)">&#x2715;</button></td>
                 </tr>
@@ -4524,12 +4528,19 @@ function renderTankManager() {
     const locSelect = document.getElementById('tr-storage-loc');
     const srcSelect = document.getElementById('tr-source-loc');
     if (locSelect) {
+        let density = 0.850;
+        const trDensityEl = document.getElementById('tr-density');
+        if (trDensityEl && trDensityEl.value) {
+            density = parseFloat(trDensityEl.value) || 0.850;
+        }
         let html = '<option value="">-- Direct Sale / Other --</option>';
         const yards = [...new Set((state.tanks || []).map(t => t.location).filter(Boolean))];
         yards.forEach(y => {
             html += `<optgroup label="${escH(y)}">`;
             (state.tanks || []).filter(t => t.location === y).forEach(t => {
-                html += `<option value="${t.id}">${escH(t.name)} (${fmtN(t.capacity)} L)</option>`;
+                const cKg = t.capacity * density;
+                const cMton = cKg / 1000;
+                html += `<option value="${t.id}">${escH(t.name)} (${fmtN(cKg.toFixed(0))} KG | ${fmtN(cMton.toFixed(1))} MTON)</option>`;
             });
             html += `</optgroup>`;
         });
@@ -4539,12 +4550,21 @@ function renderTankManager() {
 
     const transferSelect = document.getElementById('mty-tank-id');
     if (transferSelect) {
+        let density = 0.850;
+        if (typeof currentMtyTradeId !== 'undefined' && currentMtyTradeId) {
+            const mtyTrade = (state.trades || []).find(x => x.id === currentMtyTradeId);
+            if (mtyTrade) {
+                density = parseFloat(mtyTrade.density) || 0.850;
+            }
+        }
         let html = '';
         const yards = [...new Set((state.tanks || []).filter(t => t.type === 'Static').map(t => t.location).filter(Boolean))];
         yards.forEach(y => {
             html += `<optgroup label="${escH(y)}">`;
             (state.tanks || []).filter(t => t.type === 'Static' && t.location === y).forEach(t => {
-                html += `<option value="${t.id}">${escH(t.name)} (${fmtN(t.capacity)} L)</option>`;
+                const cKg = t.capacity * density;
+                const cMton = cKg / 1000;
+                html += `<option value="${t.id}">${escH(t.name)} (${fmtN(cKg.toFixed(0))} KG | ${fmtN(cMton.toFixed(1))} MTON)</option>`;
             });
             html += `</optgroup>`;
         });
